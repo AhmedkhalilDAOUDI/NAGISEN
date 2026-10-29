@@ -330,6 +330,8 @@ final class NutritionStore: ObservableObject {
     /// Price per food, keyed by the food's lowercased name. Kept separate from the food itself so
     /// changing a price never rewrites past entries.
     @Published var foodPrices: [String: FoodPrice] = [:] { didSet { persist("foodPrices", foodPrices) } }
+    /// The foods the person chose to price. The cost list starts empty and only holds what was added.
+    @Published var costFoods: [Food] = [] { didSet { persist("costFoods", costFoods) } }
     @Published var appearance = AppearanceMode.system { didSet { persist("appearance", appearance) } }
     @Published var creatineTakenDays: Set<String> = [] { didSet { persist("creatineTakenDays", creatineTakenDays) } }
     @Published var completedLoggingDays: Set<String> = [] { didSet { persist("completedLoggingDays", completedLoggingDays) } }
@@ -363,6 +365,7 @@ final class NutritionStore: ObservableObject {
         var caffeineHalfLifeHours: Double?
         var caffeineBedtimeHour: Int?
         var foodPrices: [String: FoodPrice]?
+        var costFoods: [Food]?
         var appearance: AppearanceMode?
         var creatineTakenDays: Set<String>?
         var completedLoggingDays: Set<String>?
@@ -406,6 +409,7 @@ final class NutritionStore: ObservableObject {
             caffeineHalfLifeHours = vault?.read("caffeineHalfLifeHours") ?? CaffeineMath.defaultHalfLifeHours
             caffeineBedtimeHour = vault?.read("caffeineBedtimeHour") ?? 23
             foodPrices = vault?.read("foodPrices") ?? [:]
+            costFoods = vault?.read("costFoods") ?? []
             appearance = vault?.read("appearance") ?? .system
             creatineTakenDays = vault?.read("creatineTakenDays") ?? []
             completedLoggingDays = vault?.read("completedLoggingDays") ?? []
@@ -444,6 +448,7 @@ final class NutritionStore: ObservableObject {
         caffeineHalfLifeHours = saved.caffeineHalfLifeHours ?? CaffeineMath.defaultHalfLifeHours
         caffeineBedtimeHour = saved.caffeineBedtimeHour ?? 23
         foodPrices = saved.foodPrices ?? [:]
+        costFoods = saved.costFoods ?? []
         appearance = saved.appearance ?? .system
         creatineTakenDays = saved.creatineTakenDays ?? []
         completedLoggingDays = saved.completedLoggingDays ?? []
@@ -485,6 +490,7 @@ final class NutritionStore: ObservableObject {
             vault.write("caffeineHalfLifeHours", value: caffeineHalfLifeHours) &&
             vault.write("caffeineBedtimeHour", value: caffeineBedtimeHour) &&
             vault.write("foodPrices", value: foodPrices) &&
+            vault.write("costFoods", value: costFoods) &&
             vault.write("appearance", value: appearance) &&
             vault.write("creatineTakenDays", value: creatineTakenDays) &&
             vault.write("completedLoggingDays", value: completedLoggingDays) &&
@@ -515,6 +521,7 @@ final class NutritionStore: ObservableObject {
                               caffeineHalfLifeHours: caffeineHalfLifeHours,
                               caffeineBedtimeHour: caffeineBedtimeHour,
                               foodPrices: foodPrices,
+                              costFoods: costFoods,
                               appearance: appearance,
                               creatineTakenDays: creatineTakenDays,
                               completedLoggingDays: completedLoggingDays, workouts: workouts,
@@ -624,6 +631,7 @@ final class NutritionStore: ObservableObject {
                               caffeineHalfLifeHours: caffeineHalfLifeHours,
                               caffeineBedtimeHour: caffeineBedtimeHour,
                               foodPrices: foodPrices,
+                              costFoods: costFoods,
                               appearance: appearance,
                               creatineTakenDays: creatineTakenDays,
                               completedLoggingDays: completedLoggingDays, workouts: workouts,
@@ -647,7 +655,7 @@ final class NutritionStore: ObservableObject {
     private static let knownBackupKeys: Set<String> = [
         "entries", "customFoods", "goals", "profile", "dietPreferences", "weights",
         "waterEntries", "waterGoalML", "caffeineEntries", "caffeineHalfLifeHours",
-        "caffeineBedtimeHour", "foodPrices", "appearance", "creatineTakenDays",
+        "caffeineBedtimeHour", "foodPrices", "costFoods", "appearance", "creatineTakenDays",
         "completedLoggingDays", "workouts", "strengthRecords", "challengePlans",
         "questSeenIDs", "trophyNames", "goalAdjustments", "weekdayGoals", "foodsToAvoid",
         "savedRecipes", "groceryStock", "groceryPlan", "legacyStreak",
@@ -734,6 +742,7 @@ final class NutritionStore: ObservableObject {
         caffeineHalfLifeHours = saved.caffeineHalfLifeHours ?? CaffeineMath.defaultHalfLifeHours
         caffeineBedtimeHour = saved.caffeineBedtimeHour ?? 23
         foodPrices = saved.foodPrices ?? [:]
+        costFoods = saved.costFoods ?? []
         appearance = saved.appearance ?? .system
         creatineTakenDays = saved.creatineTakenDays ?? []
         completedLoggingDays = saved.completedLoggingDays ?? []
@@ -872,6 +881,17 @@ final class NutritionStore: ObservableObject {
         } else {
             foodPrices[key] = price
         }
+    }
+
+    func addCostFood(_ food: Food) {
+        let key = FoodCost.key(for: food)
+        guard !costFoods.contains(where: { FoodCost.key(for: $0) == key }) else { return }
+        costFoods.append(food)
+    }
+
+    func removeCostFood(_ food: Food) {
+        let key = FoodCost.key(for: food)
+        costFoods.removeAll { FoodCost.key(for: $0) == key }
     }
 
     func cost(on date: Date) -> Double {
