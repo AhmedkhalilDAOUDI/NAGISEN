@@ -202,7 +202,7 @@ final class BackupCompatibilityTests: XCTestCase {
         let migrated = record.migratedToCurrentVersion
         XCTAssertEqual(migrated.lastConfirmedDayKey, "2026-10-28")
         XCTAssertEqual(migrated.count, 1563, "the achievement keeps every day it had")
-        XCTAssertEqual(migrated.migrationVersion, 2)
+        XCTAssertEqual(migrated.migrationVersion, 3)
         XCTAssertEqual(migrated.migratedToCurrentVersion, migrated, "migration is idempotent")
     }
 
@@ -251,6 +251,33 @@ final class BackupCompatibilityTests: XCTestCase {
         XCTAssertEqual(store.streakSnapshot(asOf: Date()).activeStreak, 1564)
     }
 
+    func testLoggingFoodCountsTheDayWithoutATick() throws {
+        let anchor = yesterdayKey()
+        XCTAssertTrue(store.applyLegacyStreak(
+            LegacyStreak(source: "Lose It!", count: 1563, lastConfirmedDayKey: anchor,
+                         timeZoneIdentifier: "Africa/Casablanca")))
+        XCTAssertEqual(store.streakSnapshot(asOf: Date()).activeStreak, 1563)
+
+        let food = try XCTUnwrap(store.allFoods.first)
+        store.entries.append(DiaryEntry(food: food, meal: .dinner, servings: 1, date: Date()))
+
+        XCTAssertEqual(store.streakSnapshot(asOf: Date()).activeStreak, 1564,
+                       "logging food is enough to keep the streak alive, like Lose It!")
+        XCTAssertFalse(store.isLoggingComplete(on: Date()), "the manual tick stays off")
+    }
+
+    func testDeletingTheOnlyFoodTakesTheDayBack() throws {
+        XCTAssertTrue(store.applyLegacyStreak(
+            LegacyStreak(source: "Lose It!", count: 1563, lastConfirmedDayKey: yesterdayKey(),
+                         timeZoneIdentifier: "Africa/Casablanca")))
+        let food = try XCTUnwrap(store.allFoods.first)
+        store.entries.append(DiaryEntry(food: food, meal: .lunch, servings: 1, date: Date()))
+        XCTAssertEqual(store.streakSnapshot(asOf: Date()).activeStreak, 1564)
+
+        store.entries.removeAll()
+        XCTAssertEqual(store.streakSnapshot(asOf: Date()).activeStreak, 1563)
+    }
+
     func testMigratedRecordSurvivesAReinstallRestore() {
         let record = LegacyStreak(source: "Lose It!", count: 1563,
                                   lastConfirmedDayKey: "2026-10-29",
@@ -261,7 +288,9 @@ final class BackupCompatibilityTests: XCTestCase {
         let reopened = NutritionStore()
         XCTAssertTrue(reopened.restoreJSON(exported))
         XCTAssertEqual(reopened.legacyStreak?.lastConfirmedDayKey, "2026-10-28")
-        XCTAssertEqual(reopened.legacyStreak?.migrationVersion, 2)
+        XCTAssertEqual(reopened.legacyStreak?.migrationVersion, 3)
+        XCTAssertEqual(reopened.completedLoggingDays.count, 1563,
+                       "every achievement day survives the restore as a real mark")
         XCTAssertEqual(reopened.legacyStreak?.count, 1563)
     }
 }
