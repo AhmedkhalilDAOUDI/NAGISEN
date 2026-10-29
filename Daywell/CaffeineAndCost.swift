@@ -20,14 +20,9 @@ struct CaffeineDrink: Identifiable, Hashable {
     let symbol: String
 
     static let presets: [CaffeineDrink] = [
-        CaffeineDrink(name: "Espresso", milligrams: 63, symbol: "cup.and.saucer.fill"),
-        CaffeineDrink(name: "Coffee", milligrams: 95, symbol: "cup.and.saucer.fill"),
-        CaffeineDrink(name: "Nescafé", milligrams: 65, symbol: "mug.fill"),
         CaffeineDrink(name: "Atay", milligrams: 32, symbol: "leaf.fill"),
-        CaffeineDrink(name: "Green tea", milligrams: 28, symbol: "leaf.fill"),
-        CaffeineDrink(name: "Red Bull", milligrams: 80, symbol: "bolt.fill"),
-        CaffeineDrink(name: "Cola 330 ml", milligrams: 34, symbol: "cup.and.saucer.fill"),
-        CaffeineDrink(name: "Energy shot", milligrams: 100, symbol: "bolt.fill")
+        CaffeineDrink(name: "Espresso", milligrams: 63, symbol: "cup.and.saucer.fill"),
+        CaffeineDrink(name: "Monster Ultra", milligrams: 150, symbol: "bolt.fill")
     ]
 }
 
