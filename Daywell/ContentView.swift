@@ -553,7 +553,7 @@ private struct CalendarLogView: View {
                             }
                         }
                         HStack {
-                            Text("Rings show calorie goal progress. Checks mark days with food logs.")
+                            Text("Rings show calorie goal progress. Checks mark finished days.")
                                 .font(.caption).foregroundStyle(Theme.muted)
                             Spacer()
                             Button("Today") {
@@ -633,6 +633,9 @@ private struct CalendarDayCell: View {
         let eaten = store.totals(on: day).calories
         let available = store.goals(on: day).calories
         let hasLogs = !store.entries(on: day).isEmpty
+        // A tick means the day is finished, which is what the streak counts — not merely that
+        // food was entered. Migrated days carry the tick with no food, and they belong here too.
+        let finished = store.isLoggingComplete(on: day)
         let progress = min(CGFloat(eaten) / CGFloat(max(available, 1)), 1)
         let overage = CalorieBalanceStyle.overage(eaten, goal: available)
         VStack(spacing: 4) {
@@ -652,10 +655,14 @@ private struct CalendarDayCell: View {
                         .rotationEffect(.degrees(-90))
                         .padding(6)
                 }
-                if hasLogs {
-                    Image(systemName: overage > 0 ? "plus" : "checkmark")
+                if overage > 0 {
+                    Image(systemName: "plus")
                         .font(.caption2.weight(.bold))
-                        .foregroundStyle(overage > 0 ? CalorieBalanceStyle.color(eaten, goal: available) : Theme.accentText)
+                        .foregroundStyle(CalorieBalanceStyle.color(eaten, goal: available))
+                } else if finished {
+                    Image(systemName: "checkmark")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(Theme.accentText)
                 }
             }
             .frame(width: 36, height: 36)
@@ -664,7 +671,7 @@ private struct CalendarDayCell: View {
         .frame(height: 65)
         .overlay(RoundedRectangle(cornerRadius: 10).stroke(selected ? Theme.accent : .clear, lineWidth: 1.5))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(day.formatted(date: .abbreviated, time: .omitted)), \(eaten) calories\(overage > 0 ? ", \(overage) calories over goal" : (hasLogs ? ", logged" : ""))")
+        .accessibilityLabel("\(day.formatted(date: .abbreviated, time: .omitted)), \(eaten) calories\(overage > 0 ? ", \(overage) calories over goal" : (finished ? ", finished logging" : (hasLogs ? ", food logged" : "")))")
     }
 }
 
@@ -1274,6 +1281,14 @@ private struct DiaryView: View {
             .background(NagisenBackdrop())
             .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showingCalendar) { CalendarLogView(date: $date) }
+            #if DEBUG
+            .onAppear {
+                // Test-only: opens the month view so the marks can be captured.
+                if ProcessInfo.processInfo.arguments.contains("-NAGISENOpenCalendar") {
+                    showingCalendar = true
+                }
+            }
+            #endif
             .sheet(isPresented: $showingQuickAdd) { NavigationStack { QuickAddView(date: date) } }
             .confirmationDialog("Copy yesterday's food?", isPresented: $showingCopyConfirmation) {
                 Button("Add \(store.entries(on: previousDay).count) foods") {
