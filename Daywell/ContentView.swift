@@ -353,6 +353,10 @@ private struct HomeView: View {
                     .background(Theme.surface.opacity(0.52))
                     CreatineCard(date: date)
                         .padding(.horizontal, 18)
+                    CaffeineCard(date: date)
+                        .padding(.horizontal, 18)
+                    CostCard(date: date)
+                        .padding(.horizontal, 18)
                     HStack {
                         Text("Meals").font(.system(size: 25, design: .serif))
                         Spacer()

@@ -324,6 +324,12 @@ final class NutritionStore: ObservableObject {
     @Published var weights: [WeightEntry] = [] { didSet { persist("weights", weights) } }
     @Published var waterEntries: [WaterEntry] = [] { didSet { persist("waterEntries", waterEntries) } }
     @Published var waterGoalML = 2500 { didSet { persist("waterGoalML", waterGoalML) } }
+    @Published var caffeineEntries: [CaffeineEntry] = [] { didSet { persist("caffeineEntries", caffeineEntries) } }
+    @Published var caffeineHalfLifeHours = CaffeineMath.defaultHalfLifeHours { didSet { persist("caffeineHalfLifeHours", caffeineHalfLifeHours) } }
+    @Published var caffeineBedtimeHour = 23 { didSet { persist("caffeineBedtimeHour", caffeineBedtimeHour) } }
+    /// Price per food, keyed by the food's lowercased name. Kept separate from the food itself so
+    /// changing a price never rewrites past entries.
+    @Published var foodPrices: [String: FoodPrice] = [:] { didSet { persist("foodPrices", foodPrices) } }
     @Published var appearance = AppearanceMode.system { didSet { persist("appearance", appearance) } }
     @Published var creatineTakenDays: Set<String> = [] { didSet { persist("creatineTakenDays", creatineTakenDays) } }
     @Published var completedLoggingDays: Set<String> = [] { didSet { persist("completedLoggingDays", completedLoggingDays) } }
@@ -353,6 +359,10 @@ final class NutritionStore: ObservableObject {
         var weights: [WeightEntry]?
         var waterEntries: [WaterEntry]?
         var waterGoalML: Int?
+        var caffeineEntries: [CaffeineEntry]?
+        var caffeineHalfLifeHours: Double?
+        var caffeineBedtimeHour: Int?
+        var foodPrices: [String: FoodPrice]?
         var appearance: AppearanceMode?
         var creatineTakenDays: Set<String>?
         var completedLoggingDays: Set<String>?
@@ -392,6 +402,10 @@ final class NutritionStore: ObservableObject {
             weights = vault?.read("weights") ?? []
             waterEntries = vault?.read("waterEntries") ?? []
             waterGoalML = vault?.read("waterGoalML") ?? 2500
+            caffeineEntries = vault?.read("caffeineEntries") ?? []
+            caffeineHalfLifeHours = vault?.read("caffeineHalfLifeHours") ?? CaffeineMath.defaultHalfLifeHours
+            caffeineBedtimeHour = vault?.read("caffeineBedtimeHour") ?? 23
+            foodPrices = vault?.read("foodPrices") ?? [:]
             appearance = vault?.read("appearance") ?? .system
             creatineTakenDays = vault?.read("creatineTakenDays") ?? []
             completedLoggingDays = vault?.read("completedLoggingDays") ?? []
@@ -426,6 +440,10 @@ final class NutritionStore: ObservableObject {
         weights = saved.weights ?? []
         waterEntries = saved.waterEntries ?? []
         waterGoalML = saved.waterGoalML ?? 2500
+        caffeineEntries = saved.caffeineEntries ?? []
+        caffeineHalfLifeHours = saved.caffeineHalfLifeHours ?? CaffeineMath.defaultHalfLifeHours
+        caffeineBedtimeHour = saved.caffeineBedtimeHour ?? 23
+        foodPrices = saved.foodPrices ?? [:]
         appearance = saved.appearance ?? .system
         creatineTakenDays = saved.creatineTakenDays ?? []
         completedLoggingDays = saved.completedLoggingDays ?? []
@@ -463,6 +481,10 @@ final class NutritionStore: ObservableObject {
             vault.write("weights", value: weights) &&
             vault.write("waterEntries", value: waterEntries) &&
             vault.write("waterGoalML", value: waterGoalML) &&
+            vault.write("caffeineEntries", value: caffeineEntries) &&
+            vault.write("caffeineHalfLifeHours", value: caffeineHalfLifeHours) &&
+            vault.write("caffeineBedtimeHour", value: caffeineBedtimeHour) &&
+            vault.write("foodPrices", value: foodPrices) &&
             vault.write("appearance", value: appearance) &&
             vault.write("creatineTakenDays", value: creatineTakenDays) &&
             vault.write("completedLoggingDays", value: completedLoggingDays) &&
@@ -488,7 +510,12 @@ final class NutritionStore: ObservableObject {
         let saved = SavedData(entries: entries, customFoods: customFoods, goals: goals,
                               profile: profile, dietPreferences: dietPreferences,
                               weights: weights, waterEntries: waterEntries,
-                              waterGoalML: waterGoalML, appearance: appearance,
+                              waterGoalML: waterGoalML,
+                              caffeineEntries: caffeineEntries,
+                              caffeineHalfLifeHours: caffeineHalfLifeHours,
+                              caffeineBedtimeHour: caffeineBedtimeHour,
+                              foodPrices: foodPrices,
+                              appearance: appearance,
                               creatineTakenDays: creatineTakenDays,
                               completedLoggingDays: completedLoggingDays, workouts: workouts,
                               strengthRecords: strengthRecords,
@@ -592,7 +619,12 @@ final class NutritionStore: ObservableObject {
         let saved = SavedData(entries: entries, customFoods: customFoods, goals: goals,
                               profile: profile, dietPreferences: dietPreferences,
                               weights: weights, waterEntries: waterEntries,
-                              waterGoalML: waterGoalML, appearance: appearance,
+                              waterGoalML: waterGoalML,
+                              caffeineEntries: caffeineEntries,
+                              caffeineHalfLifeHours: caffeineHalfLifeHours,
+                              caffeineBedtimeHour: caffeineBedtimeHour,
+                              foodPrices: foodPrices,
+                              appearance: appearance,
                               creatineTakenDays: creatineTakenDays,
                               completedLoggingDays: completedLoggingDays, workouts: workouts,
                               strengthRecords: strengthRecords,
@@ -614,7 +646,8 @@ final class NutritionStore: ObservableObject {
     /// written back out, so a backup made by a newer build survives a round trip here.
     private static let knownBackupKeys: Set<String> = [
         "entries", "customFoods", "goals", "profile", "dietPreferences", "weights",
-        "waterEntries", "waterGoalML", "appearance", "creatineTakenDays",
+        "waterEntries", "waterGoalML", "caffeineEntries", "caffeineHalfLifeHours",
+        "caffeineBedtimeHour", "foodPrices", "appearance", "creatineTakenDays",
         "completedLoggingDays", "workouts", "strengthRecords", "challengePlans",
         "questSeenIDs", "trophyNames", "goalAdjustments", "weekdayGoals", "foodsToAvoid",
         "savedRecipes", "groceryStock", "groceryPlan", "legacyStreak",
@@ -697,6 +730,10 @@ final class NutritionStore: ObservableObject {
         weights = saved.weights ?? []
         waterEntries = saved.waterEntries ?? []
         waterGoalML = saved.waterGoalML ?? 2500
+        caffeineEntries = saved.caffeineEntries ?? []
+        caffeineHalfLifeHours = saved.caffeineHalfLifeHours ?? CaffeineMath.defaultHalfLifeHours
+        caffeineBedtimeHour = saved.caffeineBedtimeHour ?? 23
+        foodPrices = saved.foodPrices ?? [:]
         appearance = saved.appearance ?? .system
         creatineTakenDays = saved.creatineTakenDays ?? []
         completedLoggingDays = saved.completedLoggingDays ?? []
@@ -790,6 +827,73 @@ final class NutritionStore: ObservableObject {
 
     func deleteWater(_ entry: WaterEntry) {
         waterEntries.removeAll { $0.id == entry.id }
+    }
+
+    // MARK: - Caffeine
+
+    func addCaffeine(milligrams: Int, name: String, at date: Date = .now) {
+        guard milligrams > 0 else { return }
+        caffeineEntries.append(CaffeineEntry(date: date, milligrams: milligrams, name: name))
+    }
+
+    func addCaffeine(_ drink: CaffeineDrink, at date: Date = .now) {
+        addCaffeine(milligrams: drink.milligrams, name: drink.name, at: date)
+    }
+
+    func deleteCaffeine(_ entry: CaffeineEntry) {
+        caffeineEntries.removeAll { $0.id == entry.id }
+    }
+
+    func caffeineTotal(on date: Date) -> Int {
+        CaffeineMath.total(entries: caffeineEntries, on: date)
+    }
+
+    func caffeineEntries(on date: Date) -> [CaffeineEntry] {
+        CaffeineMath.entries(entries: caffeineEntries, on: date)
+    }
+
+    func caffeineLevel(at time: Date = .now) -> Double {
+        CaffeineMath.level(entries: caffeineEntries, at: time, halfLife: caffeineHalfLifeHours)
+    }
+
+    func caffeineAtBedtime(on date: Date = .now) -> (time: Date, level: Double) {
+        let time = CaffeineMath.cutoff(hour: caffeineBedtimeHour, on: date)
+        return (time, caffeineLevel(at: time))
+    }
+
+    // MARK: - Cost
+
+    func price(for food: Food) -> FoodPrice? { foodPrices[FoodCost.key(for: food)] }
+
+    func setPrice(_ price: FoodPrice, for food: Food) {
+        let key = FoodCost.key(for: food)
+        if price.isEmpty {
+            foodPrices.removeValue(forKey: key)
+        } else {
+            foodPrices[key] = price
+        }
+    }
+
+    func cost(on date: Date) -> Double {
+        FoodCost.dayCost(entries: entries, prices: foodPrices, on: date)
+    }
+
+    func proteinCost(on date: Date) -> Double? {
+        FoodCost.costPerGramOfProtein(entries: entries, prices: foodPrices, on: date)
+    }
+
+    /// Recently eaten foods that still have no price, newest first, so pricing stays a short list.
+    func unpricedFoods(limit: Int = 40) -> [Food] {
+        var seen: Set<String> = []
+        var result: [Food] = []
+        for entry in entries.sorted(by: { $0.date > $1.date }) {
+            let key = FoodCost.key(for: entry.food)
+            guard !seen.contains(key) else { continue }
+            seen.insert(key)
+            if price(for: entry.food) == nil { result.append(entry.food) }
+            if result.count >= limit { break }
+        }
+        return result
     }
 
     func dayKey(_ date: Date) -> String {
