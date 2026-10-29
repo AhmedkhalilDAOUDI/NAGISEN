@@ -1,7 +1,7 @@
 <img width="724" height="134" alt="Screenshot 2026-10-29 at 9 20 40 PM" src="https://github.com/user-attachments/assets/cd25e352-d287-4023-bc23-8a14333c1597" />
 
 
-# NAGISEN
+                  # NAGISEN
 *Progress in stillness.*
 
 **Your life, in balance. Your progress, in motion.**
