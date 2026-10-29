@@ -671,6 +671,7 @@ private struct CalendarDayCell: View {
 private struct CalorieCard: View {
     @EnvironmentObject private var store: NutritionStore
     let date: Date
+    @State private var showingStreakAudit = false
 
     var body: some View {
         let eaten = store.totals(on: date).calories
@@ -736,9 +737,15 @@ private struct CalorieCard: View {
             Rectangle().fill(Theme.line).frame(height: 1)
             VStack(alignment: .leading, spacing: 12) {
                 let streak = store.streakSnapshot(asOf: date)
-                Text("\(streak.activeStreak.formatted(.number.grouping(.automatic)))-day streak")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(Theme.ink)
+                HStack(alignment: .firstTextBaseline) {
+                    Text("\(streak.activeStreak.formatted(.number.grouping(.automatic)))-day streak")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(Theme.ink)
+                    Spacer()
+                    Button("Verify") { showingStreakAudit = true }
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Theme.accentText)
+                }
                 Toggle(isOn: Binding(
                     get: { store.isLoggingComplete(on: date) },
                     set: { store.setLoggingComplete($0, on: date) }
@@ -752,6 +759,17 @@ private struct CalorieCard: View {
                 .disabled(Calendar.current.startOfDay(for: date) > Calendar.current.startOfDay(for: .now))
             }
         }
+        .sheet(isPresented: $showingStreakAudit) {
+            StreakAuditView().environmentObject(store)
+        }
+        #if DEBUG
+        .onAppear {
+            // Test-only: lets the audit be captured without tapping through the UI.
+            if ProcessInfo.processInfo.arguments.contains("-NAGISENOpenAudit") {
+                showingStreakAudit = true
+            }
+        }
+        #endif
     }
 }
 
