@@ -21,7 +21,7 @@ struct LegacyStreak: Codable, Equatable {
     var migrationVersion: Int
     var recordedAt: Date
 
-    static let currentMigrationVersion = 1
+    static let currentMigrationVersion = 2
     static let userConfirmed = "user-confirmed"
 
     init(source: String, count: Int, lastConfirmedDayKey: String,
@@ -61,6 +61,20 @@ struct LegacyStreak: Codable, Equatable {
 
     var isWellFormed: Bool {
         count > 0 && StreakEngine.isValidDayKey(lastConfirmedDayKey) && count < 100_000
+    }
+
+    /// v1 stored the achievement ending on the very day it was confirmed, so that day was
+    /// already spent: pressing "Done Logging" could not add anything. From v2 the count ends
+    /// the day before, which makes the confirmation day earnable like any other.
+    var migratedToCurrentVersion: LegacyStreak {
+        guard migrationVersion < LegacyStreak.currentMigrationVersion else { return self }
+        var record = self
+        if let anchor = StreakEngine.date(fromDayKey: lastConfirmedDayKey),
+           let previous = Calendar.current.date(byAdding: .day, value: -1, to: anchor) {
+            record.lastConfirmedDayKey = StreakEngine.dayKey(for: previous)
+        }
+        record.migrationVersion = LegacyStreak.currentMigrationVersion
+        return record
     }
 
     /// First day covered by the achievement (inclusive), derived from the end date and count.
