@@ -98,6 +98,52 @@ final class StreakLedgerTests: XCTestCase {
         XCTAssertEqual(nextDay.activeStreak, 1, "the day after an unfinished day starts over")
     }
 
+    // MARK: - Audit
+
+    func testAuditConfirmsEveryDayOfACleanRun() {
+        let today = day(2026, 10, 29)
+        let marks = Set(self.marks() + ["2026-10-29"])
+        let record = legacy(end: "2026-10-28", version: 3)
+        let audit = StreakAuditor.build(
+            completedDays: marks, legacy: record, today: today, calendar: casablanca,
+            value: { StreakEngine.snapshot(completedDays: marks, legacy: record, viewedDay: $0,
+                                           today: today, calendar: casablanca, recordedLongest: 1563).activeStreak })
+
+        XCTAssertEqual(audit.countedDays, 1564)
+        XCTAssertEqual(audit.rows.count, 1564)
+        XCTAssertTrue(audit.gaps.isEmpty)
+        XCTAssertTrue(audit.driftDays.isEmpty)
+        XCTAssertTrue(audit.isClean)
+        XCTAssertEqual(audit.firstDayKey, "2022-07-19")
+        XCTAssertEqual(audit.lastDayKey, "2026-10-29")
+        XCTAssertEqual(audit.rows.last?.dayNumber, 1564)
+    }
+
+    func testAuditFindsAnUnfinishedDay() {
+        let today = day(2026, 10, 29)
+        let marks = Set(self.marks().filter { $0 != "2026-10-20" } + ["2026-10-29"])
+        let record = legacy(end: "2026-10-28", version: 3)
+        let audit = StreakAuditor.build(
+            completedDays: marks, legacy: record, today: today, calendar: casablanca,
+            value: { StreakEngine.snapshot(completedDays: marks, legacy: record, viewedDay: $0,
+                                           today: today, calendar: casablanca, recordedLongest: 1563).activeStreak })
+
+        XCTAssertEqual(audit.gaps, ["2026-10-20"])
+        XCTAssertTrue(audit.driftDays.isEmpty, "the diary freezes there, so it still agrees")
+        XCTAssertEqual(audit.countedDays, 1563)
+    }
+
+    func testAuditReportsDriftWhenTheNumberDisagrees() {
+        let today = day(2026, 10, 29)
+        let marks = Set(self.marks() + ["2026-10-29"])
+        let audit = StreakAuditor.build(
+            completedDays: marks, legacy: legacy(end: "2026-10-28", version: 3),
+            today: today, calendar: casablanca, value: { _ in 7 })
+
+        XCTAssertFalse(audit.driftDays.isEmpty)
+        XCTAssertFalse(audit.isClean)
+    }
+
     // MARK: - Initialization
 
     func testLegacyInitializationReportsConfirmedCount() {
