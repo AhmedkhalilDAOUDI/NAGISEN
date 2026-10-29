@@ -332,8 +332,7 @@ private struct CostDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showingReceipt = false
     @State private var showingFoodPicker = false
-    /// Foods added by hand, so a food that has not been eaten yet can still be priced.
-    @State private var extraFoods: [Food] = []
+
 
     var body: some View {
         NavigationStack {
@@ -363,9 +362,7 @@ private struct CostDetailView: View {
             }
             .sheet(isPresented: $showingFoodPicker) {
                 PriceFoodPicker { food in
-                    if !extraFoods.contains(where: { FoodCost.key(for: $0) == FoodCost.key(for: food) }) {
-                        extraFoods.append(food)
-                    }
+                    store.addCostFood(food)
                 }
                 .environmentObject(store)
             }
@@ -657,6 +654,16 @@ private struct PriceFoodPicker: View {
             }
             .onChange(of: search) { _, _ in searchOnline() }
             .onDisappear { searchTask?.cancel() }
+            #if DEBUG
+            .task {
+                // Test-only: exercises the pick path without a tap.
+                guard ProcessInfo.processInfo.arguments.contains("-NAGISENAutoPick"),
+                      let first = localMatches.first else { return }
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
+                onPick(first)
+                dismiss()
+            }
+            #endif
         }
     }
 
