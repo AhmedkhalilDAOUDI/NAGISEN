@@ -735,9 +735,19 @@ private struct CalorieCard: View {
             .font(.subheadline.weight(.medium))
             Rectangle().fill(Theme.line).frame(height: 1)
             VStack(alignment: .leading, spacing: 12) {
-                Text("Streak: \(store.loggingStreak(asOf: date)) \(store.loggingStreak(asOf: date) == 1 ? "day" : "days")")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(Theme.ink)
+                let streak = store.streakSnapshot(asOf: date)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("\(streak.activeStreak.formatted(.number.grouping(.automatic)))-day streak")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(Theme.ink)
+                    if let legacy = streak.legacy {
+                        Text(streak.continuesLegacy
+                             ? "Continued from \(legacy.source)"
+                             : "Best \(streak.longestStreak.formatted(.number.grouping(.automatic)))-day streak · \(legacy.source)")
+                            .font(.caption)
+                            .foregroundStyle(Theme.muted)
+                    }
+                }
                 Toggle(isOn: Binding(
                     get: { store.isLoggingComplete(on: date) },
                     set: { store.setLoggingComplete($0, on: date) }

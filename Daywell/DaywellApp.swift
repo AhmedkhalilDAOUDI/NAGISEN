@@ -24,6 +24,9 @@ struct DaywellApp: App {
                 .onAppear {
                     WaterReminders.reconcile()
                     spotify.connectIfAuthorized()
+                    #if DEBUG
+                    DebugMigration.runIfRequested(store: store)
+                    #endif
                 }
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active {
@@ -37,3 +40,26 @@ struct DaywellApp: App {
         }
     }
 }
+
+#if DEBUG
+/// Test-only hook: launching with `-NAGISENImportFile /path/file.json` runs the Lose It!
+/// pipeline at startup so the migration can be verified on a simulator without tapping
+/// through the UI. Never compiled into Release builds.
+private enum DebugMigration {
+    static func runIfRequested(store: NutritionStore) {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard let index = arguments.firstIndex(of: "-NAGISENImportFile"),
+              index + 1 < arguments.count else { return }
+        let url = URL(fileURLWithPath: arguments[index + 1])
+        guard let data = try? Data(contentsOf: url) else {
+            print("NAGISEN DEBUG IMPORT: could not read \(url.path)")
+            return
+        }
+        let plan = LoseItImporter.preview(files: [LoseItSourceFile(name: url.lastPathComponent, data: data)],
+                                          existingEntryFingerprints: store.entryFingerprints,
+                                          existingWeights: store.weights)
+        let outcome = store.importLoseIt(plan)
+        print("NAGISEN DEBUG IMPORT: \(outcome.message)")
+    }
+}
+#endif

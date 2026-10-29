@@ -10,6 +10,7 @@ struct ProfileView: View {
     @State private var pendingRestore: Data?
     @State private var restoreError = false
     @State private var showingAutomaticRestore = false
+    @State private var showingLoseItImport = false
 
     private var latestWeight: WeightEntry? {
         store.weights.max { $0.date < $1.date }
@@ -75,6 +76,15 @@ struct ProfileView: View {
                     }
                     .buttonStyle(.plain)
                     .softCardStyle()
+                    Button { showingLoseItImport = true } label: {
+                        MenuRow(symbol: "arrow.down.doc",
+                                title: "Import from Lose It!",
+                                detail: store.legacyStreak.map {
+                                    "\($0.count.formatted(.number.grouping(.automatic)))-day streak on file"
+                                } ?? "Bring over food history and your streak")
+                    }
+                    .buttonStyle(.plain)
+                    .softCardStyle()
                     if store.latestAutomaticBackup != nil {
                         Button { showingAutomaticRestore = true } label: {
                             MenuRow(symbol: "clock.arrow.circlepath", title: "Recover recent history",
@@ -94,6 +104,10 @@ struct ProfileView: View {
             .toolbar(.hidden, for: .navigationBar)
             .sheet(item: $exportFile) { file in
                 DataShareSheet(url: file.url)
+            }
+            .sheet(isPresented: $showingLoseItImport) {
+                LoseItImportView()
+                    .environmentObject(store)
             }
             .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.json]) { result in
                 guard case .success(let url) = result else { return }
