@@ -90,7 +90,8 @@ final class StreakLedgerTests: XCTestCase {
         let skipped = marks().filter { $0 != "2026-10-20" }
         let notDone = snapshot(completed: skipped, legacy: legacy(end: "2026-10-28", version: 3),
                                viewed: oct20, today: end)
-        XCTAssertEqual(notDone.activeStreak, 0, "an unfinished day has no streak")
+        XCTAssertEqual(notDone.activeStreak, 1554,
+                       "unfinished freezes at the previous day, exactly like Lose It!")
 
         let nextDay = snapshot(completed: skipped, legacy: legacy(end: "2026-10-28", version: 3),
                                viewed: oct21, today: end)

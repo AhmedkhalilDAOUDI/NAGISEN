@@ -213,11 +213,13 @@ enum StreakEngine {
             return result(0, continues: false)
         }
 
-        // Keep an active streak visible during today before logging is finished.
+        // An unfinished day freezes at the number it had the day before, the way Lose It! does:
+        // unticking 20 Oct turns 1,555 into 1,554 rather than wiping the run. Finish the day and
+        // it gains one; the day after an unfinished one starts over at 1.
         var day = viewed
-        if day == todayStart && !completeToday,
-           let yesterday = calendar.date(byAdding: .day, value: -1, to: day) {
-            day = yesterday
+        if !validDays.contains(dayKey(for: viewed, calendar: calendar)),
+           let previous = calendar.date(byAdding: .day, value: -1, to: day) {
+            day = previous
         }
 
         // Migration day: the achievement already covers the anchor. When that anchor is today
