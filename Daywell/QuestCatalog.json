@@ -1,0 +1,900 @@
+{
+  "quests": [
+    {
+      "id": "c01",
+      "category": "cardio",
+      "title": "Lantern Hill",
+      "detail": "18 min treadmill walk: alternate 3 min flat and 3 min at a comfortable incline.",
+      "estimatedMinutes": 18,
+      "symbol": "figure.run"
+    },
+    {
+      "id": "c02",
+      "category": "cardio",
+      "title": "Staircase Static",
+      "detail": "10 min StairMaster at a pace you can hold without gripping the rails.",
+      "estimatedMinutes": 10,
+      "symbol": "figure.run"
+    },
+    {
+      "id": "c03",
+      "category": "cardio",
+      "title": "Koi Current",
+      "detail": "Row 1,500 m at an even pace, then 3 min easy rowing.",
+      "estimatedMinutes": 14,
+      "symbol": "figure.run"
+    },
+    {
+      "id": "c04",
+      "category": "cardio",
+      "title": "Last Train Home",
+      "detail": "Walk briskly for 25 min; make the final 5 min your strongest steady pace.",
+      "estimatedMinutes": 25,
+      "symbol": "figure.run"
+    },
+    {
+      "id": "c05",
+      "category": "cardio",
+      "title": "Pedal Postcard",
+      "detail": "Cycle 20 min, changing resistance every 4 min.",
+      "estimatedMinutes": 20,
+      "symbol": "figure.run"
+    },
+    {
+      "id": "c06",
+      "category": "cardio",
+      "title": "The Scenic Detour",
+      "detail": "Take a 30 min outdoor walk with one new route or hill.",
+      "estimatedMinutes": 30,
+      "symbol": "figure.run"
+    },
+    {
+      "id": "c07",
+      "category": "cardio",
+      "title": "Red Light Rhythm",
+      "detail": "Treadmill: 8 rounds of 1 min brisk and 1 min easy.",
+      "estimatedMinutes": 16,
+      "symbol": "figure.run"
+    },
+    {
+      "id": "c08",
+      "category": "cardio",
+      "title": "Quiet Engine",
+      "detail": "Elliptical for 22 min at a conversational pace.",
+      "estimatedMinutes": 22,
+      "symbol": "figure.run"
+    },
+    {
+      "id": "c09",
+      "category": "cardio",
+      "title": "Riverbank Relay",
+      "detail": "Jog 2 min and walk 2 min, repeated 6 times.",
+      "estimatedMinutes": 24,
+      "symbol": "figure.run"
+    },
+    {
+      "id": "c10",
+      "category": "cardio",
+      "title": "Three Flights Up",
+      "detail": "Climb stairs for 12 min, slowing whenever you need to.",
+      "estimatedMinutes": 12,
+      "symbol": "figure.run"
+    },
+    {
+      "id": "c11",
+      "category": "cardio",
+      "title": "Wind at Your Back",
+      "detail": "Bike: 5 rounds of 2 min steady and 1 min lively.",
+      "estimatedMinutes": 15,
+      "symbol": "figure.run"
+    },
+    {
+      "id": "c12",
+      "category": "cardio",
+      "title": "Morning Platform",
+      "detail": "Walk 2,000 steps outside before your next meal.",
+      "estimatedMinutes": 20,
+      "symbol": "figure.run"
+    },
+    {
+      "id": "c13",
+      "category": "cardio",
+      "title": "Copper Horizon",
+      "detail": "Treadmill incline walk for 15 min at a manageable grade.",
+      "estimatedMinutes": 15,
+      "symbol": "figure.run"
+    },
+    {
+      "id": "c14",
+      "category": "cardio",
+      "title": "Blue Hour Loop",
+      "detail": "Run or walk a relaxed 2 km loop.",
+      "estimatedMinutes": 20,
+      "symbol": "figure.run"
+    },
+    {
+      "id": "c15",
+      "category": "cardio",
+      "title": "The Long Crossing",
+      "detail": "Row 4 rounds of 3 min steady with 1 min easy between.",
+      "estimatedMinutes": 15,
+      "symbol": "figure.run"
+    },
+    {
+      "id": "c16",
+      "category": "cardio",
+      "title": "Second Wind Signal",
+      "detail": "Cycle 12 min easy, then 6 min a little faster.",
+      "estimatedMinutes": 18,
+      "symbol": "figure.run"
+    },
+    {
+      "id": "c17",
+      "category": "cardio",
+      "title": "No Elevator Today",
+      "detail": "Choose stairs for 10 min total across the day.",
+      "estimatedMinutes": 10,
+      "symbol": "figure.run"
+    },
+    {
+      "id": "c18",
+      "category": "cardio",
+      "title": "Harbor Pace",
+      "detail": "Power walk 20 min without checking your phone.",
+      "estimatedMinutes": 20,
+      "symbol": "figure.run"
+    },
+    {
+      "id": "c19",
+      "category": "cardio",
+      "title": "Golden Mile",
+      "detail": "Cover one mile by walking, jogging, or both.",
+      "estimatedMinutes": 20,
+      "symbol": "figure.run"
+    },
+    {
+      "id": "c20",
+      "category": "cardio",
+      "title": "Switchback Story",
+      "detail": "Treadmill: 5 min flat, 5 min incline, 5 min flat, 5 min incline.",
+      "estimatedMinutes": 20,
+      "symbol": "figure.run"
+    },
+    {
+      "id": "c21",
+      "category": "cardio",
+      "title": "Rainproof Route",
+      "detail": "Dance, march, or step indoors for 18 min continuously.",
+      "estimatedMinutes": 18,
+      "symbol": "figure.run"
+    },
+    {
+      "id": "c22",
+      "category": "cardio",
+      "title": "Wheelhouse",
+      "detail": "Stationary bike: 3 rounds of 5 min comfortable plus 1 min harder.",
+      "estimatedMinutes": 18,
+      "symbol": "figure.run"
+    },
+    {
+      "id": "c23",
+      "category": "cardio",
+      "title": "The Easy Finish",
+      "detail": "Do 15 min of very easy cardio after a harder training day.",
+      "estimatedMinutes": 15,
+      "symbol": "figure.run"
+    },
+    {
+      "id": "c24",
+      "category": "cardio",
+      "title": "Sunrise Circuit",
+      "detail": "Walk 10 min, climb stairs 5 min, walk 10 min.",
+      "estimatedMinutes": 25,
+      "symbol": "figure.run"
+    },
+    {
+      "id": "c25",
+      "category": "cardio",
+      "title": "Open Road Ticket",
+      "detail": "Choose any cardio machine and cover 3 km at your own pace.",
+      "estimatedMinutes": 25,
+      "symbol": "figure.run"
+    },
+    {
+      "id": "s01",
+      "category": "strength",
+      "title": "Lateral Ledger",
+      "detail": "3 sets of 12 lateral raises with a weight you can control.",
+      "estimatedMinutes": 10,
+      "symbol": "dumbbell"
+    },
+    {
+      "id": "s02",
+      "category": "strength",
+      "title": "Pull-Up Treaty",
+      "detail": "Accumulate 10 pull-ups; use assistance or added load to suit you.",
+      "estimatedMinutes": 12,
+      "symbol": "dumbbell"
+    },
+    {
+      "id": "s03",
+      "category": "strength",
+      "title": "The Squat Receipt",
+      "detail": "3 sets of 10 goblet squats, resting between sets.",
+      "estimatedMinutes": 12,
+      "symbol": "dumbbell"
+    },
+    {
+      "id": "s04",
+      "category": "strength",
+      "title": "Back Row Radio",
+      "detail": "3 sets of 12 dumbbell rows per side.",
+      "estimatedMinutes": 12,
+      "symbol": "dumbbell"
+    },
+    {
+      "id": "s05",
+      "category": "strength",
+      "title": "Push Day Stamp",
+      "detail": "4 sets of 8 push-ups; incline or knee versions count.",
+      "estimatedMinutes": 10,
+      "symbol": "dumbbell"
+    },
+    {
+      "id": "s06",
+      "category": "strength",
+      "title": "Hinge & Hold",
+      "detail": "3 sets of 10 Romanian deadlifts with controlled form.",
+      "estimatedMinutes": 12,
+      "symbol": "dumbbell"
+    },
+    {
+      "id": "s07",
+      "category": "strength",
+      "title": "The Carry Home",
+      "detail": "4 rounds of 40 m farmer carries with comfortable dumbbells.",
+      "estimatedMinutes": 10,
+      "symbol": "dumbbell"
+    },
+    {
+      "id": "s08",
+      "category": "strength",
+      "title": "Single-Leg Chapter",
+      "detail": "3 sets of 8 split squats per leg.",
+      "estimatedMinutes": 12,
+      "symbol": "dumbbell"
+    },
+    {
+      "id": "s09",
+      "category": "strength",
+      "title": "Bench Mark",
+      "detail": "3 sets of 10 dumbbell bench presses.",
+      "estimatedMinutes": 12,
+      "symbol": "dumbbell"
+    },
+    {
+      "id": "s10",
+      "category": "strength",
+      "title": "Cable Car",
+      "detail": "3 sets of 12 seated cable rows.",
+      "estimatedMinutes": 10,
+      "symbol": "dumbbell"
+    },
+    {
+      "id": "s11",
+      "category": "strength",
+      "title": "Steps With Purpose",
+      "detail": "3 sets of 10 step-ups per leg on a stable step.",
+      "estimatedMinutes": 12,
+      "symbol": "dumbbell"
+    },
+    {
+      "id": "s12",
+      "category": "strength",
+      "title": "Shoulder Letter",
+      "detail": "3 sets of 8 overhead presses with a manageable load.",
+      "estimatedMinutes": 10,
+      "symbol": "dumbbell"
+    },
+    {
+      "id": "s13",
+      "category": "strength",
+      "title": "Glute Bridge Toll",
+      "detail": "3 sets of 15 glute bridges; pause at the top.",
+      "estimatedMinutes": 10,
+      "symbol": "dumbbell"
+    },
+    {
+      "id": "s14",
+      "category": "strength",
+      "title": "The Lat Line",
+      "detail": "3 sets of 10 lat pulldowns with a full controlled range.",
+      "estimatedMinutes": 10,
+      "symbol": "dumbbell"
+    },
+    {
+      "id": "s15",
+      "category": "strength",
+      "title": "Curl Counter",
+      "detail": "3 sets of 12 dumbbell curls, then 12 hammer curls.",
+      "estimatedMinutes": 10,
+      "symbol": "dumbbell"
+    },
+    {
+      "id": "s16",
+      "category": "strength",
+      "title": "Triceps Ticket",
+      "detail": "3 sets of 12 cable pressdowns or band extensions.",
+      "estimatedMinutes": 10,
+      "symbol": "dumbbell"
+    },
+    {
+      "id": "s17",
+      "category": "strength",
+      "title": "Calf Corner",
+      "detail": "3 sets of 15 standing calf raises with a slow lowering phase.",
+      "estimatedMinutes": 8,
+      "symbol": "dumbbell"
+    },
+    {
+      "id": "s18",
+      "category": "strength",
+      "title": "Core Deposit",
+      "detail": "3 rounds of a 30 sec plank and 10 dead bugs per side.",
+      "estimatedMinutes": 10,
+      "symbol": "dumbbell"
+    },
+    {
+      "id": "s19",
+      "category": "strength",
+      "title": "Reverse Gear",
+      "detail": "3 sets of 10 reverse lunges per leg.",
+      "estimatedMinutes": 12,
+      "symbol": "dumbbell"
+    },
+    {
+      "id": "s20",
+      "category": "strength",
+      "title": "Chest Fly Window",
+      "detail": "3 sets of 12 light chest flies with controlled motion.",
+      "estimatedMinutes": 10,
+      "symbol": "dumbbell"
+    },
+    {
+      "id": "s21",
+      "category": "strength",
+      "title": "Band Pull Apart",
+      "detail": "4 sets of 15 band pull-aparts with relaxed shoulders.",
+      "estimatedMinutes": 8,
+      "symbol": "dumbbell"
+    },
+    {
+      "id": "s22",
+      "category": "strength",
+      "title": "Sled Letter",
+      "detail": "Push a sled for 6 short trips with plenty of rest.",
+      "estimatedMinutes": 12,
+      "symbol": "dumbbell"
+    },
+    {
+      "id": "s23",
+      "category": "strength",
+      "title": "Floor Press Note",
+      "detail": "3 sets of 10 dumbbell floor presses.",
+      "estimatedMinutes": 10,
+      "symbol": "dumbbell"
+    },
+    {
+      "id": "s24",
+      "category": "strength",
+      "title": "Wall Sit Wager",
+      "detail": "4 wall sits of 30 sec; rest 45 sec between them.",
+      "estimatedMinutes": 7,
+      "symbol": "dumbbell"
+    },
+    {
+      "id": "s25",
+      "category": "strength",
+      "title": "Hip Thrust Ledger",
+      "detail": "3 sets of 12 hip thrusts with a one-second pause.",
+      "estimatedMinutes": 12,
+      "symbol": "dumbbell"
+    },
+    {
+      "id": "k01",
+      "category": "skill",
+      "title": "Shadow Round",
+      "detail": "Box 3 rounds of 2 min shadowboxing with 1 min rest.",
+      "estimatedMinutes": 9,
+      "symbol": "figure.boxing"
+    },
+    {
+      "id": "k02",
+      "category": "skill",
+      "title": "Rope Riddle",
+      "detail": "Jump rope 8 rounds of 45 sec with 30 sec easy steps.",
+      "estimatedMinutes": 10,
+      "symbol": "figure.boxing"
+    },
+    {
+      "id": "k03",
+      "category": "skill",
+      "title": "Footwork Map",
+      "detail": "Boxing footwork: 5 rounds of 2 min moving in and out.",
+      "estimatedMinutes": 12,
+      "symbol": "figure.boxing"
+    },
+    {
+      "id": "k04",
+      "category": "skill",
+      "title": "Soft Landing",
+      "detail": "Practice 3 sets of 8 controlled step-downs per leg.",
+      "estimatedMinutes": 10,
+      "symbol": "figure.boxing"
+    },
+    {
+      "id": "k05",
+      "category": "skill",
+      "title": "Balance Passport",
+      "detail": "Stand on one leg near support for 4 rounds of 30 sec per side.",
+      "estimatedMinutes": 8,
+      "symbol": "figure.boxing"
+    },
+    {
+      "id": "k06",
+      "category": "skill",
+      "title": "The Hip Key",
+      "detail": "10 min hip mobility: lunges, circles, and gentle rotations.",
+      "estimatedMinutes": 10,
+      "symbol": "figure.boxing"
+    },
+    {
+      "id": "k07",
+      "category": "skill",
+      "title": "Spine Unwind",
+      "detail": "8 min cat-cow, thoracic rotations, and child's pose.",
+      "estimatedMinutes": 8,
+      "symbol": "figure.boxing"
+    },
+    {
+      "id": "k08",
+      "category": "skill",
+      "title": "Ankle Alphabet",
+      "detail": "6 min ankle circles, calf stretches, and heel raises.",
+      "estimatedMinutes": 6,
+      "symbol": "figure.boxing"
+    },
+    {
+      "id": "k09",
+      "category": "skill",
+      "title": "Pillow Fight",
+      "detail": "Box 2 rounds on a bag at an easy pace, then 2 rounds of footwork.",
+      "estimatedMinutes": 12,
+      "symbol": "figure.boxing"
+    },
+    {
+      "id": "k10",
+      "category": "skill",
+      "title": "Tempo Detective",
+      "detail": "Do 3 sets of 8 bodyweight squats with a 3-second lowering phase.",
+      "estimatedMinutes": 9,
+      "symbol": "figure.boxing"
+    },
+    {
+      "id": "k11",
+      "category": "skill",
+      "title": "The Wall Reset",
+      "detail": "8 min wall slides, scapular squeezes, and arm circles.",
+      "estimatedMinutes": 8,
+      "symbol": "figure.boxing"
+    },
+    {
+      "id": "k12",
+      "category": "skill",
+      "title": "Quiet Feet",
+      "detail": "Practice 10 min of lateral shuffles with easy walking breaks.",
+      "estimatedMinutes": 10,
+      "symbol": "figure.boxing"
+    },
+    {
+      "id": "k13",
+      "category": "skill",
+      "title": "Floor Compass",
+      "detail": "8 min bear crawls, slow mountain climbers, and rests.",
+      "estimatedMinutes": 8,
+      "symbol": "figure.boxing"
+    },
+    {
+      "id": "k14",
+      "category": "skill",
+      "title": "Breathing Room",
+      "detail": "10 min easy walk followed by 3 min calm breathing.",
+      "estimatedMinutes": 13,
+      "symbol": "figure.boxing"
+    },
+    {
+      "id": "k15",
+      "category": "skill",
+      "title": "Side-Step Script",
+      "detail": "5 rounds of 1 min side steps and 1 min easy marching.",
+      "estimatedMinutes": 10,
+      "symbol": "figure.boxing"
+    },
+    {
+      "id": "k16",
+      "category": "skill",
+      "title": "Yoga Interlude",
+      "detail": "12 min yoga flow with sun salutations and gentle twists.",
+      "estimatedMinutes": 12,
+      "symbol": "figure.boxing"
+    },
+    {
+      "id": "k17",
+      "category": "skill",
+      "title": "The Long Exhale",
+      "detail": "8 min of gentle stretching and unhurried breathing.",
+      "estimatedMinutes": 8,
+      "symbol": "figure.boxing"
+    },
+    {
+      "id": "k18",
+      "category": "skill",
+      "title": "Hand-Eye Hour",
+      "detail": "10 min of easy ball tosses, catches, and footwork.",
+      "estimatedMinutes": 10,
+      "symbol": "figure.boxing"
+    },
+    {
+      "id": "k19",
+      "category": "skill",
+      "title": "Pivot Practice",
+      "detail": "Box 4 rounds of 90 sec pivots and combinations.",
+      "estimatedMinutes": 9,
+      "symbol": "figure.boxing"
+    },
+    {
+      "id": "k20",
+      "category": "skill",
+      "title": "Control the Descent",
+      "detail": "3 sets of 8 slow calf lowers and 8 slow step-downs.",
+      "estimatedMinutes": 10,
+      "symbol": "figure.boxing"
+    },
+    {
+      "id": "k21",
+      "category": "skill",
+      "title": "Mirror Movement",
+      "detail": "Follow 12 min of mobility or dance moves in a mirror.",
+      "estimatedMinutes": 12,
+      "symbol": "figure.boxing"
+    },
+    {
+      "id": "k22",
+      "category": "skill",
+      "title": "Core Clock",
+      "detail": "3 rounds: 20 sec each of front plank, side plank left, side plank right.",
+      "estimatedMinutes": 8,
+      "symbol": "figure.boxing"
+    },
+    {
+      "id": "k23",
+      "category": "skill",
+      "title": "Low-Impact Ladder",
+      "detail": "10 min alternating 30 sec marching and 30 sec side steps.",
+      "estimatedMinutes": 10,
+      "symbol": "figure.boxing"
+    },
+    {
+      "id": "k24",
+      "category": "skill",
+      "title": "Shoulder Range",
+      "detail": "8 min shoulder circles, wall slides, and light band work.",
+      "estimatedMinutes": 8,
+      "symbol": "figure.boxing"
+    },
+    {
+      "id": "k25",
+      "category": "skill",
+      "title": "Balance Beam",
+      "detail": "Walk heel-to-toe near a wall for 5 min, then do 5 min easy walking.",
+      "estimatedMinutes": 10,
+      "symbol": "figure.boxing"
+    },
+    {
+      "id": "h01",
+      "category": "hybrid",
+      "title": "Box & Climb",
+      "detail": "2 boxing rounds of 3 min, then 10 min StairMaster.",
+      "estimatedMinutes": 18,
+      "symbol": "bolt.heart"
+    },
+    {
+      "id": "h02",
+      "category": "hybrid",
+      "title": "Hill Meets Hinge",
+      "detail": "12 min incline walk plus 3 sets of 10 hip hinges.",
+      "estimatedMinutes": 22,
+      "symbol": "bolt.heart"
+    },
+    {
+      "id": "h03",
+      "category": "hybrid",
+      "title": "Pull and Pedal",
+      "detail": "Accumulate 8 pull-ups, then cycle 15 min easy.",
+      "estimatedMinutes": 25,
+      "symbol": "bolt.heart"
+    },
+    {
+      "id": "h04",
+      "category": "hybrid",
+      "title": "Row & Raise",
+      "detail": "Row 1 km, then do 3 sets of 12 lateral raises.",
+      "estimatedMinutes": 20,
+      "symbol": "bolt.heart"
+    },
+    {
+      "id": "h05",
+      "category": "hybrid",
+      "title": "Stairs and Squats",
+      "detail": "8 min stairs plus 3 sets of 10 bodyweight squats.",
+      "estimatedMinutes": 18,
+      "symbol": "bolt.heart"
+    },
+    {
+      "id": "h06",
+      "category": "hybrid",
+      "title": "Punch Clock",
+      "detail": "3 rounds of 2 min boxing plus 3 rounds of 10 push-ups.",
+      "estimatedMinutes": 19,
+      "symbol": "bolt.heart"
+    },
+    {
+      "id": "h07",
+      "category": "hybrid",
+      "title": "Carry the Distance",
+      "detail": "4 short farmer carries, then walk 15 min.",
+      "estimatedMinutes": 25,
+      "symbol": "bolt.heart"
+    },
+    {
+      "id": "h08",
+      "category": "hybrid",
+      "title": "Cycle & Core",
+      "detail": "Cycle 12 min, then do 3 rounds of 30 sec planks.",
+      "estimatedMinutes": 20,
+      "symbol": "bolt.heart"
+    },
+    {
+      "id": "h09",
+      "category": "hybrid",
+      "title": "The Lunch Break Mix",
+      "detail": "Walk 10 min, do 15 lunges per leg, walk 10 min.",
+      "estimatedMinutes": 25,
+      "symbol": "bolt.heart"
+    },
+    {
+      "id": "h10",
+      "category": "hybrid",
+      "title": "Rower's Detour",
+      "detail": "Row 10 min, then do 3 sets of 10 dumbbell rows.",
+      "estimatedMinutes": 22,
+      "symbol": "bolt.heart"
+    },
+    {
+      "id": "h11",
+      "category": "hybrid",
+      "title": "Two Floors and a Floor",
+      "detail": "Climb stairs 6 min, then do 3 sets of 10 floor presses.",
+      "estimatedMinutes": 18,
+      "symbol": "bolt.heart"
+    },
+    {
+      "id": "h12",
+      "category": "hybrid",
+      "title": "The Three-Stop Route",
+      "detail": "Bike 8 min, do 12 squats, then box 2 easy rounds.",
+      "estimatedMinutes": 22,
+      "symbol": "bolt.heart"
+    },
+    {
+      "id": "h13",
+      "category": "hybrid",
+      "title": "Walk the Weights",
+      "detail": "Walk 15 min, then do 2 sets each of curls and presses.",
+      "estimatedMinutes": 25,
+      "symbol": "bolt.heart"
+    },
+    {
+      "id": "h14",
+      "category": "hybrid",
+      "title": "Gloves and Glutes",
+      "detail": "Shadowbox 8 min, then do 3 sets of 15 glute bridges.",
+      "estimatedMinutes": 19,
+      "symbol": "bolt.heart"
+    },
+    {
+      "id": "h15",
+      "category": "hybrid",
+      "title": "The Rowing Bell",
+      "detail": "Row 4 rounds of 2 min, with 8 push-ups between rounds.",
+      "estimatedMinutes": 20,
+      "symbol": "bolt.heart"
+    },
+    {
+      "id": "h16",
+      "category": "hybrid",
+      "title": "Hilltop Circuit",
+      "detail": "10 min incline walk, 10 step-ups per leg, 10 min easy walk.",
+      "estimatedMinutes": 25,
+      "symbol": "bolt.heart"
+    },
+    {
+      "id": "h17",
+      "category": "hybrid",
+      "title": "Kettlebell Postcard",
+      "detail": "3 rounds of 12 kettlebell deadlifts and 3 min bike.",
+      "estimatedMinutes": 18,
+      "symbol": "bolt.heart"
+    },
+    {
+      "id": "h18",
+      "category": "hybrid",
+      "title": "Boxing Afterglow",
+      "detail": "Box 2 rounds, walk 12 min, stretch shoulders 5 min.",
+      "estimatedMinutes": 23,
+      "symbol": "bolt.heart"
+    },
+    {
+      "id": "h19",
+      "category": "hybrid",
+      "title": "Strength in Transit",
+      "detail": "3 sets of 10 split squats, then climb stairs 8 min.",
+      "estimatedMinutes": 20,
+      "symbol": "bolt.heart"
+    },
+    {
+      "id": "h20",
+      "category": "hybrid",
+      "title": "The Quiet Combo",
+      "detail": "10 min yoga, 10 min bike, 10 min brisk walk.",
+      "estimatedMinutes": 30,
+      "symbol": "bolt.heart"
+    },
+    {
+      "id": "h21",
+      "category": "hybrid",
+      "title": "Push, Pull, Pace",
+      "detail": "2 sets of push-ups and rows, then 15 min treadmill walk.",
+      "estimatedMinutes": 28,
+      "symbol": "bolt.heart"
+    },
+    {
+      "id": "h22",
+      "category": "hybrid",
+      "title": "Bicycle & Balance",
+      "detail": "Cycle 15 min, then practice one-leg balance 5 min.",
+      "estimatedMinutes": 20,
+      "symbol": "bolt.heart"
+    },
+    {
+      "id": "h23",
+      "category": "hybrid",
+      "title": "The Market Circuit",
+      "detail": "Walk 20 min carrying light groceries, then 10 calf raises.",
+      "estimatedMinutes": 23,
+      "symbol": "bolt.heart"
+    },
+    {
+      "id": "h24",
+      "category": "hybrid",
+      "title": "Rope and Row",
+      "detail": "Jump rope 5 min in intervals, then row 12 min steady.",
+      "estimatedMinutes": 19,
+      "symbol": "bolt.heart"
+    },
+    {
+      "id": "h25",
+      "category": "hybrid",
+      "title": "Final Bell Loop",
+      "detail": "3 boxing rounds, 8 min StairMaster, then 5 min easy walk.",
+      "estimatedMinutes": 25,
+      "symbol": "bolt.heart"
+    },
+    {
+      "id": "b01",
+      "category": "boxing",
+      "title": "First Bell",
+      "detail": "3 × 2 min shadowboxing. Focus on jab and footwork.",
+      "estimatedMinutes": 9,
+      "symbol": "figure.boxing"
+    },
+    {
+      "id": "b02",
+      "category": "boxing",
+      "title": "Slip Line",
+      "detail": "4 × 90 sec slips, rolls and counters.",
+      "estimatedMinutes": 9,
+      "symbol": "figure.boxing"
+    },
+    {
+      "id": "b03",
+      "category": "boxing",
+      "title": "Corner Exit",
+      "detail": "3 × 2 min pivot out after every combination.",
+      "estimatedMinutes": 9,
+      "symbol": "figure.boxing"
+    },
+    {
+      "id": "b04",
+      "category": "boxing",
+      "title": "Double Jab",
+      "detail": "4 × 2 min double jab, cross, step back.",
+      "estimatedMinutes": 11,
+      "symbol": "figure.boxing"
+    },
+    {
+      "id": "b05",
+      "category": "boxing",
+      "title": "Body Shot Ledger",
+      "detail": "3 × 2 min alternate head and body combinations on a bag.",
+      "estimatedMinutes": 9,
+      "symbol": "figure.boxing"
+    },
+    {
+      "id": "b06",
+      "category": "boxing",
+      "title": "Quiet Guard",
+      "detail": "4 × 90 sec defend, reset your guard, then counter.",
+      "estimatedMinutes": 9,
+      "symbol": "figure.boxing"
+    },
+    {
+      "id": "b07",
+      "category": "boxing",
+      "title": "Southpaw Switch",
+      "detail": "3 × 2 min shadowbox, switching stance each round.",
+      "estimatedMinutes": 9,
+      "symbol": "figure.boxing"
+    },
+    {
+      "id": "b08",
+      "category": "boxing",
+      "title": "Rope and Ring",
+      "detail": "Jump rope 5 min, then shadowbox 2 × 2 min.",
+      "estimatedMinutes": 10,
+      "symbol": "figure.boxing"
+    },
+    {
+      "id": "b09",
+      "category": "boxing",
+      "title": "Last Ten Seconds",
+      "detail": "3 × 3 min bag rounds; finish each with 10 sec brisk punches.",
+      "estimatedMinutes": 12,
+      "symbol": "figure.boxing"
+    },
+    {
+      "id": "b10",
+      "category": "boxing",
+      "title": "Mirror Match",
+      "detail": "3 × 2 min shadowbox in front of a mirror; keep your guard up.",
+      "estimatedMinutes": 9,
+      "symbol": "figure.boxing"
+    },
+    {
+      "id": "b11",
+      "category": "boxing",
+      "title": "Counter Window",
+      "detail": "4 × 2 min slip, cross, hook, then reset.",
+      "estimatedMinutes": 11,
+      "symbol": "figure.boxing"
+    },
+    {
+      "id": "b12",
+      "category": "boxing",
+      "title": "Final Round Focus",
+      "detail": "5 × 2 min technical bag rounds with 1 min rest.",
+      "estimatedMinutes": 14,
+      "symbol": "figure.boxing"
+    }
+  ]
+}

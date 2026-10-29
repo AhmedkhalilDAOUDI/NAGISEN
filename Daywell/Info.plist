@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key><string>en</string>
+    <key>CFBundleDisplayName</key><string>NAGISEN</string>
+    <key>CFBundleExecutable</key><string>$(EXECUTABLE_NAME)</string>
+    <key>CFBundleIdentifier</key><string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+    <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+    <key>CFBundleName</key><string>NAGISEN</string>
+    <key>CFBundlePackageType</key><string>APPL</string>
+    <key>CFBundleShortVersionString</key><string>$(MARKETING_VERSION)</string>
+    <key>CFBundleVersion</key><string>$(CURRENT_PROJECT_VERSION)</string>
+    <key>LSRequiresIPhoneOS</key><true/>
+    <key>MinimumOSVersion</key><string>$(IPHONEOS_DEPLOYMENT_TARGET)</string>
+    <key>NSCameraUsageDescription</key><string>Scan barcodes or photograph food packages to find nutrition information.</string>
+    <key>NSMicrophoneUsageDescription</key><string>Use your voice to search for food on this iPhone.</string>
+    <key>NSSpeechRecognitionUsageDescription</key><string>Turn your spoken food name into a search on this iPhone.</string>
+    <key>NSHealthShareUsageDescription</key><string>NAGISEN reads your steps, activity, heart rate, body weight and workouts to show your progress. Your Health data stays on this iPhone.</string>
+    <key>NSHealthUpdateUsageDescription</key><string>NAGISEN saves workouts you start in Accessories to Apple Health so your heart-rate session and activity stay together.</string>
+    <key>LSApplicationQueriesSchemes</key>
+    <array><string>spotify</string></array>
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key><string>com.daywell.nutrition.spotify</string>
+            <key>CFBundleURLSchemes</key><array><string>daywell-spotify-login</string></array>
+        </dict>
+    </array>
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+        <string>UIInterfaceOrientationPortraitUpsideDown</string>
+    </array>
+    <key>UILaunchScreen</key><dict/>
+</dict>
+</plist>
