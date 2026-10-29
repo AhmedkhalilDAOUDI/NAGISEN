@@ -461,17 +461,7 @@ private struct CostDetailView: View {
                     .font(.caption).foregroundStyle(Theme.muted)
             } else {
                 ForEach(foods) { food in
-                    HStack(spacing: 8) {
-                        PriceRow(food: food)
-                        Button {
-                            store.removeCostFood(food)
-                        } label: {
-                            Image(systemName: "minus.circle")
-                                .foregroundStyle(Theme.red)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Remove \(food.name) from the price list")
-                    }
+                    PriceRow(food: food) { store.removeCostFood(food) }
                 }
             }
         }
@@ -485,35 +475,58 @@ private struct CostDetailView: View {
 private struct PriceRow: View {
     @EnvironmentObject private var store: NutritionStore
     let food: Food
+    let onDelete: () -> Void
 
     @State private var showingEditor = false
+    @State private var runLookupOnOpen = false
 
     var body: some View {
         let price = store.price(for: food)
-        Button {
-            showingEditor = true
-        } label: {
-            HStack(spacing: 10) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(food.name)
-                        .font(.subheadline)
-                        .lineLimit(1)
-                    Text(subtitle(price))
-                        .font(.caption2)
-                        .foregroundStyle(Theme.muted)
-                        .lineLimit(1)
+        HStack(spacing: 10) {
+            Button {
+                runLookupOnOpen = false
+                showingEditor = true
+            } label: {
+                HStack(spacing: 10) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(food.name)
+                            .font(.subheadline)
+                            .lineLimit(1)
+                        Text(subtitle(price))
+                            .font(.caption2)
+                            .foregroundStyle(Theme.muted)
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 6)
+                    Text(priceText(price))
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(price == nil || price?.isEmpty == true ? Theme.muted : Theme.accentText)
                 }
-                Spacer(minLength: 6)
-                Text(priceText(price))
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(price == nil || price?.isEmpty == true ? Theme.muted : Theme.accentText)
+                .contentShape(Rectangle())
             }
-            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+
+            Button {
+                runLookupOnOpen = true
+                showingEditor = true
+            } label: {
+                Image(systemName: "sparkles")
+                    .font(.footnote)
+                    .foregroundStyle(Theme.accentText)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Ask the assistant for the price of \(food.name)")
+
+            Button(action: onDelete) {
+                Image(systemName: "minus.circle")
+                    .foregroundStyle(Theme.red)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Remove \(food.name) from the price list")
         }
-        .buttonStyle(.plain)
         .foregroundStyle(Theme.ink)
         .sheet(isPresented: $showingEditor) {
-            PriceEditorView(food: food).environmentObject(store)
+            PriceEditorView(food: food, autoLookUp: runLookupOnOpen).environmentObject(store)
         }
     }
 
@@ -535,6 +548,7 @@ private struct PriceEditorView: View {
     @EnvironmentObject private var store: NutritionStore
     @Environment(\.dismiss) private var dismiss
     let food: Food
+    var autoLookUp = false
 
     @State private var unit: PriceAmountUnit = .grams
     @State private var amount = ""
@@ -578,6 +592,11 @@ private struct PriceEditorView: View {
                 }
             }
             .onAppear(perform: prefill)
+            .task {
+                guard autoLookUp else { return }
+                try? await Task.sleep(nanoseconds: 350_000_000)
+                lookUp()
+            }
         }
     }
 
