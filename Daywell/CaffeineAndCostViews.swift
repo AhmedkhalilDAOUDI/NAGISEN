@@ -329,6 +329,9 @@ private struct CostDetailView: View {
     @EnvironmentObject private var store: NutritionStore
     @Environment(\.dismiss) private var dismiss
     @State private var showingReceipt = false
+    @State private var showingFoodPicker = false
+    /// Foods added by hand, so a food that has not been eaten yet can still be priced.
+    @State private var extraFoods: [Food] = []
 
     var body: some View {
         NavigationStack {
@@ -355,6 +358,14 @@ private struct CostDetailView: View {
             }
             .sheet(isPresented: $showingReceipt) {
                 ReceiptPriceView().environmentObject(store)
+            }
+            .sheet(isPresented: $showingFoodPicker) {
+                PriceFoodPicker { food in
+                    if !extraFoods.contains(where: { FoodCost.key(for: $0) == FoodCost.key(for: food) }) {
+                        extraFoods.append(food)
+                    }
+                }
+                .environmentObject(store)
             }
             #if DEBUG
             .task {
@@ -413,14 +424,24 @@ private struct CostDetailView: View {
     private var prices: some View {
         let foods = pricedFoods()
         return VStack(alignment: .leading, spacing: 12) {
-            Text("Prices")
-                .font(.system(size: 19, design: .serif))
-                .foregroundStyle(Theme.ink)
+            HStack {
+                Text("Prices")
+                    .font(.system(size: 19, design: .serif))
+                    .foregroundStyle(Theme.ink)
+                Spacer()
+                Button {
+                    showingFoodPicker = true
+                } label: {
+                    Label("Add", systemImage: "plus.circle")
+                        .font(.caption.weight(.semibold))
+                }
+                .foregroundStyle(Theme.accentText)
+            }
             Text("Set what a food costs, or scan a receipt and let it fill these in. Weight-based prices follow the portion you log.")
                 .font(.caption).foregroundStyle(Theme.muted)
 
             if foods.isEmpty {
-                Text("Log some food first, then price it here.")
+                Text("Add a food, or log one first, then price it here.")
                     .font(.caption).foregroundStyle(Theme.muted)
             } else {
                 ForEach(foods) { food in
@@ -445,6 +466,12 @@ private struct CostDetailView: View {
             seen.insert(key)
             result.append(entry.food)
         }
+        for food in extraFoods {
+            let key = FoodCost.key(for: food)
+            guard !seen.contains(key) else { continue }
+            seen.insert(key)
+            result.append(food)
+        }
         return result.sorted { a, b in
             let aPriced = store.price(for: a) != nil
             let bPriced = store.price(for: b) != nil
@@ -455,6 +482,7 @@ private struct CostDetailView: View {
 
 private struct PriceRow: View {
     @EnvironmentObject private var store: NutritionStore
+    @Environment(\.openURL) private var openURL
     let food: Food
 
     @State private var text = ""
@@ -478,6 +506,16 @@ private struct PriceRow: View {
                 .frame(width: 78)
                 .focused($focused)
             Text("MAD").font(.caption).foregroundStyle(Theme.muted)
+            Button {
+                lookUpPrice()
+            } label: {
+                Image(systemName: "globe")
+                    .font(.caption)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(Theme.muted)
+            .accessibilityLabel("Look up the price of \(food.name) online")
+
             Button("Set") { commit(byWeight: byWeight) }
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(Theme.accentText)
@@ -498,6 +536,15 @@ private struct PriceRow: View {
         return price.per100g ?? price.perServing ?? 0
     }
 
+    /// Opens a web search for the price. The app never invents a number: a shop's own page is the
+    /// only honest source, and the price is typed in from what it says.
+    private func lookUpPrice() {
+        let query = "\(food.name) \(food.brand) prix Maroc".trimmingCharacters(in: .whitespaces)
+        guard let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+              let url = URL(string: "https://www.google.com/search?q=\(encoded)") else { return }
+        openURL(url)
+    }
+
     private func commit(byWeight: Bool) {
         guard let value = parsed else { return }
         if value == 0 {
@@ -508,5 +555,59 @@ private struct PriceRow: View {
             store.setPrice(FoodPrice(perServing: value), for: food)
         }
         focused = false
+    }
+}
+
+
+/// Picks a food to price, including ones that have not been eaten yet.
+private struct PriceFoodPicker: View {
+    @EnvironmentObject private var store: NutritionStore
+    @Environment(\.dismiss) private var dismiss
+    let onPick: (Food) -> Void
+
+    @State private var search = ""
+
+    private var matches: [Food] {
+        let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return Array(store.allFoods.prefix(250)) }
+        return store.allFoods.filter {
+            $0.name.localizedCaseInsensitiveContains(query) ||
+                $0.brand.localizedCaseInsensitiveContains(query)
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            List(matches) { food in
+                Button {
+                    onPick(food)
+                    dismiss()
+                } label: {
+                    HStack(spacing: 10) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(food.name)
+                                .foregroundStyle(Theme.ink)
+                                .lineLimit(1)
+                            Text("\(food.serving) · \(food.calories) kcal")
+                                .font(.caption)
+                                .foregroundStyle(Theme.muted)
+                        }
+                        Spacer()
+                        if let price = store.price(for: food),
+                           let value = price.per100g ?? price.perServing {
+                            Text(FoodCost.display(value))
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(Theme.muted)
+                        }
+                    }
+                }
+            }
+            .searchable(text: $search, prompt: "Search foods")
+            .navigationTitle("Add a food")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
+            }
+        }
     }
 }
