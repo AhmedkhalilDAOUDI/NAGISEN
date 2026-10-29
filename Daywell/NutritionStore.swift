@@ -51,6 +51,9 @@ struct DiaryEntry: Identifiable, Codable {
     var loggedQuantity: Double? = nil
     var loggedUnit: String? = nil
     var planMealID: UUID? = nil
+    /// Stable identity for records brought in from another tracker, so a repeated import
+    /// updates nothing and duplicates nothing.
+    var importFingerprint: String? = nil
 
     var calories: Int { Int((Double(food.calories) * servings).rounded()) }
     var protein: Double { food.protein * servings }
@@ -335,6 +338,11 @@ final class NutritionStore: ObservableObject {
     @Published var savedRecipes: [SavedRecipe] = [] { didSet { persist("savedRecipes", savedRecipes) } }
     @Published var groceryStock: [GroceryStock] = [] { didSet { persist("groceryStock", groceryStock) } }
     @Published var groceryPlan: GroceryPlan? = nil { didSet { persist("groceryPlan", groceryPlan) } }
+    /// Achievement carried over from another tracker. Never derived from diary entries.
+    @Published var legacyStreak: LegacyStreak? = nil { didSet { persist("legacyStreak", legacyStreak) } }
+    /// Highest streak NAGISEN has observed, so a later reset cannot erase the record.
+    @Published var longestStreakRecorded = 0 { didSet { persist("longestStreakRecorded", longestStreakRecorded) } }
+    @Published var loseItImports: [LoseItImportRecord] = [] { didSet { persist("loseItImports", loseItImports) } }
 
     private struct SavedData: Codable {
         var entries: [DiaryEntry]
@@ -359,10 +367,16 @@ final class NutritionStore: ObservableObject {
         var savedRecipes: [SavedRecipe]?
         var groceryStock: [GroceryStock]?
         var groceryPlan: GroceryPlan?
+        var legacyStreak: LegacyStreak?
+        var longestStreakRecorded: Int?
+        var loseItImports: [LoseItImportRecord]?
     }
 
     private let storageKey = "daywell.nutrition.v1"
     private let vault = NutritionVault()
+    /// Unknown top-level keys from the last restored backup, echoed back on export.
+    private var preservedUnknownBackupFields: Data?
+    private var backupSchemaVersion = 2
 
     init() {
         if vault?.read("schemaReady", as: Bool.self) == true {
@@ -392,6 +406,10 @@ final class NutritionStore: ObservableObject {
             savedRecipes = vault?.read("savedRecipes") ?? []
             groceryStock = vault?.read("groceryStock") ?? []
             groceryPlan = vault?.read("groceryPlan")
+            legacyStreak = vault?.read("legacyStreak")
+            longestStreakRecorded = vault?.read("longestStreakRecorded") ?? 0
+            loseItImports = vault?.read("loseItImports") ?? []
+            longestStreakRecorded = max(longestStreakRecorded, legacyStreak?.count ?? 0)
             return
         }
         guard let data = UserDefaults.standard.data(forKey: storageKey),
@@ -421,6 +439,10 @@ final class NutritionStore: ObservableObject {
         savedRecipes = saved.savedRecipes ?? []
         groceryStock = saved.groceryStock ?? []
         groceryPlan = saved.groceryPlan
+        legacyStreak = saved.legacyStreak
+        longestStreakRecorded = saved.longestStreakRecorded ?? 0
+        loseItImports = saved.loseItImports ?? []
+        longestStreakRecorded = max(longestStreakRecorded, legacyStreak?.count ?? 0)
         saveAllToVault()
     }
 
@@ -454,6 +476,9 @@ final class NutritionStore: ObservableObject {
             vault.write("savedRecipes", value: savedRecipes) &&
             vault.write("groceryStock", value: groceryStock) &&
             vault.write("groceryPlan", value: groceryPlan) &&
+            vault.write("legacyStreak", value: legacyStreak) &&
+            vault.write("longestStreakRecorded", value: longestStreakRecorded) &&
+            vault.write("loseItImports", value: loseItImports) &&
             vault.write("schemaReady", value: true)
         }
     }
@@ -469,7 +494,10 @@ final class NutritionStore: ObservableObject {
                               challengePlans: challengePlans, questSeenIDs: questSeenIDs, trophyNames: trophyNames,
                               goalAdjustments: goalAdjustments, weekdayGoals: weekdayGoals,
                               foodsToAvoid: foodsToAvoid, savedRecipes: savedRecipes,
-                              groceryStock: groceryStock, groceryPlan: groceryPlan)
+                              groceryStock: groceryStock, groceryPlan: groceryPlan,
+                              legacyStreak: legacyStreak,
+                              longestStreakRecorded: longestStreakRecorded,
+                              loseItImports: loseItImports)
         guard let data = try? JSONEncoder().encode(saved) else { return }
         UserDefaults.standard.set(data, forKey: storageKey)
     }
@@ -570,11 +598,52 @@ final class NutritionStore: ObservableObject {
                               challengePlans: challengePlans, questSeenIDs: questSeenIDs, trophyNames: trophyNames,
                               goalAdjustments: goalAdjustments, weekdayGoals: weekdayGoals,
                               foodsToAvoid: foodsToAvoid, savedRecipes: savedRecipes,
-                              groceryStock: groceryStock, groceryPlan: groceryPlan)
+                              groceryStock: groceryStock, groceryPlan: groceryPlan,
+                              legacyStreak: legacyStreak,
+                              longestStreakRecorded: longestStreakRecorded,
+                              loseItImports: loseItImports)
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
-        return try? encoder.encode(saved)
+        guard let typed = try? encoder.encode(saved) else { return nil }
+        return mergingPreservedBackupFields(into: typed)
+    }
+
+    /// Keys this build understands. Anything else in a restored file is kept verbatim and
+    /// written back out, so a backup made by a newer build survives a round trip here.
+    private static let knownBackupKeys: Set<String> = [
+        "entries", "customFoods", "goals", "profile", "dietPreferences", "weights",
+        "waterEntries", "waterGoalML", "appearance", "creatineTakenDays",
+        "completedLoggingDays", "workouts", "strengthRecords", "challengePlans",
+        "questSeenIDs", "trophyNames", "goalAdjustments", "weekdayGoals", "foodsToAvoid",
+        "savedRecipes", "groceryStock", "groceryPlan", "legacyStreak",
+        "longestStreakRecorded", "loseItImports", "schemaVersion"
+    ]
+
+    private func mergingPreservedBackupFields(into typed: Data) -> Data? {
+        guard var object = try? JSONSerialization.jsonObject(with: typed) as? [String: Any] else { return typed }
+        if let preserved = preservedUnknownBackupFields,
+           let unknown = try? JSONSerialization.jsonObject(with: preserved) as? [String: Any] {
+            for (key, value) in unknown where object[key] == nil { object[key] = value }
+        }
+        object["schemaVersion"] = backupSchemaVersion
+        return try? JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys])
+    }
+
+    private func capturePreservedBackupFields(from data: Data) {
+        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            preservedUnknownBackupFields = nil
+            return
+        }
+        let unknown = root.filter { !Self.knownBackupKeys.contains($0.key) }
+        preservedUnknownBackupFields = unknown.isEmpty
+            ? nil
+            : try? JSONSerialization.data(withJSONObject: unknown, options: [.sortedKeys])
+        if let version = root["schemaVersion"] as? Int {
+            backupSchemaVersion = max(2, version)
+        } else {
+            backupSchemaVersion = 2
+        }
     }
 
     var latestAutomaticBackup: URL? {
@@ -616,6 +685,9 @@ final class NutritionStore: ObservableObject {
               (500...10_000).contains(saved.goals.calories),
               saved.entries.count < 100_000,
               (saved.weights?.count ?? 0) < 100_000 else { return false }
+        // A malformed achievement invalidates the whole file rather than applying half of it.
+        if let legacy = saved.legacyStreak, !legacy.isWellFormed { return false }
+        _ = backupNow()
         entries = saved.entries
         customFoods = saved.customFoods
         goals = saved.goals
@@ -638,6 +710,10 @@ final class NutritionStore: ObservableObject {
         savedRecipes = saved.savedRecipes ?? []
         groceryStock = saved.groceryStock ?? []
         groceryPlan = saved.groceryPlan
+        legacyStreak = saved.legacyStreak
+        longestStreakRecorded = max(saved.longestStreakRecorded ?? 0, saved.legacyStreak?.count ?? 0)
+        loseItImports = saved.loseItImports ?? []
+        capturePreservedBackupFields(from: data)
         storageRecoveryNeeded = false
         return true
     }
@@ -729,25 +805,104 @@ final class NutritionStore: ObservableObject {
         let key = dayKey(date)
         if complete { completedLoggingDays.insert(key) }
         else { completedLoggingDays.remove(key) }
+        recordLongestStreak()
+    }
+
+    // MARK: - Streaks
+
+    var entryFingerprints: Set<String> {
+        Set(entries.compactMap(\.importFingerprint))
+    }
+
+    /// The single source of truth for every streak number shown in the app.
+    func streakSnapshot(asOf date: Date) -> StreakSnapshot {
+        StreakEngine.snapshot(completedDays: completedLoggingDays,
+                              legacy: legacyStreak,
+                              viewedDay: date,
+                              today: .now,
+                              calendar: .current,
+                              recordedLongest: longestStreakRecorded)
     }
 
     func loggingStreak(asOf date: Date) -> Int {
-        let calendar = Calendar.current
-        var day = calendar.startOfDay(for: date)
-        let today = calendar.startOfDay(for: .now)
-        guard day <= today else { return 0 }
-        // Keep an active streak visible during today before logging is finished.
-        if day == today && !isLoggingComplete(on: day) {
-            guard let yesterday = calendar.date(byAdding: .day, value: -1, to: day) else { return 0 }
-            day = yesterday
+        streakSnapshot(asOf: date).activeStreak
+    }
+
+    private func recordLongestStreak() {
+        let current = streakSnapshot(asOf: .now).activeStreak
+        if current > longestStreakRecorded { longestStreakRecorded = current }
+    }
+
+    /// Applies a user-confirmed achievement. Idempotent: importing the same migration twice
+    /// changes nothing, and a confirmed achievement is never lowered.
+    @discardableResult
+    func applyLegacyStreak(_ incoming: LegacyStreak) -> Bool {
+        guard incoming.isWellFormed else { return false }
+        let merged = StreakEngine.merge(legacyStreak, with: incoming) ?? incoming
+        if merged != legacyStreak { legacyStreak = merged }
+        if merged.count > longestStreakRecorded { longestStreakRecorded = merged.count }
+        return true
+    }
+
+    // MARK: - Lose It! migration
+
+    enum LoseItImportOutcome: Equatable {
+        case imported(entries: Int, weights: Int, legacyApplied: Bool)
+        case nothingNew
+        case backupFailed
+
+        var message: String {
+            switch self {
+            case let .imported(entries, weights, legacyApplied):
+                var parts: [String] = []
+                if entries > 0 { parts.append("\(entries) food \(entries == 1 ? "entry" : "entries")") }
+                if weights > 0 { parts.append("\(weights) weigh-in\(weights == 1 ? "" : "s")") }
+                if legacyApplied { parts.append("your legacy streak") }
+                if parts.isEmpty { return "Nothing new to import." }
+                return "Imported " + parts.joined(separator: ", ") + "."
+            case .nothingNew:
+                return "Everything in this file is already in NAGISEN."
+            case .backupFailed:
+                return "NAGISEN could not write a safety backup, so nothing was imported."
+            }
         }
-        var streak = 0
-        while completedLoggingDays.contains(dayKey(day)) {
-            streak += 1
-            guard let previous = calendar.date(byAdding: .day, value: -1, to: day) else { break }
-            day = previous
+    }
+
+    /// Commits a reviewed preview. A timestamped backup is written first; if it fails the
+    /// import is abandoned rather than applied without a way back.
+    @discardableResult
+    func importLoseIt(_ preview: LoseItImportPreview) -> LoseItImportOutcome {
+        let known = entryFingerprints
+        let newEntries = preview.entries.filter { entry in
+            guard let fingerprint = entry.importFingerprint else { return false }
+            return !known.contains(fingerprint)
         }
-        return streak
+        let newWeights = preview.weights.filter { candidate in
+            !weights.contains { existing in
+                abs(existing.kilograms - candidate.kilograms) < 0.05 &&
+                abs(existing.date.timeIntervalSince(candidate.date)) < 12 * 3600
+            }
+        }
+        let mergedLegacy = preview.legacy.flatMap { StreakEngine.merge(legacyStreak, with: $0) }
+        let legacyChanges = mergedLegacy != nil && mergedLegacy != legacyStreak
+        guard !newEntries.isEmpty || !newWeights.isEmpty || legacyChanges else { return .nothingNew }
+        guard backupNow() else { return .backupFailed }
+
+        if !newEntries.isEmpty { entries.append(contentsOf: newEntries) }
+        if !newWeights.isEmpty { weights.append(contentsOf: newWeights) }
+        if let mergedLegacy, legacyChanges {
+            legacyStreak = mergedLegacy
+            longestStreakRecorded = max(longestStreakRecorded, mergedLegacy.count)
+        }
+        loseItImports.insert(LoseItImportRecord(
+            importedAt: .now,
+            sourceFiles: preview.sourceFiles,
+            entryCount: newEntries.count,
+            weightCount: newWeights.count,
+            skippedCategories: preview.skipped.map(\.category),
+            legacyCount: legacyChanges ? mergedLegacy?.count : nil), at: 0)
+        if loseItImports.count > 20 { loseItImports.removeLast(loseItImports.count - 20) }
+        return .imported(entries: newEntries.count, weights: newWeights.count, legacyApplied: legacyChanges)
     }
 
     /// Unused calories from logged days earlier in the same Monday–Sunday week.
