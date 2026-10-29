@@ -816,12 +816,21 @@ final class NutritionStore: ObservableObject {
 
     /// The single source of truth for every streak number shown in the app.
     func streakSnapshot(asOf date: Date) -> StreakSnapshot {
-        StreakEngine.snapshot(completedDays: completedLoggingDays,
+        StreakEngine.snapshot(completedDays: qualifyingLoggingDays,
                               legacy: legacyStreak,
                               viewedDay: date,
                               today: .now,
                               calendar: .current,
                               recordedLongest: longestStreakRecorded)
+    }
+
+    /// Days that keep the streak alive: anything recorded in the diary, plus days the user
+    /// marked done by hand. Logging food is the act that counts, so the number moves on its
+    /// own; the manual flag stays available for a day logged elsewhere.
+    var qualifyingLoggingDays: Set<String> {
+        var days = completedLoggingDays
+        for entry in entries { days.insert(dayKey(entry.date)) }
+        return days
     }
 
     func loggingStreak(asOf date: Date) -> Int {

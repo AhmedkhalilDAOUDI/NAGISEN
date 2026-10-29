@@ -182,4 +182,41 @@ final class BackupCompatibilityTests: XCTestCase {
         XCTAssertEqual(reopened.legacyStreak?.lastConfirmedDayKey, "2026-10-29")
         XCTAssertEqual(reopened.longestStreakRecorded, 1563)
     }
+
+    // MARK: - Counting without a manual flag
+
+    private func yesterdayKey() -> String {
+        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()
+        return StreakEngine.dayKey(for: yesterday, calendar: .current)
+    }
+
+    func testLoggingFoodAloneAdvancesTheStreak() throws {
+        let anchor = yesterdayKey()
+        XCTAssertTrue(store.applyLegacyStreak(
+            LegacyStreak(source: "Lose It!", count: 1563, lastConfirmedDayKey: anchor,
+                         timeZoneIdentifier: "Africa/Casablanca")))
+        XCTAssertEqual(store.streakSnapshot(asOf: Date()).activeStreak, 1563,
+                       "an unlogged day in progress must not invent a day")
+
+        let food = try XCTUnwrap(store.allFoods.first)
+        store.entries.append(DiaryEntry(food: food, meal: .dinner, servings: 1, date: Date()))
+
+        XCTAssertFalse(store.isLoggingComplete(on: Date()), "no manual flag was set")
+        XCTAssertEqual(store.streakSnapshot(asOf: Date()).activeStreak, 1564,
+                       "recording food is what keeps the streak alive")
+        XCTAssertTrue(store.streakSnapshot(asOf: Date()).isCompleteToday)
+    }
+
+    func testClearingTheDiaryDayDoesNotLeaveAPhantomDay() throws {
+        let anchor = yesterdayKey()
+        XCTAssertTrue(store.applyLegacyStreak(
+            LegacyStreak(source: "Lose It!", count: 1563, lastConfirmedDayKey: anchor,
+                         timeZoneIdentifier: "Africa/Casablanca")))
+        let food = try XCTUnwrap(store.allFoods.first)
+        store.entries.append(DiaryEntry(food: food, meal: .lunch, servings: 1, date: Date()))
+        XCTAssertEqual(store.streakSnapshot(asOf: Date()).activeStreak, 1564)
+
+        store.entries.removeAll()
+        XCTAssertEqual(store.streakSnapshot(asOf: Date()).activeStreak, 1563)
+    }
 }
