@@ -14,9 +14,16 @@ final class StreakLedgerTests: XCTestCase {
         return calendar.date(from: DateComponents(year: year, month: month, day: dayOfMonth))!
     }
 
-    private func legacy(count: Int = 1563, end: String = "2026-10-29") -> LegacyStreak {
+    /// A pre-v3 record: the achievement lives in the anchor, not in the diary.
+    private func legacy(count: Int = 1563, end: String = "2026-10-29",
+                        version: Int = 2) -> LegacyStreak {
         LegacyStreak(source: "Lose It!", count: count, lastConfirmedDayKey: end,
-                     timeZoneIdentifier: "Africa/Casablanca")
+                     timeZoneIdentifier: "Africa/Casablanca", migrationVersion: version)
+    }
+
+    /// A v3 record: every day of the achievement is a real completed day in the diary.
+    private func marks(count: Int = 1563, end: String = "2026-10-28") -> [String] {
+        legacy(count: count, end: end, version: 3).dayKeys(calendar: casablanca)
     }
 
     private func snapshot(completed: [String],
@@ -28,6 +35,66 @@ final class StreakLedgerTests: XCTestCase {
         StreakEngine.snapshot(completedDays: Set(completed), legacy: legacy,
                               viewedDay: viewed, today: today,
                               calendar: calendar ?? casablanca, recordedLongest: longest)
+    }
+
+    // MARK: - Materialised achievement (v3)
+
+    func testEveryAchievementDayIsARealMark() {
+        let markList = marks()
+        XCTAssertEqual(markList.count, 1563)
+        XCTAssertEqual(markList.last, "2026-10-28")
+    }
+
+    func testMaterialisedRunReadsTheFullAchievement() {
+        let today = day(2026, 10, 29)
+        let result = snapshot(completed: marks(), legacy: legacy(end: "2026-10-28", version: 3),
+                              viewed: today, today: today)
+        XCTAssertEqual(result.activeStreak, 1563)
+        XCTAssertEqual(result.longestStreak, 1563)
+    }
+
+    func testFinishingTodayAddsADayToTheMaterialisedRun() {
+        let today = day(2026, 10, 29)
+        let result = snapshot(completed: marks() + ["2026-10-29"],
+                              legacy: legacy(end: "2026-10-28", version: 3),
+                              viewed: today, today: today)
+        XCTAssertEqual(result.activeStreak, 1564)
+    }
+
+    func testUntickingYesterdayEndsTheRunAtToday() {
+        let today = day(2026, 10, 29)
+        let completed = marks().filter { $0 != "2026-10-28" } + ["2026-10-29"]
+        let result = snapshot(completed: completed, legacy: legacy(end: "2026-10-28", version: 3),
+                              viewed: today, today: today)
+        XCTAssertEqual(result.activeStreak, 1, "the run broke yesterday, so only today counts")
+        XCTAssertEqual(result.longestStreak, 1563, "the historical best is untouched")
+    }
+
+    func testUntickingInsideTheRunEndsAtTheGap() {
+        let today = day(2026, 10, 29)
+        let completed = marks().filter { $0 != "2026-10-27" } + ["2026-10-28", "2026-10-29"]
+        let result = snapshot(completed: completed, legacy: legacy(end: "2026-10-28", version: 3),
+                              viewed: today, today: today)
+        XCTAssertEqual(result.activeStreak, 2, "27 Oct broke it; 28 and 29 remain")
+    }
+
+    func testBrowsingAPastDayReadsThatDay() {
+        let end = day(2026, 10, 28)
+        let oct20 = day(2026, 10, 20)
+        let oct21 = day(2026, 10, 21)
+        let finished = snapshot(completed: marks(), legacy: legacy(end: "2026-10-28", version: 3),
+                                viewed: oct20, today: end)
+        // The run ends 28 Oct at 1,563, so 20 Oct — eight days earlier — is day 1,555.
+        XCTAssertEqual(finished.activeStreak, 1555, "20 Oct was day 1,555 of the run")
+
+        let skipped = marks().filter { $0 != "2026-10-20" }
+        let notDone = snapshot(completed: skipped, legacy: legacy(end: "2026-10-28", version: 3),
+                               viewed: oct20, today: end)
+        XCTAssertEqual(notDone.activeStreak, 0, "an unfinished day has no streak")
+
+        let nextDay = snapshot(completed: skipped, legacy: legacy(end: "2026-10-28", version: 3),
+                               viewed: oct21, today: end)
+        XCTAssertEqual(nextDay.activeStreak, 1, "the day after an unfinished day starts over")
     }
 
     // MARK: - Initialization
