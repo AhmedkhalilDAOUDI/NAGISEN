@@ -316,7 +316,8 @@ struct CostCard: View {
         #if DEBUG
         .onAppear {
             // Test-only: opens the sheet for a screenshot.
-            if ProcessInfo.processInfo.arguments.contains("-NAGISENOpenCost") {
+            let arguments = ProcessInfo.processInfo.arguments
+            if arguments.contains("-NAGISENOpenCost") || arguments.contains("-NAGISENOpenReceipt") {
                 showingDetails = true
             }
         }
@@ -327,6 +328,7 @@ struct CostCard: View {
 private struct CostDetailView: View {
     @EnvironmentObject private var store: NutritionStore
     @Environment(\.dismiss) private var dismiss
+    @State private var showingReceipt = false
 
     var body: some View {
         NavigationStack {
@@ -342,8 +344,26 @@ private struct CostDetailView: View {
             .navigationTitle("Cost")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showingReceipt = true
+                    } label: {
+                        Label("Scan receipt", systemImage: "doc.text.viewfinder")
+                    }
+                }
                 ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
             }
+            .sheet(isPresented: $showingReceipt) {
+                ReceiptPriceView().environmentObject(store)
+            }
+            #if DEBUG
+            .task {
+                // Test-only: opens the scanner for a screenshot once this sheet has settled.
+                guard ProcessInfo.processInfo.arguments.contains("-NAGISENOpenReceipt") else { return }
+                try? await Task.sleep(nanoseconds: 600_000_000)
+                showingReceipt = true
+            }
+            #endif
         }
     }
 
@@ -396,7 +416,7 @@ private struct CostDetailView: View {
             Text("Prices")
                 .font(.system(size: 19, design: .serif))
                 .foregroundStyle(Theme.ink)
-            Text("Set what a food costs. Weight-based prices follow the portion you log.")
+            Text("Set what a food costs, or scan a receipt and let it fill these in. Weight-based prices follow the portion you log.")
                 .font(.caption).foregroundStyle(Theme.muted)
 
             if foods.isEmpty {
