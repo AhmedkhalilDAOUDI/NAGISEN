@@ -134,7 +134,7 @@ struct LoseItImportView: View {
                         Text("\(existingLegacy.count.formatted(.number.grouping(.automatic)))-day streak")
                             .font(.system(size: 30, weight: .regular, design: .serif))
                             .foregroundStyle(Theme.ink)
-                        Text("Continued from \(existingLegacy.source) · confirmed \(confirmedDateText(existingLegacy))")
+                        Text("Confirmed \(confirmedDateText(existingLegacy))")
                             .font(.caption).foregroundStyle(Theme.muted)
                     }
                     Divider().overlay(Theme.line)
