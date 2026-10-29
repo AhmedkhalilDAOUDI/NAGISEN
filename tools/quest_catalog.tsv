@@ -1,0 +1,101 @@
+id|category|title|detail|minutes
+c01|cardio|Lantern Hill|18 min treadmill walk: alternate 3 min flat and 3 min at a comfortable incline.|18
+c02|cardio|Staircase Static|10 min StairMaster at a pace you can hold without gripping the rails.|10
+c03|cardio|Koi Current|Row 1,500 m at an even pace, then 3 min easy rowing.|14
+c04|cardio|Last Train Home|Walk briskly for 25 min; make the final 5 min your strongest steady pace.|25
+c05|cardio|Pedal Postcard|Cycle 20 min, changing resistance every 4 min.|20
+c06|cardio|The Scenic Detour|Take a 30 min outdoor walk with one new route or hill.|30
+c07|cardio|Red Light Rhythm|Treadmill: 8 rounds of 1 min brisk and 1 min easy.|16
+c08|cardio|Quiet Engine|Elliptical for 22 min at a conversational pace.|22
+c09|cardio|Riverbank Relay|Jog 2 min and walk 2 min, repeated 6 times.|24
+c10|cardio|Three Flights Up|Climb stairs for 12 min, slowing whenever you need to.|12
+c11|cardio|Wind at Your Back|Bike: 5 rounds of 2 min steady and 1 min lively.|15
+c12|cardio|Morning Platform|Walk 2,000 steps outside before your next meal.|20
+c13|cardio|Copper Horizon|Treadmill incline walk for 15 min at a manageable grade.|15
+c14|cardio|Blue Hour Loop|Run or walk a relaxed 2 km loop.|20
+c15|cardio|The Long Crossing|Row 4 rounds of 3 min steady with 1 min easy between.|15
+c16|cardio|Second Wind Signal|Cycle 12 min easy, then 6 min a little faster.|18
+c17|cardio|No Elevator Today|Choose stairs for 10 min total across the day.|10
+c18|cardio|Harbor Pace|Power walk 20 min without checking your phone.|20
+c19|cardio|Golden Mile|Cover one mile by walking, jogging, or both.|20
+c20|cardio|Switchback Story|Treadmill: 5 min flat, 5 min incline, 5 min flat, 5 min incline.|20
+c21|cardio|Rainproof Route|Dance, march, or step indoors for 18 min continuously.|18
+c22|cardio|Wheelhouse|Stationary bike: 3 rounds of 5 min comfortable plus 1 min harder.|18
+c23|cardio|The Easy Finish|Do 15 min of very easy cardio after a harder training day.|15
+c24|cardio|Sunrise Circuit|Walk 10 min, climb stairs 5 min, walk 10 min.|25
+c25|cardio|Open Road Ticket|Choose any cardio machine and cover 3 km at your own pace.|25
+s01|strength|Lateral Ledger|3 sets of 12 lateral raises with a weight you can control.|10
+s02|strength|Pull-Up Treaty|Accumulate 10 pull-ups; use assistance or added load to suit you.|12
+s03|strength|The Squat Receipt|3 sets of 10 goblet squats, resting between sets.|12
+s04|strength|Back Row Radio|3 sets of 12 dumbbell rows per side.|12
+s05|strength|Push Day Stamp|4 sets of 8 push-ups; incline or knee versions count.|10
+s06|strength|Hinge & Hold|3 sets of 10 Romanian deadlifts with controlled form.|12
+s07|strength|The Carry Home|4 rounds of 40 m farmer carries with comfortable dumbbells.|10
+s08|strength|Single-Leg Chapter|3 sets of 8 split squats per leg.|12
+s09|strength|Bench Mark|3 sets of 10 dumbbell bench presses.|12
+s10|strength|Cable Car|3 sets of 12 seated cable rows.|10
+s11|strength|Steps With Purpose|3 sets of 10 step-ups per leg on a stable step.|12
+s12|strength|Shoulder Letter|3 sets of 8 overhead presses with a manageable load.|10
+s13|strength|Glute Bridge Toll|3 sets of 15 glute bridges; pause at the top.|10
+s14|strength|The Lat Line|3 sets of 10 lat pulldowns with a full controlled range.|10
+s15|strength|Curl Counter|3 sets of 12 dumbbell curls, then 12 hammer curls.|10
+s16|strength|Triceps Ticket|3 sets of 12 cable pressdowns or band extensions.|10
+s17|strength|Calf Corner|3 sets of 15 standing calf raises with a slow lowering phase.|8
+s18|strength|Core Deposit|3 rounds of a 30 sec plank and 10 dead bugs per side.|10
+s19|strength|Reverse Gear|3 sets of 10 reverse lunges per leg.|12
+s20|strength|Chest Fly Window|3 sets of 12 light chest flies with controlled motion.|10
+s21|strength|Band Pull Apart|4 sets of 15 band pull-aparts with relaxed shoulders.|8
+s22|strength|Sled Letter|Push a sled for 6 short trips with plenty of rest.|12
+s23|strength|Floor Press Note|3 sets of 10 dumbbell floor presses.|10
+s24|strength|Wall Sit Wager|4 wall sits of 30 sec; rest 45 sec between them.|7
+s25|strength|Hip Thrust Ledger|3 sets of 12 hip thrusts with a one-second pause.|12
+k01|skill|Shadow Round|Box 3 rounds of 2 min shadowboxing with 1 min rest.|9
+k02|skill|Rope Riddle|Jump rope 8 rounds of 45 sec with 30 sec easy steps.|10
+k03|skill|Footwork Map|Boxing footwork: 5 rounds of 2 min moving in and out.|12
+k04|skill|Soft Landing|Practice 3 sets of 8 controlled step-downs per leg.|10
+k05|skill|Balance Passport|Stand on one leg near support for 4 rounds of 30 sec per side.|8
+k06|skill|The Hip Key|10 min hip mobility: lunges, circles, and gentle rotations.|10
+k07|skill|Spine Unwind|8 min cat-cow, thoracic rotations, and child's pose.|8
+k08|skill|Ankle Alphabet|6 min ankle circles, calf stretches, and heel raises.|6
+k09|skill|Pillow Fight|Box 2 rounds on a bag at an easy pace, then 2 rounds of footwork.|12
+k10|skill|Tempo Detective|Do 3 sets of 8 bodyweight squats with a 3-second lowering phase.|9
+k11|skill|The Wall Reset|8 min wall slides, scapular squeezes, and arm circles.|8
+k12|skill|Quiet Feet|Practice 10 min of lateral shuffles with easy walking breaks.|10
+k13|skill|Floor Compass|8 min bear crawls, slow mountain climbers, and rests.|8
+k14|skill|Breathing Room|10 min easy walk followed by 3 min calm breathing.|13
+k15|skill|Side-Step Script|5 rounds of 1 min side steps and 1 min easy marching.|10
+k16|skill|Yoga Interlude|12 min yoga flow with sun salutations and gentle twists.|12
+k17|skill|The Long Exhale|8 min of gentle stretching and unhurried breathing.|8
+k18|skill|Hand-Eye Hour|10 min of easy ball tosses, catches, and footwork.|10
+k19|skill|Pivot Practice|Box 4 rounds of 90 sec pivots and combinations.|9
+k20|skill|Control the Descent|3 sets of 8 slow calf lowers and 8 slow step-downs.|10
+k21|skill|Mirror Movement|Follow 12 min of mobility or dance moves in a mirror.|12
+k22|skill|Core Clock|3 rounds: 20 sec each of front plank, side plank left, side plank right.|8
+k23|skill|Low-Impact Ladder|10 min alternating 30 sec marching and 30 sec side steps.|10
+k24|skill|Shoulder Range|8 min shoulder circles, wall slides, and light band work.|8
+k25|skill|Balance Beam|Walk heel-to-toe near a wall for 5 min, then do 5 min easy walking.|10
+h01|hybrid|Box & Climb|2 boxing rounds of 3 min, then 10 min StairMaster.|18
+h02|hybrid|Hill Meets Hinge|12 min incline walk plus 3 sets of 10 hip hinges.|22
+h03|hybrid|Pull and Pedal|Accumulate 8 pull-ups, then cycle 15 min easy.|25
+h04|hybrid|Row & Raise|Row 1 km, then do 3 sets of 12 lateral raises.|20
+h05|hybrid|Stairs and Squats|8 min stairs plus 3 sets of 10 bodyweight squats.|18
+h06|hybrid|Punch Clock|3 rounds of 2 min boxing plus 3 rounds of 10 push-ups.|19
+h07|hybrid|Carry the Distance|4 short farmer carries, then walk 15 min.|25
+h08|hybrid|Cycle & Core|Cycle 12 min, then do 3 rounds of 30 sec planks.|20
+h09|hybrid|The Lunch Break Mix|Walk 10 min, do 15 lunges per leg, walk 10 min.|25
+h10|hybrid|Rower's Detour|Row 10 min, then do 3 sets of 10 dumbbell rows.|22
+h11|hybrid|Two Floors and a Floor|Climb stairs 6 min, then do 3 sets of 10 floor presses.|18
+h12|hybrid|The Three-Stop Route|Bike 8 min, do 12 squats, then box 2 easy rounds.|22
+h13|hybrid|Walk the Weights|Walk 15 min, then do 2 sets each of curls and presses.|25
+h14|hybrid|Gloves and Glutes|Shadowbox 8 min, then do 3 sets of 15 glute bridges.|19
+h15|hybrid|The Rowing Bell|Row 4 rounds of 2 min, with 8 push-ups between rounds.|20
+h16|hybrid|Hilltop Circuit|10 min incline walk, 10 step-ups per leg, 10 min easy walk.|25
+h17|hybrid|Kettlebell Postcard|3 rounds of 12 kettlebell deadlifts and 3 min bike.|18
+h18|hybrid|Boxing Afterglow|Box 2 rounds, walk 12 min, stretch shoulders 5 min.|23
+h19|hybrid|Strength in Transit|3 sets of 10 split squats, then climb stairs 8 min.|20
+h20|hybrid|The Quiet Combo|10 min yoga, 10 min bike, 10 min brisk walk.|30
+h21|hybrid|Push, Pull, Pace|2 sets of push-ups and rows, then 15 min treadmill walk.|28
+h22|hybrid|Bicycle & Balance|Cycle 15 min, then practice one-leg balance 5 min.|20
+h23|hybrid|The Market Circuit|Walk 20 min carrying light groceries, then 10 calf raises.|23
+h24|hybrid|Rope and Row|Jump rope 5 min in intervals, then row 12 min steady.|19
+h25|hybrid|Final Bell Loop|3 boxing rounds, 8 min StairMaster, then 5 min easy walk.|25
