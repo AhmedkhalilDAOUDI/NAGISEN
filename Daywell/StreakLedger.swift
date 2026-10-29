@@ -21,9 +21,7 @@ struct LegacyStreak: Codable, Equatable {
     var migrationVersion: Int
     var recordedAt: Date
 
-    static let currentMigrationVersion = 3
-    /// Version whose achievement is written into the diary as real completed days.
-    static let materializedVersion = 3
+    static let currentMigrationVersion = 2
     static let userConfirmed = "user-confirmed"
 
     init(source: String, count: Int, lastConfirmedDayKey: String,
@@ -71,32 +69,12 @@ struct LegacyStreak: Codable, Equatable {
     var migratedToCurrentVersion: LegacyStreak {
         guard migrationVersion < LegacyStreak.currentMigrationVersion else { return self }
         var record = self
-        // Only v1 stored the achievement ending on its own confirmation day.
-        if migrationVersion < 2,
-           let anchor = StreakEngine.date(fromDayKey: lastConfirmedDayKey),
+        if let anchor = StreakEngine.date(fromDayKey: lastConfirmedDayKey),
            let previous = Calendar.current.date(byAdding: .day, value: -1, to: anchor) {
             record.lastConfirmedDayKey = StreakEngine.dayKey(for: previous)
         }
         record.migrationVersion = LegacyStreak.currentMigrationVersion
         return record
-    }
-
-    /// Every calendar day the achievement covers, oldest first. From version 3 these are
-    /// written into the diary as real completed days, so the streak is made of editable marks
-    /// rather than a frozen number: unticking a day ends the run exactly where it should.
-    func dayKeys(calendar: Calendar = .current) -> [String] {
-        guard isWellFormed,
-              let firstKey = firstDayKey(calendar: calendar),
-              let first = StreakEngine.date(fromDayKey: firstKey, calendar: calendar) else { return [] }
-        var keys: [String] = []
-        keys.reserveCapacity(count)
-        var day = first
-        for _ in 0..<count {
-            keys.append(StreakEngine.dayKey(for: day, calendar: calendar))
-            guard let next = calendar.date(byAdding: .day, value: 1, to: day) else { break }
-            day = next
-        }
-        return keys
     }
 
     /// First day covered by the achievement (inclusive), derived from the end date and count.
@@ -174,10 +152,6 @@ enum StreakEngine {
         let todayStart = calendar.startOfDay(for: today)
         let todayKey = dayKey(for: todayStart, calendar: calendar)
         let validDays = completedDays.filter(isValidDayKey)
-        // From v3 the achievement is written into `completedDays` as real marks, so the walk
-        // below is the only arithmetic. Older records keep the anchor fallback until they are
-        // migrated on load.
-        let materialized = (legacy?.migrationVersion ?? 0) >= LegacyStreak.materializedVersion
         let completeToday = validDays.contains(todayKey)
         let baseline = max(recordedLongest, legacy?.count ?? 0)
 
@@ -201,7 +175,7 @@ enum StreakEngine {
 
         // A legacy anchor is a fixed calendar day. Browsing earlier history is answered from
         // the achievement itself: on day N of a 1,563-day run the streak was N.
-        if !materialized, let legacy, legacy.isWellFormed,
+        if let legacy, legacy.isWellFormed,
            let anchor = date(fromDayKey: legacy.lastConfirmedDayKey, calendar: calendar),
            viewed < calendar.startOfDay(for: anchor) {
             if let firstKey = legacy.firstDayKey(calendar: calendar),
@@ -224,7 +198,7 @@ enum StreakEngine {
         // Migration day: the achievement already covers the anchor. When that anchor is today
         // and logging is not finished, the grace step lands before it — the streak must still
         // read 1,563 rather than fall out of the achievement.
-        if !materialized, let legacy,
+        if let legacy,
            let anchorDay = date(fromDayKey: legacy.lastConfirmedDayKey, calendar: calendar),
            day < calendar.startOfDay(for: anchorDay),
            viewed >= calendar.startOfDay(for: anchorDay) {
@@ -238,7 +212,7 @@ enum StreakEngine {
         while iterations < 40_000 {
             iterations += 1
             let key = dayKey(for: day, calendar: calendar)
-            if !materialized, key == anchorKey {
+            if key == anchorKey {
                 // The anchor is counted by `legacy.count`, never as an extra day.
                 reachedAnchor = true
                 break
@@ -251,9 +225,6 @@ enum StreakEngine {
 
         if reachedAnchor, let legacy {
             return result(legacy.count + run, continues: true)
-        }
-        if materialized {
-            return result(run, continues: run > 0)
         }
         // Missed a day after the anchor: the active streak restarts honestly, while the
         // historical achievement stays intact in `baseline`/`legacy`.

@@ -407,7 +407,8 @@ final class NutritionStore: ObservableObject {
             groceryStock = vault?.read("groceryStock") ?? []
             groceryPlan = vault?.read("groceryPlan")
             let storedLegacy: LegacyStreak? = vault?.read("legacyStreak")
-            adoptLegacyRecord(storedLegacy)
+            retireVersionOneCompletionFlag(storedLegacy)
+            legacyStreak = storedLegacy?.migratedToCurrentVersion
             longestStreakRecorded = vault?.read("longestStreakRecorded") ?? 0
             loseItImports = vault?.read("loseItImports") ?? []
             longestStreakRecorded = max(longestStreakRecorded, legacyStreak?.count ?? 0)
@@ -440,7 +441,8 @@ final class NutritionStore: ObservableObject {
         savedRecipes = saved.savedRecipes ?? []
         groceryStock = saved.groceryStock ?? []
         groceryPlan = saved.groceryPlan
-        adoptLegacyRecord(saved.legacyStreak)
+        retireVersionOneCompletionFlag(saved.legacyStreak)
+        legacyStreak = saved.legacyStreak?.migratedToCurrentVersion
         longestStreakRecorded = saved.longestStreakRecorded ?? 0
         loseItImports = saved.loseItImports ?? []
         longestStreakRecorded = max(longestStreakRecorded, legacyStreak?.count ?? 0)
@@ -711,7 +713,8 @@ final class NutritionStore: ObservableObject {
         savedRecipes = saved.savedRecipes ?? []
         groceryStock = saved.groceryStock ?? []
         groceryPlan = saved.groceryPlan
-        adoptLegacyRecord(saved.legacyStreak)
+        retireVersionOneCompletionFlag(saved.legacyStreak)
+        legacyStreak = saved.legacyStreak?.migratedToCurrentVersion
         longestStreakRecorded = max(saved.longestStreakRecorded ?? 0, saved.legacyStreak?.count ?? 0)
         loseItImports = saved.loseItImports ?? []
         capturePreservedBackupFields(from: data)
@@ -817,7 +820,7 @@ final class NutritionStore: ObservableObject {
 
     /// The single source of truth for every streak number shown in the app.
     func streakSnapshot(asOf date: Date) -> StreakSnapshot {
-        StreakEngine.snapshot(completedDays: qualifyingLoggingDays,
+        StreakEngine.snapshot(completedDays: completedLoggingDays,
                               legacy: legacyStreak,
                               viewedDay: date,
                               today: .now,
@@ -834,34 +837,8 @@ final class NutritionStore: ObservableObject {
     /// could not move the number. Migration hands that day back: it has to be finished to earn
     /// the next day, exactly like every day after it.
     private func retireVersionOneCompletionFlag(_ stored: LegacyStreak?) {
-        guard let stored, stored.migrationVersion < 2 else { return }
+        guard let stored, stored.migrationVersion < LegacyStreak.currentMigrationVersion else { return }
         completedLoggingDays.remove(stored.lastConfirmedDayKey)
-    }
-
-    /// Brings a stored achievement up to the current representation: v1 hands its confirmation
-    /// day back, and v3 writes every day the achievement covers into the diary as a real mark.
-    /// Idempotent: running it on an up-to-date record changes nothing.
-    private func adoptLegacyRecord(_ stored: LegacyStreak?) {
-        guard let stored else {
-            // A restore that carries no achievement must not keep the old one alive.
-            if legacyStreak != nil { legacyStreak = nil }
-            return
-        }
-        retireVersionOneCompletionFlag(stored)
-        let migrated = stored.migratedToCurrentVersion
-        if migrated != legacyStreak { legacyStreak = migrated }
-        if stored.migrationVersion < LegacyStreak.materializedVersion {
-            completedLoggingDays.formUnion(migrated.dayKeys())
-        }
-    }
-
-    /// Lose It! counts a day the moment anything is logged in it — there is no "finish the day"
-    /// button. NAGISEN keeps the manual flag for days logged somewhere else, and treats a day
-    /// with food in the diary as already done.
-    var qualifyingLoggingDays: Set<String> {
-        var days = completedLoggingDays
-        for entry in entries { days.insert(dayKey(entry.date)) }
-        return days
     }
 
     private func recordLongestStreak() {
@@ -877,7 +854,6 @@ final class NutritionStore: ObservableObject {
         retireVersionOneCompletionFlag(incoming)
         let merged = StreakEngine.merge(legacyStreak, with: incoming.migratedToCurrentVersion) ?? incoming
         if merged != legacyStreak { legacyStreak = merged }
-        completedLoggingDays.formUnion(merged.dayKeys())
         if merged.count > longestStreakRecorded { longestStreakRecorded = merged.count }
         return true
     }
@@ -932,7 +908,6 @@ final class NutritionStore: ObservableObject {
         if !newWeights.isEmpty { weights.append(contentsOf: newWeights) }
         if let mergedLegacy, legacyChanges {
             legacyStreak = mergedLegacy
-            completedLoggingDays.formUnion(mergedLegacy.dayKeys())
             longestStreakRecorded = max(longestStreakRecorded, mergedLegacy.count)
         }
         loseItImports.insert(LoseItImportRecord(

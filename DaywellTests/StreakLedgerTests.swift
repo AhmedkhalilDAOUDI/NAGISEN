@@ -14,16 +14,9 @@ final class StreakLedgerTests: XCTestCase {
         return calendar.date(from: DateComponents(year: year, month: month, day: dayOfMonth))!
     }
 
-    /// A pre-v3 record: the achievement lives in the anchor, not in the diary.
-    private func legacy(count: Int = 1563, end: String = "2026-10-29",
-                        version: Int = 2) -> LegacyStreak {
+    private func legacy(count: Int = 1563, end: String = "2026-10-29") -> LegacyStreak {
         LegacyStreak(source: "Lose It!", count: count, lastConfirmedDayKey: end,
-                     timeZoneIdentifier: "Africa/Casablanca", migrationVersion: version)
-    }
-
-    /// A v3 record: every day of the achievement is a real completed day in the diary.
-    private func marks(count: Int = 1563, end: String = "2026-10-28") -> [String] {
-        legacy(count: count, end: end, version: 3).dayKeys(calendar: casablanca)
+                     timeZoneIdentifier: "Africa/Casablanca")
     }
 
     private func snapshot(completed: [String],
@@ -35,62 +28,6 @@ final class StreakLedgerTests: XCTestCase {
         StreakEngine.snapshot(completedDays: Set(completed), legacy: legacy,
                               viewedDay: viewed, today: today,
                               calendar: calendar ?? casablanca, recordedLongest: longest)
-    }
-
-    // MARK: - Materialised achievement (v3)
-
-    func testEveryAchievementDayIsARealMark() {
-        let markList = marks()
-        XCTAssertEqual(markList.count, 1563)
-        XCTAssertEqual(markList.last, "2026-10-28")
-        XCTAssertEqual(markList.first, StreakEngine.dayKey(
-            for: casablanca.date(byAdding: .day, value: -1562, to: day(2026, 10, 28))!,
-            calendar: casablanca))
-    }
-
-    func testMaterialisedRunReadsTheFullAchievement() {
-        let today = day(2026, 10, 29)
-        let result = snapshot(completed: marks(), legacy: legacy(end: "2026-10-28", version: 3),
-                              viewed: today, today: today)
-        XCTAssertEqual(result.activeStreak, 1563)
-        XCTAssertEqual(result.longestStreak, 1563)
-    }
-
-    func testFinishingTodayAddsADayToTheMaterialisedRun() {
-        let today = day(2026, 10, 29)
-        let result = snapshot(completed: marks() + ["2026-10-29"],
-                              legacy: legacy(end: "2026-10-28", version: 3),
-                              viewed: today, today: today)
-        XCTAssertEqual(result.activeStreak, 1564)
-    }
-
-    func testUntickingYesterdayEndsTheRunAtToday() {
-        let today = day(2026, 10, 29)
-        let completed = marks().filter { $0 != "2026-10-28" } + ["2026-10-29"]
-        let result = snapshot(completed: completed, legacy: legacy(end: "2026-10-28", version: 3),
-                              viewed: today, today: today)
-        XCTAssertEqual(result.activeStreak, 1, "the run broke yesterday, so only today counts")
-        XCTAssertEqual(result.longestStreak, 1563, "the historical best is untouched")
-    }
-
-    func testUntickingInsideTheRunEndsAtTheGap() {
-        let today = day(2026, 10, 29)
-        let completed = marks().filter { $0 != "2026-10-27" } + ["2026-10-28", "2026-10-29"]
-        let result = snapshot(completed: completed, legacy: legacy(end: "2026-10-28", version: 3),
-                              viewed: today, today: today)
-        XCTAssertEqual(result.activeStreak, 2, "27 Oct broke it; 28 and 29 remain")
-    }
-
-    func testMaterialisedHistoryMatchesTheRun() {
-        let end = day(2026, 10, 28)
-        let oct27 = day(2026, 10, 27)
-        let hundredBack = casablanca.date(byAdding: .day, value: -100, to: end)!
-        let inside = snapshot(completed: marks(), legacy: legacy(end: "2026-10-28", version: 3),
-                              viewed: oct27, today: end)
-        XCTAssertEqual(inside.activeStreak, 1562)
-        let back = snapshot(completed: marks(), legacy: legacy(end: "2026-10-28", version: 3),
-                            viewed: hundredBack, today: end)
-        XCTAssertEqual(back.activeStreak, 1463)
     }
 
     // MARK: - Initialization

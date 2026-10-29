@@ -739,26 +739,17 @@ private struct CalorieCard: View {
                 Text("\(streak.activeStreak.formatted(.number.grouping(.automatic)))-day streak")
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundStyle(Theme.ink)
-                if store.entries(on: date).isEmpty {
-                    // Lose It! counts a day as soon as food is logged, so the manual tick is
-                    // only needed for a day with an empty diary.
-                    Toggle(isOn: Binding(
-                        get: { store.isLoggingComplete(on: date) },
-                        set: { store.setLoggingComplete($0, on: date) }
-                    )) {
-                        Label("Done Logging", systemImage: store.isLoggingComplete(on: date) ? "checkmark.circle.fill" : "checkmark.circle")
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(Theme.ink)
-                            .labelStyle(.titleAndIcon)
-                    }
-                    .tint(Theme.accentText)
-                    .disabled(Calendar.current.startOfDay(for: date) > Calendar.current.startOfDay(for: .now))
-                } else {
-                    Label("Counted — food logged", systemImage: "checkmark.circle.fill")
+                Toggle(isOn: Binding(
+                    get: { store.isLoggingComplete(on: date) },
+                    set: { store.setLoggingComplete($0, on: date) }
+                )) {
+                    Label("Done Logging", systemImage: store.isLoggingComplete(on: date) ? "checkmark.circle.fill" : "checkmark.circle")
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(Theme.ink)
                         .labelStyle(.titleAndIcon)
                 }
+                .tint(Theme.accentText)
+                .disabled(Calendar.current.startOfDay(for: date) > Calendar.current.startOfDay(for: .now))
             }
         }
     }
