@@ -50,9 +50,16 @@ private enum DebugMigration {
         let arguments = ProcessInfo.processInfo.arguments
         guard let index = arguments.firstIndex(of: "-NAGISENImportFile"),
               index + 1 < arguments.count else { return }
-        let url = URL(fileURLWithPath: arguments[index + 1])
-        guard let data = try? Data(contentsOf: url) else {
-            print("NAGISEN DEBUG IMPORT: could not read \(url.path)")
+        let raw = arguments[index + 1]
+        let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
+        let candidates = [
+            URL(fileURLWithPath: raw),
+            documents?.appendingPathComponent(raw),
+            documents?.appendingPathComponent(URL(fileURLWithPath: raw).lastPathComponent)
+        ].compactMap { $0 }
+        guard let url = candidates.first(where: { FileManager.default.fileExists(atPath: $0.path) }),
+              let data = try? Data(contentsOf: url) else {
+            print("NAGISEN DEBUG IMPORT: could not read \(raw)")
             return
         }
         let plan = LoseItImporter.preview(files: [LoseItSourceFile(name: url.lastPathComponent, data: data)],
