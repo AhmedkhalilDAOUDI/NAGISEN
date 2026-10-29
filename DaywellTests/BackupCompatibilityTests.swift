@@ -202,7 +202,7 @@ final class BackupCompatibilityTests: XCTestCase {
         let migrated = record.migratedToCurrentVersion
         XCTAssertEqual(migrated.lastConfirmedDayKey, "2026-10-28")
         XCTAssertEqual(migrated.count, 1563, "the achievement keeps every day it had")
-        XCTAssertEqual(migrated.migrationVersion, 2)
+        XCTAssertEqual(migrated.migrationVersion, 3)
         XCTAssertEqual(migrated.migratedToCurrentVersion, migrated, "migration is idempotent")
     }
 
@@ -251,6 +251,24 @@ final class BackupCompatibilityTests: XCTestCase {
         XCTAssertEqual(store.streakSnapshot(asOf: Date()).activeStreak, 1564)
     }
 
+    func testUntickingAMiddleDayEndsTheRunAtTheGap() {
+        let yesterday = yesterdayKey()
+        XCTAssertTrue(store.applyLegacyStreak(
+            LegacyStreak(source: "Lose It!", count: 1563, lastConfirmedDayKey: yesterday,
+                         timeZoneIdentifier: "Africa/Casablanca")))
+        store.setLoggingComplete(true, on: Date())
+        XCTAssertEqual(store.streakSnapshot(asOf: Date()).activeStreak, 1564)
+
+        // Two days back inside the run, and the run stops right after the hole.
+        let twoBack = Calendar.current.date(byAdding: .day, value: -2, to: Date())!
+        store.setLoggingComplete(false, on: twoBack)
+        XCTAssertEqual(store.streakSnapshot(asOf: Date()).activeStreak, 2,
+                       "yesterday and today survive; the rest ends at the gap")
+
+        store.setLoggingComplete(true, on: twoBack)
+        XCTAssertEqual(store.streakSnapshot(asOf: Date()).activeStreak, 1564)
+    }
+
     func testMigratedRecordSurvivesAReinstallRestore() {
         let record = LegacyStreak(source: "Lose It!", count: 1563,
                                   lastConfirmedDayKey: "2026-10-29",
@@ -261,7 +279,9 @@ final class BackupCompatibilityTests: XCTestCase {
         let reopened = NutritionStore()
         XCTAssertTrue(reopened.restoreJSON(exported))
         XCTAssertEqual(reopened.legacyStreak?.lastConfirmedDayKey, "2026-10-28")
-        XCTAssertEqual(reopened.legacyStreak?.migrationVersion, 2)
+        XCTAssertEqual(reopened.legacyStreak?.migrationVersion, 3)
         XCTAssertEqual(reopened.legacyStreak?.count, 1563)
+        XCTAssertEqual(reopened.completedLoggingDays.count, 1563,
+                       "every achievement day survives the restore as a real mark")
     }
 }
