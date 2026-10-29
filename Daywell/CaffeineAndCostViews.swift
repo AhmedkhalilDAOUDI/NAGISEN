@@ -279,7 +279,7 @@ struct CostCard: View {
     var body: some View {
         let cost = store.cost(on: date)
         let protein = store.proteinCost(on: date)
-        let unpriced = store.unpricedFoods(limit: 100).count
+        let priced = store.costFoods.count
 
         VStack(alignment: .leading, spacing: 14) {
             HStack {
@@ -287,7 +287,7 @@ struct CostCard: View {
                     .font(.caption2.weight(.semibold)).tracking(2)
                     .foregroundStyle(Theme.accentText)
                 Spacer()
-                Button(unpriced > 0 ? "\(unpriced) to price" : "Prices") { showingDetails = true }
+                Button("Prices") { showingDetails = true }
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(Theme.accentText)
             }
@@ -305,8 +305,8 @@ struct CostCard: View {
                 }
             }
 
-            if cost == 0 && unpriced > 0 {
-                Text("Add prices to see what your day costs.")
+            if cost == 0 {
+                Text(priced == 0 ? "Add foods to see what your day costs." : "Set prices to see what your day costs.")
                     .font(.caption)
                     .foregroundStyle(Theme.muted)
             }
@@ -422,7 +422,7 @@ private struct CostDetailView: View {
     }
 
     private var prices: some View {
-        let foods = pricedFoods()
+        let foods = store.costFoods
         return VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Prices")
@@ -437,15 +437,25 @@ private struct CostDetailView: View {
                 }
                 .foregroundStyle(Theme.accentText)
             }
-            Text("Set what a food costs, or scan a receipt and let it fill these in. Weight-based prices follow the portion you log.")
+            Text("Add a food, then set its price by hand or ask the assistant for a typical Moroccan price. Weight-based prices follow the portion you log.")
                 .font(.caption).foregroundStyle(Theme.muted)
 
             if foods.isEmpty {
-                Text("Add a food, or log one first, then price it here.")
+                Text("No foods yet. Add one to price it.")
                     .font(.caption).foregroundStyle(Theme.muted)
             } else {
                 ForEach(foods) { food in
-                    PriceRow(food: food)
+                    HStack(spacing: 8) {
+                        PriceRow(food: food)
+                        Button {
+                            store.removeCostFood(food)
+                        } label: {
+                            Image(systemName: "minus.circle")
+                                .foregroundStyle(Theme.red)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Remove \(food.name) from the price list")
+                    }
                 }
             }
         }
@@ -453,73 +463,62 @@ private struct CostDetailView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .nagisenGlass(in: RoundedRectangle(cornerRadius: 20))
     }
-
-    /// Foods eaten in the last 30 days, with anything unpriced first.
-    private func pricedFoods() -> [Food] {
-        let calendar = Calendar.current
-        let cutoff = calendar.date(byAdding: .day, value: -30, to: Date()) ?? Date()
-        var seen: Set<String> = []
-        var result: [Food] = []
-        for entry in store.entries.sorted(by: { $0.date > $1.date }) where entry.date >= cutoff {
-            let key = FoodCost.key(for: entry.food)
-            guard !seen.contains(key) else { continue }
-            seen.insert(key)
-            result.append(entry.food)
-        }
-        for food in extraFoods {
-            let key = FoodCost.key(for: food)
-            guard !seen.contains(key) else { continue }
-            seen.insert(key)
-            result.append(food)
-        }
-        return result.sorted { a, b in
-            let aPriced = store.price(for: a) != nil
-            let bPriced = store.price(for: b) != nil
-            return aPriced == bPriced ? a.name < b.name : !aPriced
-        }
-    }
 }
+
 
 private struct PriceRow: View {
     @EnvironmentObject private var store: NutritionStore
-    @Environment(\.openURL) private var openURL
     let food: Food
 
     @State private var text = ""
+    @State private var isLooking = false
+    @State private var lookupNote: String?
     @FocusState private var focused: Bool
 
     var body: some View {
         let price = store.price(for: food)
         let byWeight = food.gramsPerServing != nil
 
-        HStack(spacing: 10) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(food.name).font(.subheadline).lineLimit(1)
-                Text(byWeight ? "per 100 g" : "per serving · \(food.serving)")
-                    .font(.caption2).foregroundStyle(Theme.muted)
-            }
-            Spacer(minLength: 6)
-            TextField(price == nil ? "—" : FoodCost.display(currentValue(price)),
-                      text: $text)
-                .keyboardType(.decimalPad)
-                .multilineTextAlignment(.trailing)
-                .frame(width: 78)
-                .focused($focused)
-            Text("MAD").font(.caption).foregroundStyle(Theme.muted)
-            Button {
-                lookUpPrice()
-            } label: {
-                Image(systemName: "globe")
-                    .font(.caption)
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(Theme.muted)
-            .accessibilityLabel("Look up the price of \(food.name) online")
-
-            Button("Set") { commit(byWeight: byWeight) }
-                .font(.caption.weight(.semibold))
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(food.name).font(.subheadline).lineLimit(1)
+                    Text(byWeight ? "per 100 g" : "per serving · \(food.serving)")
+                        .font(.caption2).foregroundStyle(Theme.muted)
+                }
+                Spacer(minLength: 6)
+                TextField(price == nil ? "—" : FoodCost.display(currentValue(price)), text: $text)
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 72)
+                    .focused($focused)
+                Text("MAD").font(.caption).foregroundStyle(Theme.muted)
+                Button {
+                    lookUp()
+                } label: {
+                    if isLooking {
+                        ProgressView().controlSize(.mini)
+                    } else {
+                        Image(systemName: "sparkles").font(.caption)
+                    }
+                }
+                .buttonStyle(.plain)
                 .foregroundStyle(Theme.accentText)
-                .disabled(parsed == nil)
+                .disabled(isLooking)
+                .accessibilityLabel("Ask the assistant for the price of \(food.name)")
+
+                Button("Set") { commit(byWeight: byWeight) }
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Theme.accentText)
+                    .disabled(parsed == nil)
+            }
+
+            if let lookupNote {
+                Text(lookupNote)
+                    .font(.caption2)
+                    .foregroundStyle(Theme.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .foregroundStyle(Theme.ink)
         .onAppear { text = price.map { currentValue($0).formatted(.number.precision(.fractionLength(0...2))) } ?? "" }
@@ -536,13 +535,38 @@ private struct PriceRow: View {
         return price.per100g ?? price.perServing ?? 0
     }
 
-    /// Opens a web search for the price. The app never invents a number: a shop's own page is the
-    /// only honest source, and the price is typed in from what it says.
-    private func lookUpPrice() {
-        let query = "\(food.name) \(food.brand) prix Maroc".trimmingCharacters(in: .whitespaces)
-        guard let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-              let url = URL(string: "https://www.google.com/search?q=\(encoded)") else { return }
-        openURL(url)
+    /// Asks DeepSeek for a typical Moroccan price and puts it in the field. It is only a suggestion:
+    /// nothing is stored until Set is pressed.
+    private func lookUp() {
+        guard !isLooking else { return }
+        isLooking = true
+        lookupNote = nil
+        let byWeight = food.gramsPerServing != nil
+        Task {
+            do {
+                let suggestion = try await DeepSeekPrice.lookup(food: food)
+                let value = suggestion.value(perHundredGrams: byWeight)
+                let range: String
+                if let low = suggestion.low, let high = suggestion.high {
+                    range = "Estimate \(FoodCost.display(low))–\(FoodCost.display(high)). "
+                } else {
+                    range = ""
+                }
+                let note = suggestion.note.map { " \($0)" } ?? ""
+                await MainActor.run {
+                    if let value {
+                        text = value.formatted(.number.precision(.fractionLength(0...2)))
+                    }
+                    lookupNote = range + (value == nil ? "No price for this unit." : "Press Set to keep it.") + note
+                    isLooking = false
+                }
+            } catch {
+                await MainActor.run {
+                    lookupNote = error.localizedDescription
+                    isLooking = false
+                }
+            }
+        }
     }
 
     private func commit(byWeight: Bool) {
@@ -555,6 +579,7 @@ private struct PriceRow: View {
             store.setPrice(FoodPrice(perServing: value), for: food)
         }
         focused = false
+        lookupNote = nil
     }
 }
 

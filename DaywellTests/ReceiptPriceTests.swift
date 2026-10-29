@@ -95,6 +95,34 @@ final class ReceiptPriceTests: XCTestCase {
         XCTAssertTrue(ReceiptMatcher.candidates(for: line, in: foods).isEmpty)
     }
 
+    // MARK: - Assistant price lookup
+
+    func testTheAssistantAnswerIsReadEvenWhenItIsWrappedInProse() {
+        let answer = """
+        Sure — here is what it usually costs:
+        ```json
+        {"per100g": 12.5, "perServing": null, "low": 9, "high": 16, "note": "Around 12-16 MAD at supermarkets."}
+        ```
+        """
+        let suggestion = DeepSeekPrice.parse(answer)
+        XCTAssertEqual(suggestion?.per100g, 12.5)
+        XCTAssertNil(suggestion?.perServing)
+        XCTAssertEqual(suggestion?.low, 9)
+        XCTAssertEqual(suggestion?.high, 16)
+        XCTAssertEqual(suggestion?.value(perHundredGrams: true), 12.5)
+        XCTAssertNil(suggestion?.value(perHundredGrams: false))
+    }
+
+    func testAnAnswerWithNoPricesIsRejected() {
+        XCTAssertNil(DeepSeekPrice.parse("I do not know."))
+        XCTAssertNil(DeepSeekPrice.parse("{\"note\": \"no idea\"}"))
+    }
+
+    func testNumbersArrivingAsTextStillParse() {
+        let suggestion = DeepSeekPrice.parse("{\"perServing\": \"3,50\", \"low\": 3, \"high\": 5}")
+        XCTAssertEqual(suggestion?.perServing, 3.5)
+    }
+
     func testAWeightFoodWithNoPrintedWeightGetsNoPrice() throws {
         let line = try XCTUnwrap(ReceiptParser.parseLine("RIZ 45,00"))
         let rice = food("White rice", serving: "100 g")
