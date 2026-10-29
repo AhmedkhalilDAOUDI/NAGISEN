@@ -291,10 +291,14 @@ enum ReceiptMatcher {
     /// What a row implies for a food's price, given what the receipt printed.
     static func price(for line: ReceiptLine, food: Food) -> FoodPrice? {
         if let grams = line.grams, grams > 0 {
-            return FoodPrice(per100g: line.total / grams * 100)
+            return FoodPrice(per100g: line.total / grams * 100,
+                             boughtGrams: grams,
+                             paid: line.total)
         }
         if let count = line.count, count > 0 {
-            return FoodPrice(perServing: line.total / count)
+            return FoodPrice(perServing: line.total / count,
+                             boughtServings: count,
+                             paid: line.total)
         }
         // No quantity printed: the row is treated as one serving only when the food has no weight.
         if food.gramsPerServing == nil {

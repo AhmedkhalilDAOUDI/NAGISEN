@@ -89,8 +89,35 @@ enum CaffeineMath {
 struct FoodPrice: Codable, Equatable {
     var per100g: Double? = nil
     var perServing: Double? = nil
+    /// What was actually bought, kept so the price can be explained rather than just stored.
+    var boughtGrams: Double? = nil
+    var boughtServings: Double? = nil
+    var paid: Double? = nil
 
     var isEmpty: Bool { per100g == nil && perServing == nil }
+
+    /// "1 kg for 60 MAD" — the purchase behind the price, when it is known.
+    var purchaseSummary: String? {
+        guard let paid else { return nil }
+        if let grams = boughtGrams {
+            let amount = grams >= 1000
+                ? "\((grams / 1000).formatted(.number.precision(.fractionLength(0...2)))) kg"
+                : "\(grams.formatted(.number.precision(.fractionLength(0...0)))) g"
+            return "\(amount) for \(paid.formatted(.number.precision(.fractionLength(0...2)))) MAD"
+        }
+        if let servings = boughtServings {
+            return "\(servings.formatted(.number.precision(.fractionLength(0...2)))) servings for \(paid.formatted(.number.precision(.fractionLength(0...2)))) MAD"
+        }
+        return nil
+    }
+}
+
+/// The unit someone thinks in when they buy: a weight or a number of servings.
+enum PriceAmountUnit: String, CaseIterable, Identifiable {
+    case grams = "grams"
+    case servings = "servings"
+
+    var id: String { rawValue }
 }
 
 enum FoodCost {
@@ -145,6 +172,21 @@ enum FoodCost {
     static func proteinValue(of food: Food, price: FoodPrice) -> Double? {
         guard let per100g = price.per100g, food.protein > 0 else { return nil }
         return per100g / food.protein * 100
+    }
+
+    /// Turns "I bought this much for this much" into the price the diary uses.
+    static func derive(amount: Double, unit: PriceAmountUnit, paid: Double, food: Food) -> FoodPrice? {
+        guard amount > 0, paid >= 0 else { return nil }
+        switch unit {
+        case .grams:
+            return FoodPrice(per100g: paid / amount * 100,
+                             boughtGrams: amount,
+                             paid: paid)
+        case .servings:
+            return FoodPrice(perServing: paid / amount,
+                             boughtServings: amount,
+                             paid: paid)
+        }
     }
 
     static func display(_ value: Double) -> String {

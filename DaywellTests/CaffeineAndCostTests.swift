@@ -136,6 +136,29 @@ final class CaffeineAndCostTests: XCTestCase {
                                                    prices: nothingPrice, on: day, calendar: calendar))
     }
 
+    func testABoughtAmountBecomesAPrice() {
+        let chicken = food("Chicken breast", serving: "100 g", protein: 31)
+        let price = FoodCost.derive(amount: 1000, unit: .grams, paid: 60, food: chicken)
+        XCTAssertEqual(price?.per100g ?? 0, 6, accuracy: 0.001)
+        XCTAssertEqual(price?.boughtGrams ?? 0, 1000, accuracy: 0.001)
+        XCTAssertEqual(price?.paid ?? 0, 60, accuracy: 0.001)
+        XCTAssertEqual(price?.purchaseSummary, "1 kg for 60 MAD")
+    }
+
+    func testAServingAmountBecomesAPrice() {
+        let yogurt = food("Greek yogurt", serving: "1 pot")
+        let price = FoodCost.derive(amount: 10, unit: .servings, paid: 35, food: yogurt)
+        XCTAssertEqual(price?.perServing ?? 0, 3.5, accuracy: 0.001)
+        XCTAssertNil(price?.per100g)
+        XCTAssertEqual(price?.purchaseSummary, "10 servings for 35 MAD")
+    }
+
+    func testAnEmptyAmountIsRefused() {
+        let egg = food("Egg", serving: "1 large")
+        XCTAssertNil(FoodCost.derive(amount: 0, unit: .grams, paid: 45, food: egg))
+        XCTAssertNil(FoodCost.derive(amount: 30, unit: .grams, paid: -1, food: egg))
+    }
+
     func testPricePerHundredGramsOfProteinRanksFoods() {
         let whey = food("Whey", serving: "100 g", protein: 80)
         let beef = food("Beef", serving: "100 g", protein: 26)
