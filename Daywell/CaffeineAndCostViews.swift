@@ -317,7 +317,9 @@ struct CostCard: View {
         .onAppear {
             // Test-only: opens the sheet for a screenshot.
             let arguments = ProcessInfo.processInfo.arguments
-            if arguments.contains("-NAGISENOpenCost") || arguments.contains("-NAGISENOpenReceipt") {
+            if arguments.contains("-NAGISENOpenCost")
+                || arguments.contains("-NAGISENOpenReceipt")
+                || arguments.contains("-NAGISENOpenFoodPicker") {
                 showingDetails = true
             }
         }
@@ -369,10 +371,15 @@ private struct CostDetailView: View {
             }
             #if DEBUG
             .task {
-                // Test-only: opens the scanner for a screenshot once this sheet has settled.
-                guard ProcessInfo.processInfo.arguments.contains("-NAGISENOpenReceipt") else { return }
-                try? await Task.sleep(nanoseconds: 600_000_000)
-                showingReceipt = true
+                // Test-only: opens a child sheet for a screenshot once this one has settled.
+                let arguments = ProcessInfo.processInfo.arguments
+                if arguments.contains("-NAGISENOpenReceipt") {
+                    try? await Task.sleep(nanoseconds: 600_000_000)
+                    showingReceipt = true
+                } else if arguments.contains("-NAGISENOpenFoodPicker") {
+                    try? await Task.sleep(nanoseconds: 600_000_000)
+                    showingFoodPicker = true
+                }
             }
             #endif
         }
@@ -584,16 +591,21 @@ private struct PriceRow: View {
 }
 
 
-/// Picks a food to price, including ones that have not been eaten yet.
+/// Picks a food to price from the same sources the food log searches: your own foods, the
+/// Moroccan catalogue and Open Food Facts online.
 private struct PriceFoodPicker: View {
     @EnvironmentObject private var store: NutritionStore
     @Environment(\.dismiss) private var dismiss
     let onPick: (Food) -> Void
 
     @State private var search = ""
+    @State private var online: [Food] = []
+    @State private var isSearchingOnline = false
+    @State private var searchTask: Task<Void, Never>?
 
-    private var matches: [Food] {
-        let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
+    private var query: String { search.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    private var localMatches: [Food] {
         guard !query.isEmpty else { return Array(store.allFoods.prefix(250)) }
         return store.allFoods.filter {
             $0.name.localizedCaseInsensitiveContains(query) ||
@@ -601,37 +613,97 @@ private struct PriceFoodPicker: View {
         }
     }
 
+    private var catalogMatches: [Food] {
+        guard query.count >= 2 else { return [] }
+        let known = Set(localMatches.map { FoodCost.key(for: $0) })
+        return MoroccanFoodCatalog.search(query).filter { !known.contains(FoodCost.key(for: $0)) }
+    }
+
     var body: some View {
         NavigationStack {
-            List(matches) { food in
-                Button {
-                    onPick(food)
-                    dismiss()
-                } label: {
-                    HStack(spacing: 10) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(food.name)
-                                .foregroundStyle(Theme.ink)
-                                .lineLimit(1)
-                            Text("\(food.serving) · \(food.calories) kcal")
-                                .font(.caption)
-                                .foregroundStyle(Theme.muted)
-                        }
-                        Spacer()
-                        if let price = store.price(for: food),
-                           let value = price.per100g ?? price.perServing {
-                            Text(FoodCost.display(value))
-                                .font(.caption.monospacedDigit())
-                                .foregroundStyle(Theme.muted)
-                        }
+            List {
+                if !localMatches.isEmpty {
+                    Section("Your foods") {
+                        ForEach(localMatches) { row($0) }
                     }
                 }
+                if !catalogMatches.isEmpty {
+                    Section("Moroccan foods") {
+                        ForEach(catalogMatches) { row($0) }
+                    }
+                }
+                Section {
+                    if isSearchingOnline {
+                        HStack(spacing: 10) {
+                            ProgressView().controlSize(.small)
+                            Text("Searching online…").font(.subheadline).foregroundStyle(Theme.muted)
+                        }
+                    } else if online.isEmpty {
+                        Text(query.count >= 2 ? "No online matches." : "Type a name to search online.")
+                            .font(.caption).foregroundStyle(Theme.muted)
+                    } else {
+                        ForEach(online) { row($0) }
+                    }
+                } header: {
+                    Text("Online")
+                }
             }
-            .searchable(text: $search, prompt: "Search foods")
+            .searchable(text: $search, prompt: "Food or brand")
+            .autocorrectionDisabled()
             .navigationTitle("Add a food")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
+            }
+            .onChange(of: search) { _, _ in searchOnline() }
+            .onDisappear { searchTask?.cancel() }
+        }
+    }
+
+    private func row(_ food: Food) -> some View {
+        Button {
+            onPick(food)
+            dismiss()
+        } label: {
+            HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(food.name)
+                        .foregroundStyle(Theme.ink)
+                        .lineLimit(1)
+                    Text("\(food.serving) · \(food.calories) kcal")
+                        .font(.caption)
+                        .foregroundStyle(Theme.muted)
+                }
+                Spacer()
+                if let price = store.price(for: food), let value = price.per100g ?? price.perServing {
+                    Text(FoodCost.display(value))
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(Theme.muted)
+                }
+            }
+        }
+    }
+
+    /// Online results are debounced so typing does not fire a request per keystroke.
+    private func searchOnline() {
+        searchTask?.cancel()
+        let text = query
+        guard text.count >= 2 else {
+            online = []
+            isSearchingOnline = false
+            return
+        }
+        searchTask = Task {
+            try? await Task.sleep(nanoseconds: 450_000_000)
+            guard !Task.isCancelled else { return }
+            await MainActor.run { isSearchingOnline = true }
+            let results = (try? await OpenFoodFactsService().search(text)) ?? []
+            guard !Task.isCancelled else { return }
+            let known = Set(localMatches.map { FoodCost.key(for: $0) })
+                .union(catalogMatches.map { FoodCost.key(for: $0) })
+            await MainActor.run {
+                online = results.filter { !known.contains(FoodCost.key(for: $0)) }
+                isSearchingOnline = false
             }
         }
     }
