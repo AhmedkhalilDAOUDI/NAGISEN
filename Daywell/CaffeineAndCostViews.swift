@@ -319,7 +319,8 @@ struct CostCard: View {
             let arguments = ProcessInfo.processInfo.arguments
             if arguments.contains("-NAGISENOpenCost")
                 || arguments.contains("-NAGISENOpenReceipt")
-                || arguments.contains("-NAGISENOpenFoodPicker") {
+                || arguments.contains("-NAGISENOpenFoodPicker")
+                || arguments.contains("-NAGISENOpenPriceEditor") {
                 showingDetails = true
             }
         }
@@ -332,6 +333,9 @@ private struct CostDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showingReceipt = false
     @State private var showingFoodPicker = false
+    #if DEBUG
+    @State private var debugFood: Food?
+    #endif
 
 
     var body: some View {
@@ -360,6 +364,11 @@ private struct CostDetailView: View {
             .sheet(isPresented: $showingReceipt) {
                 ReceiptPriceView().environmentObject(store)
             }
+            #if DEBUG
+            .sheet(item: $debugFood) { food in
+                PriceEditorView(food: food).environmentObject(store)
+            }
+            #endif
             .sheet(isPresented: $showingFoodPicker) {
                 PriceFoodPicker { food in
                     store.addCostFood(food)
@@ -376,6 +385,9 @@ private struct CostDetailView: View {
                 } else if arguments.contains("-NAGISENOpenFoodPicker") {
                     try? await Task.sleep(nanoseconds: 600_000_000)
                     showingFoodPicker = true
+                } else if arguments.contains("-NAGISENOpenPriceEditor") {
+                    try? await Task.sleep(nanoseconds: 600_000_000)
+                    debugFood = store.costFoods.first ?? store.allFoods.first
                 }
             }
             #endif
@@ -474,116 +486,267 @@ private struct PriceRow: View {
     @EnvironmentObject private var store: NutritionStore
     let food: Food
 
-    @State private var text = ""
-    @State private var isLooking = false
-    @State private var lookupNote: String?
-    @FocusState private var focused: Bool
+    @State private var showingEditor = false
 
     var body: some View {
         let price = store.price(for: food)
-        let byWeight = food.gramsPerServing != nil
-
-        VStack(alignment: .leading, spacing: 5) {
+        Button {
+            showingEditor = true
+        } label: {
             HStack(spacing: 10) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(food.name).font(.subheadline).lineLimit(1)
-                    Text(byWeight ? "per 100 g" : "per serving · \(food.serving)")
-                        .font(.caption2).foregroundStyle(Theme.muted)
+                    Text(food.name)
+                        .font(.subheadline)
+                        .lineLimit(1)
+                    Text(subtitle(price))
+                        .font(.caption2)
+                        .foregroundStyle(Theme.muted)
+                        .lineLimit(1)
                 }
                 Spacer(minLength: 6)
-                TextField(price == nil ? "—" : FoodCost.display(currentValue(price)), text: $text)
-                    .keyboardType(.decimalPad)
-                    .multilineTextAlignment(.trailing)
-                    .frame(width: 72)
-                    .focused($focused)
-                Text("MAD").font(.caption).foregroundStyle(Theme.muted)
-                Button {
-                    lookUp()
-                } label: {
-                    if isLooking {
-                        ProgressView().controlSize(.mini)
-                    } else {
-                        Image(systemName: "sparkles").font(.caption)
-                    }
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(Theme.accentText)
-                .disabled(isLooking)
-                .accessibilityLabel("Ask the assistant for the price of \(food.name)")
+                Text(priceText(price))
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(price == nil || price?.isEmpty == true ? Theme.muted : Theme.accentText)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(Theme.ink)
+        .sheet(isPresented: $showingEditor) {
+            PriceEditorView(food: food).environmentObject(store)
+        }
+    }
 
-                Button("Set") { commit(byWeight: byWeight) }
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(Theme.accentText)
-                    .disabled(parsed == nil)
+    private func subtitle(_ price: FoodPrice?) -> String {
+        if let summary = price?.purchaseSummary { return summary }
+        return food.gramsPerServing != nil ? "per 100 g" : "per serving · \(food.serving)"
+    }
+
+    private func priceText(_ price: FoodPrice?) -> String {
+        guard let price, !price.isEmpty else { return "Set price" }
+        if let per100g = price.per100g { return FoodCost.display(per100g) + " / 100 g" }
+        if let perServing = price.perServing { return FoodCost.display(perServing) + " / serving" }
+        return "Set price"
+    }
+}
+
+/// Records a price the way a shop records it: how much was bought, and what it cost.
+private struct PriceEditorView: View {
+    @EnvironmentObject private var store: NutritionStore
+    @Environment(\.dismiss) private var dismiss
+    let food: Food
+
+    @State private var unit: PriceAmountUnit = .grams
+    @State private var amount = ""
+    @State private var paid = ""
+    @State private var isLooking = false
+    @State private var note: String?
+
+    private var amountValue: Double? { number(amount) }
+    private var paidValue: Double? { number(paid) }
+
+    private var derived: FoodPrice? {
+        guard let amountValue, let paidValue else { return nil }
+        return FoodCost.derive(amount: amountValue, unit: unit, paid: paidValue, food: food)
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    header
+                    fields
+                    result
+                    assistant
+                }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 16)
+            }
+            .background(Theme.surface.ignoresSafeArea())
+            .navigationTitle(food.name)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        if let derived { store.setPrice(derived, for: food) }
+                        dismiss()
+                    }
+                    .disabled(derived == nil)
+                }
+            }
+            .onAppear(perform: prefill)
+        }
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("How much did you buy?")
+                .font(.system(size: 19, design: .serif))
+                .foregroundStyle(Theme.ink)
+            Text("Enter the amount and what you paid. The price per 100 g or per serving is worked out from it.")
+                .font(.caption)
+                .foregroundStyle(Theme.muted)
+        }
+    }
+
+    private var fields: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Picker("Unit", selection: $unit) {
+                ForEach(PriceAmountUnit.allCases) { value in
+                    Text(value.rawValue.capitalized).tag(value)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(unit == .grams ? "Amount in grams" : "Number of servings")
+                        .font(.caption).foregroundStyle(Theme.muted)
+                    TextField("0", text: $amount)
+                        .keyboardType(.decimalPad)
+                        .textFieldStyle(.roundedBorder)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Paid in MAD").font(.caption).foregroundStyle(Theme.muted)
+                    TextField("0", text: $paid)
+                        .keyboardType(.decimalPad)
+                        .textFieldStyle(.roundedBorder)
+                }
             }
 
-            if let lookupNote {
-                Text(lookupNote)
+            if unit == .grams, food.gramsPerServing != nil {
+                Text("One serving of this food is \(food.serving).")
+                    .font(.caption2).foregroundStyle(Theme.muted)
+            }
+        }
+        .foregroundStyle(Theme.ink)
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .nagisenGlass(in: RoundedRectangle(cornerRadius: 20))
+    }
+
+    private var result: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if let derived {
+                if let per100g = derived.per100g {
+                    Text("\(FoodCost.display(per100g)) per 100 g")
+                        .font(.system(size: 24, weight: .light, design: .serif))
+                        .foregroundStyle(Theme.ink)
+                    if let grams = food.gramsPerServing {
+                        Text("One serving (\(food.serving)) costs \(FoodCost.display(per100g * grams / 100)).")
+                            .font(.caption).foregroundStyle(Theme.muted)
+                    }
+                } else if let perServing = derived.perServing {
+                    Text("\(FoodCost.display(perServing)) per serving")
+                        .font(.system(size: 24, weight: .light, design: .serif))
+                        .foregroundStyle(Theme.ink)
+                }
+            } else {
+                Text("Fill in the amount and the price paid.")
+                    .font(.caption).foregroundStyle(Theme.muted)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(18)
+        .nagisenGlass(in: RoundedRectangle(cornerRadius: 20))
+    }
+
+    private var assistant: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Button {
+                lookUp()
+            } label: {
+                HStack(spacing: 8) {
+                    if isLooking { ProgressView().controlSize(.small) }
+                    else { Image(systemName: "sparkles") }
+                    Text(isLooking ? "Asking…" : "Ask DeepSeek for a typical price")
+                        .font(.subheadline.weight(.semibold))
+                }
+                .foregroundStyle(Theme.accentText)
+            }
+            .buttonStyle(.plain)
+            .disabled(isLooking)
+
+            if let note {
+                Text(note)
                     .font(.caption2)
                     .foregroundStyle(Theme.muted)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .foregroundStyle(Theme.ink)
-        .onAppear { text = price.map { currentValue($0).formatted(.number.precision(.fractionLength(0...2))) } ?? "" }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(18)
+        .nagisenGlass(in: RoundedRectangle(cornerRadius: 20))
     }
 
-    private var parsed: Double? {
-        let value = text.replacingOccurrences(of: ",", with: ".").trimmingCharacters(in: .whitespaces)
-        guard let number = Double(value), number >= 0 else { return nil }
-        return number
+    private func prefill() {
+        guard let price = store.price(for: food) else {
+            unit = food.gramsPerServing != nil ? .grams : .servings
+            return
+        }
+        if let grams = price.boughtGrams, let paidValue = price.paid {
+            unit = .grams
+            amount = grams.formatted(.number.precision(.fractionLength(0...2)))
+            paid = paidValue.formatted(.number.precision(.fractionLength(0...2)))
+        } else if let servings = price.boughtServings, let paidValue = price.paid {
+            unit = .servings
+            amount = servings.formatted(.number.precision(.fractionLength(0...2)))
+            paid = paidValue.formatted(.number.precision(.fractionLength(0...2)))
+        } else if let per100g = price.per100g {
+            unit = .grams
+            amount = "100"
+            paid = per100g.formatted(.number.precision(.fractionLength(0...2)))
+        } else if let perServing = price.perServing {
+            unit = .servings
+            amount = "1"
+            paid = perServing.formatted(.number.precision(.fractionLength(0...2)))
+        }
     }
 
-    private func currentValue(_ price: FoodPrice?) -> Double {
-        guard let price else { return 0 }
-        return price.per100g ?? price.perServing ?? 0
-    }
-
-    /// Asks DeepSeek for a typical Moroccan price and puts it in the field. It is only a suggestion:
-    /// nothing is stored until Set is pressed.
+    /// The assistant gives a unit price; it is turned into what that amount would cost.
     private func lookUp() {
-        guard !isLooking else { return }
         isLooking = true
-        lookupNote = nil
-        let byWeight = food.gramsPerServing != nil
+        note = nil
         Task {
             do {
                 let suggestion = try await DeepSeekPrice.lookup(food: food)
-                let value = suggestion.value(perHundredGrams: byWeight)
-                let range: String
-                if let low = suggestion.low, let high = suggestion.high {
-                    range = "Estimate \(FoodCost.display(low))–\(FoodCost.display(high)). "
-                } else {
-                    range = ""
-                }
-                let note = suggestion.note.map { " \($0)" } ?? ""
                 await MainActor.run {
-                    if let value {
-                        text = value.formatted(.number.precision(.fractionLength(0...2)))
+                    if unit == .grams, let per100g = suggestion.per100g,
+                       let grams = amountValue {
+                        paid = (per100g * grams / 100).formatted(.number.precision(.fractionLength(0...2)))
+                    } else if unit == .servings, let perServing = suggestion.perServing,
+                              let count = amountValue {
+                        paid = (perServing * count).formatted(.number.precision(.fractionLength(0...2)))
+                    } else if amountValue == nil, let per100g = suggestion.per100g, unit == .grams {
+                        amount = "100"
+                        paid = per100g.formatted(.number.precision(.fractionLength(0...2)))
+                    } else if amountValue == nil, let perServing = suggestion.perServing, unit == .servings {
+                        amount = "1"
+                        paid = perServing.formatted(.number.precision(.fractionLength(0...2)))
                     }
-                    lookupNote = range + (value == nil ? "No price for this unit." : "Press Set to keep it.") + note
+                    let range: String
+                    if let low = suggestion.low, let high = suggestion.high {
+                        range = "Typical \(FoodCost.display(low))–\(FoodCost.display(high)). "
+                    } else { range = "" }
+                    note = range + "Press Save to keep it. " + (suggestion.note ?? "")
                     isLooking = false
                 }
             } catch {
                 await MainActor.run {
-                    lookupNote = error.localizedDescription
+                    note = error.localizedDescription
                     isLooking = false
                 }
             }
         }
     }
 
-    private func commit(byWeight: Bool) {
-        guard let value = parsed else { return }
-        if value == 0 {
-            store.setPrice(FoodPrice(), for: food)
-        } else if byWeight {
-            store.setPrice(FoodPrice(per100g: value), for: food)
-        } else {
-            store.setPrice(FoodPrice(perServing: value), for: food)
-        }
-        focused = false
-        lookupNote = nil
+    private func number(_ text: String) -> Double? {
+        let value = text.replacingOccurrences(of: ",", with: ".").trimmingCharacters(in: .whitespaces)
+        guard let parsed = Double(value) else { return nil }
+        return parsed
     }
 }
 
