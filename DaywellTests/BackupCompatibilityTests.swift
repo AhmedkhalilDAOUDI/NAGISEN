@@ -183,40 +183,85 @@ final class BackupCompatibilityTests: XCTestCase {
         XCTAssertEqual(reopened.longestStreakRecorded, 1563)
     }
 
-    // MARK: - Counting without a manual flag
+    // MARK: - Finishing the day earns the next one
+
+    private func todayKey() -> String {
+        StreakEngine.dayKey(for: Date(), calendar: .current)
+    }
 
     private func yesterdayKey() -> String {
         let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()
         return StreakEngine.dayKey(for: yesterday, calendar: .current)
     }
 
-    func testLoggingFoodAloneAdvancesTheStreak() throws {
-        let anchor = yesterdayKey()
-        XCTAssertTrue(store.applyLegacyStreak(
-            LegacyStreak(source: "Lose It!", count: 1563, lastConfirmedDayKey: anchor,
-                         timeZoneIdentifier: "Africa/Casablanca")))
-        XCTAssertEqual(store.streakSnapshot(asOf: Date()).activeStreak, 1563,
-                       "an unlogged day in progress must not invent a day")
-
-        let food = try XCTUnwrap(store.allFoods.first)
-        store.entries.append(DiaryEntry(food: food, meal: .dinner, servings: 1, date: Date()))
-
-        XCTAssertFalse(store.isLoggingComplete(on: Date()), "no manual flag was set")
-        XCTAssertEqual(store.streakSnapshot(asOf: Date()).activeStreak, 1564,
-                       "recording food is what keeps the streak alive")
-        XCTAssertTrue(store.streakSnapshot(asOf: Date()).isCompleteToday)
+    func testVersionOneRecordMovesItsAnchorBackADay() {
+        let record = LegacyStreak(source: "Lose It!", count: 1563,
+                                  lastConfirmedDayKey: "2026-10-29",
+                                  timeZoneIdentifier: "Africa/Casablanca",
+                                  migrationVersion: 1)
+        let migrated = record.migratedToCurrentVersion
+        XCTAssertEqual(migrated.lastConfirmedDayKey, "2026-10-28")
+        XCTAssertEqual(migrated.count, 1563, "the achievement keeps every day it had")
+        XCTAssertEqual(migrated.migrationVersion, 2)
+        XCTAssertEqual(migrated.migratedToCurrentVersion, migrated, "migration is idempotent")
     }
 
-    func testClearingTheDiaryDayDoesNotLeaveAPhantomDay() throws {
-        let anchor = yesterdayKey()
-        XCTAssertTrue(store.applyLegacyStreak(
-            LegacyStreak(source: "Lose It!", count: 1563, lastConfirmedDayKey: anchor,
-                         timeZoneIdentifier: "Africa/Casablanca")))
-        let food = try XCTUnwrap(store.allFoods.first)
-        store.entries.append(DiaryEntry(food: food, meal: .lunch, servings: 1, date: Date()))
-        XCTAssertEqual(store.streakSnapshot(asOf: Date()).activeStreak, 1564)
-
-        store.entries.removeAll()
+    func testFinishingTheConfirmationDayAddsTheNextDay() {
+        // A v1 record confirmed today: before finishing anything, the streak is 1,563.
+        let record = LegacyStreak(source: "Lose It!", count: 1563,
+                                  lastConfirmedDayKey: todayKey(),
+                                  timeZoneIdentifier: "Africa/Casablanca",
+                                  migrationVersion: 1)
+        XCTAssertTrue(store.applyLegacyStreak(record))
+        XCTAssertEqual(store.legacyStreak?.lastConfirmedDayKey, yesterdayKey())
         XCTAssertEqual(store.streakSnapshot(asOf: Date()).activeStreak, 1563)
+
+        // Pressing Done Logging is what earns the next day.
+        store.setLoggingComplete(true, on: Date())
+        XCTAssertEqual(store.streakSnapshot(asOf: Date()).activeStreak, 1564)
+    }
+
+    func testUndoingTheDayTakesTheDayBackAway() {
+        let record = LegacyStreak(source: "Lose It!", count: 1563,
+                                  lastConfirmedDayKey: todayKey(),
+                                  timeZoneIdentifier: "Africa/Casablanca",
+                                  migrationVersion: 1)
+        XCTAssertTrue(store.applyLegacyStreak(record))
+        store.setLoggingComplete(true, on: Date())
+        XCTAssertEqual(store.streakSnapshot(asOf: Date()).activeStreak, 1564)
+        store.setLoggingComplete(false, on: Date())
+        XCTAssertEqual(store.streakSnapshot(asOf: Date()).activeStreak, 1563)
+    }
+
+    func testMigrationHandsTheConfirmationDayBackToTheUser() {
+        // v1 counted the confirmation day inside the achievement, so its flag did nothing.
+        store.setLoggingComplete(true, on: Date())
+        XCTAssertTrue(store.isLoggingComplete(on: Date()))
+
+        let record = LegacyStreak(source: "Lose It!", count: 1563,
+                                  lastConfirmedDayKey: todayKey(),
+                                  timeZoneIdentifier: "Africa/Casablanca",
+                                  migrationVersion: 1)
+        XCTAssertTrue(store.applyLegacyStreak(record))
+        XCTAssertEqual(store.legacyStreak?.lastConfirmedDayKey, yesterdayKey())
+        // The day is offered again, so pressing Done Logging can earn it.
+        XCTAssertEqual(store.streakSnapshot(asOf: Date()).activeStreak, 1563)
+
+        store.setLoggingComplete(true, on: Date())
+        XCTAssertEqual(store.streakSnapshot(asOf: Date()).activeStreak, 1564)
+    }
+
+    func testMigratedRecordSurvivesAReinstallRestore() {
+        let record = LegacyStreak(source: "Lose It!", count: 1563,
+                                  lastConfirmedDayKey: "2026-10-29",
+                                  timeZoneIdentifier: "Africa/Casablanca",
+                                  migrationVersion: 1)
+        XCTAssertTrue(store.applyLegacyStreak(record))
+        let exported = try! XCTUnwrap(store.exportJSON())
+        let reopened = NutritionStore()
+        XCTAssertTrue(reopened.restoreJSON(exported))
+        XCTAssertEqual(reopened.legacyStreak?.lastConfirmedDayKey, "2026-10-28")
+        XCTAssertEqual(reopened.legacyStreak?.migrationVersion, 2)
+        XCTAssertEqual(reopened.legacyStreak?.count, 1563)
     }
 }
