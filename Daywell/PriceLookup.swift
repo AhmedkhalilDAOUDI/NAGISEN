@@ -13,16 +13,37 @@ struct PriceSuggestion: Equatable {
     func value(perHundredGrams: Bool) -> Double? {
         perHundredGrams ? per100g : perServing
     }
+
+    func value(perHundredGrams: Bool, gramsPerServing: Double?) -> Double? {
+        if let direct = value(perHundredGrams: perHundredGrams) { return direct }
+        guard let gramsPerServing, gramsPerServing > 0 else { return nil }
+        if perHundredGrams, let perServing { return perServing / gramsPerServing * 100 }
+        if !perHundredGrams, let per100g { return per100g * gramsPerServing / 100 }
+        return nil
+    }
 }
 
 enum PriceLookupError: LocalizedError {
     case missingKey
+    case http(Int)
+    case noEstimate
+    case emptyAnswer
     case unreadableAnswer
+    case unitMismatch
 
     var errorDescription: String? {
         switch self {
         case .missingKey: return "Add your DeepSeek key in Coach first."
-        case .unreadableAnswer: return "The answer could not be read. Try again."
+        case .http(400), .http(422): return "DeepSeek rejected the price request. Try again after updating the app."
+        case .http(401): return "DeepSeek rejected your API key. Check it in Coach settings."
+        case .http(402): return "Your DeepSeek account has no API credit. Add credit or enter the shelf price."
+        case .http(429): return "DeepSeek's request limit was reached. Try again in a moment."
+        case .http(500), .http(503): return "DeepSeek is unavailable right now. Try again later."
+        case .http(let code): return "DeepSeek returned error \(code). Try again later."
+        case .noEstimate: return "DeepSeek couldn't make a useful estimate for this product. Enter the shelf or receipt price."
+        case .emptyAnswer: return "DeepSeek returned an empty answer. Try again."
+        case .unreadableAnswer: return "DeepSeek returned an unreadable price. Try again."
+        case .unitMismatch: return "DeepSeek didn't give a price in the right unit. Enter the shelf price."
         }
     }
 }
@@ -45,17 +66,17 @@ enum DeepSeekPrice {
             .filter { !$0.isEmpty }.joined(separator: " · ")
         let reference = observed.map {
             "A real Open Prices record for this exact barcode was \(FoodCost.display($0.value)) per 100 g on \($0.date). It may be outdated."
-        } ?? "No verified current Moroccan price was found for this exact barcode."
+        } ?? "No verified Moroccan price record is available for this product."
         let prompt = """
-        Estimate the current Moroccan retail price of this EXACT product: \(identity).
+        Estimate the current Moroccan retail price of this product: \(identity).
         Barcode: \(food.barcode ?? "unknown"). Unit requested: MAD per \(unit).
         \(reference)
 
         Do not confuse a package price with a price per 100 g, and do not substitute another \
-        brand or package size. You have no live web access. If the evidence is too weak to \
-        give a useful estimate, return null prices. Otherwise provide a broad plausible range \
-        and say explicitly that this is an unverified estimate. Reply with JSON only:
-        {"per100g": number or null, "perServing": number or null, "low": number, "high": number, "note": "one short sentence"}
+        brand or package size. You have no live web access. Give a cautious estimate and a \
+        plausible range when the product is identifiable. If its identity is too vague, use \
+        null for both prices. Say clearly in the note that this is unverified. Return JSON only.
+        Example JSON: {"per100g": 12.5, "perServing": null, "low": 9, "high": 16, "note": "Unverified estimate."}
         """
 
         var request = URLRequest(url: URL(string: "https://api.deepseek.com/chat/completions")!)
@@ -66,28 +87,41 @@ enum DeepSeekPrice {
         let payload: [String: Any] = [
             "model": "deepseek-flash",
             "thinking": ["type": "disabled"],
-            "max_tokens": 300,
+            "max_tokens": 500,
+            "response_format": ["type": "json_object"],
             "messages": [["role": "user", "content": prompt]]
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: payload)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw PriceLookupError.unreadableAnswer
-        }
         struct Completion: Decodable {
             struct Choice: Decodable {
                 struct Message: Decodable { var content: String? }
                 var message: Message
+                var finishReason: String?
+                enum CodingKeys: String, CodingKey {
+                    case message
+                    case finishReason = "finish_reason"
+                }
             }
             var choices: [Choice]
         }
-        guard let completion = try? JSONDecoder().decode(Completion.self, from: data),
-              let text = completion.choices.first?.message.content,
-              let suggestion = parse(text) else {
+        for attempt in 0..<2 {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse else { throw PriceLookupError.unreadableAnswer }
+            guard (200..<300).contains(http.statusCode) else { throw PriceLookupError.http(http.statusCode) }
+            guard let completion = try? JSONDecoder().decode(Completion.self, from: data),
+                  let choice = completion.choices.first else { throw PriceLookupError.unreadableAnswer }
+            let text = choice.message.content?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if text.isEmpty {
+                if attempt == 0 { continue }
+                throw PriceLookupError.emptyAnswer
+            }
+            if let suggestion = parse(text) { return suggestion }
+            if choice.finishReason == "length" { throw PriceLookupError.unreadableAnswer }
+            if text.contains("per100g") || text.contains("perServing") { throw PriceLookupError.noEstimate }
             throw PriceLookupError.unreadableAnswer
         }
-        return suggestion
+        throw PriceLookupError.emptyAnswer
     }
 
     /// Pulls the JSON object out of whatever the model wrapped it in.

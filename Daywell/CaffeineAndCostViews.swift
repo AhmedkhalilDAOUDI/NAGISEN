@@ -892,9 +892,10 @@ private struct PriceEditorView: View {
             }
             do {
                 let suggestion = try await DeepSeekPrice.lookup(food: food, observed: observed)
-                guard let unitPrice = suggestion.value(perHundredGrams: unit == .grams),
+                guard let unitPrice = suggestion.value(perHundredGrams: unit == .grams,
+                                                       gramsPerServing: food.gramsPerServing),
                       unitPrice.isFinite, unitPrice > 0,
-                      let quantity = amountValue, quantity > 0 else { throw PriceLookupError.unreadableAnswer }
+                      let quantity = amountValue, quantity > 0 else { throw PriceLookupError.unitMismatch }
                 let estimatedPaid = unit == .grams ? unitPrice * quantity / 100 : unitPrice * quantity
                 paid = estimatedPaid.formatted(.number.precision(.fractionLength(0...2)))
                 suggestedPrice = true
