@@ -121,9 +121,22 @@ enum PriceAmountUnit: String, CaseIterable, Identifiable {
 }
 
 enum FoodCost {
-    /// Prices follow the food's name, so the same food logged twice is priced once.
+    /// A barcode identifies a packaged product; brand and name distinguish unscanned foods.
     static func key(for food: Food) -> String {
+        if let barcode = food.barcode?.filter(\.isNumber), !barcode.isEmpty {
+            return "barcode:\(barcode)"
+        }
+        let name = legacyKey(for: food)
+        let brand = food.brand.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return brand.isEmpty ? name : "brand:\(brand)|\(name)"
+    }
+
+    static func legacyKey(for food: Food) -> String {
         food.name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    static func price(for food: Food, prices: [String: FoodPrice]) -> FoodPrice? {
+        prices[key(for: food)] ?? prices[legacyKey(for: food)]
     }
 
     static func grams(of entry: DiaryEntry) -> Double? {
@@ -143,7 +156,7 @@ enum FoodCost {
     }
 
     static func cost(entry: DiaryEntry, prices: [String: FoodPrice]) -> Double? {
-        cost(of: entry, price: prices[key(for: entry.food)])
+        cost(of: entry, price: price(for: entry.food, prices: prices))
     }
 
     static func dayCost(entries: [DiaryEntry],

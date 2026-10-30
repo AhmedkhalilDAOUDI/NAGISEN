@@ -332,6 +332,8 @@ private struct CostDetailView: View {
     @EnvironmentObject private var store: NutritionStore
     @Environment(\.dismiss) private var dismiss
     @State private var showingReceipt = false
+    @State private var showingScanner = false
+    @State private var scannedFood: Food?
     @State private var showingFoodPicker = false
     @State private var search = ""
     @State private var online: [Food] = []
@@ -351,6 +353,10 @@ private struct CostDetailView: View {
                     if search.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         summary
                         prices
+                        Link("Community prices by Open Prices · Open Food Facts",
+                             destination: URL(string: "https://prices.openfoodfacts.org/")!)
+                            .font(.caption2)
+                            .foregroundStyle(Theme.muted)
                     } else {
                         searchResults
                     }
@@ -366,10 +372,15 @@ private struct CostDetailView: View {
             .onDisappear { searchTask?.cancel() }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        showingReceipt = true
-                    } label: {
-                        Label("Scan receipt", systemImage: "doc.text.viewfinder")
+                    HStack(spacing: 14) {
+                        Button { showingScanner = true } label: {
+                            Image(systemName: "barcode.viewfinder")
+                        }
+                        .accessibilityLabel("Scan a product barcode for its price")
+                        Button { showingReceipt = true } label: {
+                            Image(systemName: "doc.text.viewfinder")
+                        }
+                        .accessibilityLabel("Scan a receipt")
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
@@ -380,6 +391,18 @@ private struct CostDetailView: View {
             }
             .sheet(isPresented: $showingReceipt) {
                 ReceiptPriceView().environmentObject(store)
+            }
+            .sheet(isPresented: $showingScanner) {
+                BarcodeScannerView(forPricing: true) { food in
+                    showingScanner = false
+                    // Wait for the camera sheet to finish dismissing before opening the price editor.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { scannedFood = food }
+                }
+            }
+            .sheet(item: $scannedFood) { food in
+                PriceEditorView(food: food,
+                                autoLookUp: store.foodPrices[FoodCost.key(for: food)] == nil)
+                    .environmentObject(store)
             }
             #if DEBUG
             .sheet(item: $debugFood) { food in
@@ -624,8 +647,9 @@ private struct PriceRow: View {
     }
 
     private func subtitle(_ price: FoodPrice?) -> String {
-        if let summary = price?.purchaseSummary { return summary }
-        return food.gramsPerServing != nil ? "per 100 g" : "per serving · \(food.serving)"
+        let detail = price?.purchaseSummary
+            ?? (food.gramsPerServing != nil ? "per 100 g" : "per serving · \(food.serving)")
+        return food.brand.isEmpty ? detail : "\(food.brand) · \(detail)"
     }
 
     private func priceText(_ price: FoodPrice?) -> String {
@@ -648,6 +672,7 @@ private struct PriceEditorView: View {
     @State private var paid = ""
     @State private var isLooking = false
     @State private var note: String?
+    @State private var suggestedPrice = false
     @FocusState private var focusedField: PriceField?
 
     private enum PriceField: Hashable { case amount, paid }
@@ -683,7 +708,10 @@ private struct PriceEditorView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         if let derived {
-                            store.setPrice(derived, for: food)
+                            let price = suggestedPrice
+                                ? FoodPrice(per100g: derived.per100g, perServing: derived.perServing)
+                                : derived
+                            store.setPrice(price, for: food)
                             store.addCostFood(food)
                         }
                         dismiss()
@@ -712,6 +740,12 @@ private struct PriceEditorView: View {
             Text("Enter what you bought and what you paid in MAD.")
                 .font(.caption)
                 .foregroundStyle(Theme.muted)
+            if let code = food.barcode {
+                Text([food.brand, food.packageQuantity, code].compactMap { $0 }
+                    .filter { !$0.isEmpty }.joined(separator: " · "))
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(Theme.muted)
+            }
         }
     }
 
@@ -730,14 +764,14 @@ private struct PriceEditorView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(unit == .grams ? "Amount in grams" : "Number of servings")
                         .font(.caption).foregroundStyle(Theme.muted)
-                    TextField("0", text: $amount)
+                    TextField("0", text: Binding(get: { amount }, set: { amount = $0; suggestedPrice = false }))
                         .keyboardType(.decimalPad)
                         .textFieldStyle(.roundedBorder)
                         .focused($focusedField, equals: .amount)
                 }
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Paid in MAD").font(.caption).foregroundStyle(Theme.muted)
-                    TextField("0", text: $paid)
+                    TextField("0", text: Binding(get: { paid }, set: { paid = $0; suggestedPrice = false }))
                         .keyboardType(.decimalPad)
                         .textFieldStyle(.roundedBorder)
                         .focused($focusedField, equals: .paid)
@@ -746,6 +780,10 @@ private struct PriceEditorView: View {
 
             if unit == .grams, food.gramsPerServing != nil {
                 Text("One serving of this food is \(food.serving).")
+                    .font(.caption2).foregroundStyle(Theme.muted)
+            }
+            if suggestedPrice {
+                Text("Suggested price · check the shelf or receipt before saving")
                     .font(.caption2).foregroundStyle(Theme.muted)
             }
         }
@@ -789,7 +827,7 @@ private struct PriceEditorView: View {
                 HStack(spacing: 8) {
                     if isLooking { ProgressView().controlSize(.small) }
                     else { Image(systemName: "sparkles") }
-                    Text(isLooking ? "Asking…" : "Ask DeepSeek for a typical price")
+                    Text(isLooking ? "Checking prices…" : "Check price online")
                         .font(.subheadline.weight(.semibold))
                 }
                 .foregroundStyle(Theme.accentText)
@@ -810,7 +848,10 @@ private struct PriceEditorView: View {
     }
 
     private func prefill() {
-        guard let price = store.price(for: food) else {
+        let existing = food.barcode == nil
+            ? store.price(for: food)
+            : store.foodPrices[FoodCost.key(for: food)]
+        guard let price = existing else {
             unit = food.gramsPerServing != nil ? .grams : .servings
             amount = unit == .grams ? "100" : "1"
             return
@@ -834,39 +875,38 @@ private struct PriceEditorView: View {
         }
     }
 
-    /// The assistant gives a unit price; it is turned into what that amount would cost.
+    /// A recent barcode price is preferred; AI is only a clearly labelled fallback.
     private func lookUp() {
         isLooking = true
         note = nil
         Task {
+            let observed = await OpenPricesService.lookup(food: food)
+            if let observed, observed.isRecent, unit == .grams {
+                let grams = amountValue ?? 100
+                amount = grams.formatted(.number.precision(.fractionLength(0...2)))
+                paid = (observed.value * grams / 100).formatted(.number.precision(.fractionLength(0...2)))
+                suggestedPrice = true
+                note = "Open Prices: exact barcode, \(observed.date), \(FoodCost.display(observed.value)) / 100 g. Check today's shelf price before saving."
+                isLooking = false
+                return
+            }
             do {
-                let suggestion = try await DeepSeekPrice.lookup(food: food)
-                await MainActor.run {
-                    if unit == .grams, let per100g = suggestion.per100g,
-                       let grams = amountValue {
-                        paid = (per100g * grams / 100).formatted(.number.precision(.fractionLength(0...2)))
-                    } else if unit == .servings, let perServing = suggestion.perServing,
-                              let count = amountValue {
-                        paid = (perServing * count).formatted(.number.precision(.fractionLength(0...2)))
-                    } else if amountValue == nil, let per100g = suggestion.per100g, unit == .grams {
-                        amount = "100"
-                        paid = per100g.formatted(.number.precision(.fractionLength(0...2)))
-                    } else if amountValue == nil, let perServing = suggestion.perServing, unit == .servings {
-                        amount = "1"
-                        paid = perServing.formatted(.number.precision(.fractionLength(0...2)))
-                    }
-                    let range: String
-                    if let low = suggestion.low, let high = suggestion.high {
-                        range = "Typical \(FoodCost.display(low))–\(FoodCost.display(high)). "
-                    } else { range = "" }
-                    note = range + "Press Save to keep it. " + (suggestion.note ?? "")
-                    isLooking = false
-                }
+                let suggestion = try await DeepSeekPrice.lookup(food: food, observed: observed)
+                guard let unitPrice = suggestion.value(perHundredGrams: unit == .grams),
+                      unitPrice.isFinite, unitPrice > 0,
+                      let quantity = amountValue, quantity > 0 else { throw PriceLookupError.unreadableAnswer }
+                let estimatedPaid = unit == .grams ? unitPrice * quantity / 100 : unitPrice * quantity
+                paid = estimatedPaid.formatted(.number.precision(.fractionLength(0...2)))
+                suggestedPrice = true
+                let range = (suggestion.low != nil && suggestion.high != nil)
+                    ? "Estimated \(FoodCost.display(suggestion.low!))–\(FoodCost.display(suggestion.high!)) per \(unit == .grams ? "100 g" : "serving"). " : ""
+                let history = observed.map { " Last barcode record: \($0.date)." } ?? ""
+                note = "DeepSeek estimate, not a verified current price. " + range + (suggestion.note ?? "") + history
+                isLooking = false
             } catch {
-                await MainActor.run {
-                    note = error.localizedDescription
-                    isLooking = false
-                }
+                note = (observed.map { "Last barcode record: \($0.date). " } ?? "")
+                    + error.localizedDescription + " Enter the shelf or receipt price instead."
+                isLooking = false
             }
         }
     }

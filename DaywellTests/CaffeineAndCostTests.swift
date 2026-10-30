@@ -166,4 +166,41 @@ final class CaffeineAndCostTests: XCTestCase {
         let beefValue = FoodCost.proteinValue(of: beef, price: FoodPrice(per100g: 75)) ?? 0
         XCTAssertLessThan(wheyValue, beefValue, "whey should be the cheaper protein per gram")
     }
+
+    func testOpenPricesUsesTheExactBarcodeAndPackageWeight() throws {
+        let data = Data("""
+        {"items":[
+          {"product_code":"6111242100985","currency":"MAD","price":2.95,"date":"2024-07-11","price_per":null,"price_is_discounted":false,"duplicate_of":null,"product":{"product_quantity":80,"product_quantity_unit":"g"}},
+          {"product_code":"other","currency":"MAD","price":1,"date":"2026-10-29","price_per":"KILOGRAM","product":null}
+        ]}
+        """.utf8)
+        let result = try XCTUnwrap(OpenPricesService.parse(data, barcode: "6111242100985"))
+        XCTAssertEqual(result.value, 2.95 / 80 * 100, accuracy: 0.001)
+        XCTAssertEqual(result.date, "2024-07-11")
+    }
+
+    func testOpenPricesRejectsDifferentCurrencyDiscountAndVolume() {
+        let data = Data("""
+        {"items":[
+          {"product_code":"12345678","currency":"EUR","price":3,"date":"2026-10-29","price_per":"KILOGRAM"},
+          {"product_code":"12345678","currency":"MAD","price":3,"date":"2026-10-29","price_per":"KILOGRAM","price_is_discounted":true},
+          {"product_code":"12345678","currency":"MAD","price":3,"date":"2026-10-29","price_per":"UNIT","product":{"product_quantity":1000,"product_quantity_unit":"ml"}}
+        ]}
+        """.utf8)
+        XCTAssertNil(OpenPricesService.parse(data, barcode: "12345678"))
+    }
+
+    func testBarcodePricesDoNotLeakBetweenBrandsAndLegacyPricesStillLoad() {
+        var first = food("Greek yogurt", serving: "100 g")
+        first.brand = "Brand A"
+        first.barcode = "6111242100985"
+        var second = first
+        second.brand = "Brand B"
+        second.barcode = "6111242106277"
+        XCTAssertNotEqual(FoodCost.key(for: first), FoodCost.key(for: second))
+        let prices = [FoodCost.key(for: first): FoodPrice(per100g: 8)]
+        XCTAssertNil(FoodCost.price(for: second, prices: prices))
+        XCTAssertEqual(FoodCost.price(for: first, prices: prices)?.per100g, 8)
+        XCTAssertEqual(FoodCost.price(for: second, prices: ["greek yogurt": FoodPrice(per100g: 6)])?.per100g, 6)
+    }
 }

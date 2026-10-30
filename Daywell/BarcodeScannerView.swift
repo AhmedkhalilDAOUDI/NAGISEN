@@ -7,7 +7,14 @@ struct BarcodeScannerView: View {
     @State private var barcode = ""
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @FocusState private var barcodeFocused: Bool
+    let forPricing: Bool
     let onFound: (Food) -> Void
+
+    init(forPricing: Bool = false, onFound: @escaping (Food) -> Void) {
+        self.forPricing = forPricing
+        self.onFound = onFound
+    }
 
     var body: some View {
         VStack(spacing: 18) {
@@ -43,6 +50,7 @@ struct BarcodeScannerView: View {
                 TextField("Barcode number", text: $barcode)
                     .keyboardType(.numberPad)
                     .textContentType(.none)
+                    .focused($barcodeFocused)
                 if isLoading { SwiftUI.ProgressView() }
             }
             .padding(15)
@@ -53,8 +61,11 @@ struct BarcodeScannerView: View {
                 Text(errorMessage).font(.footnote).foregroundStyle(Theme.accentText)
                     .multilineTextAlignment(.center)
             }
-            NagisenPrimaryButton("Look up food", enabled: !isLoading && !barcode.isEmpty) { lookup() }
-            Text("Barcode data from Open Food Facts. Check the label before logging.")
+            NagisenPrimaryButton(forPricing ? "Find product" : "Look up food",
+                                 enabled: !isLoading && !barcode.isEmpty) { lookup() }
+            Text(forPricing
+                 ? "The barcode identifies the product. Check the shelf or receipt before saving a price."
+                 : "Barcode data from Open Food Facts. Check the label before logging.")
                 .font(.footnote).foregroundStyle(Theme.muted)
                 .multilineTextAlignment(.center)
             Spacer()
@@ -63,6 +74,12 @@ struct BarcodeScannerView: View {
         .background(NagisenBackdrop())
         .tint(Theme.accentText)
         .toolbar(.hidden, for: .navigationBar)
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") { barcodeFocused = false }
+            }
+        }
         .onAppear(perform: requestCamera)
     }
 
@@ -83,7 +100,9 @@ struct BarcodeScannerView: View {
         errorMessage = nil
         Task {
             do {
-                let food = try await OpenFoodFactsService().lookup(barcode: barcode)
+                let food = try await (forPricing
+                    ? OpenFoodFactsService().lookupForPricing(barcode: barcode)
+                    : OpenFoodFactsService().lookup(barcode: barcode))
                 isLoading = false
                 onFound(food)
             } catch {

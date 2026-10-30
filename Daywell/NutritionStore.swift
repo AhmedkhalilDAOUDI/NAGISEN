@@ -12,6 +12,7 @@ struct Food: Identifiable, Codable, Equatable, Hashable {
     var fiber: Double? = nil
     var sodium: Double? = nil
     var barcode: String? = nil
+    var packageQuantity: String? = nil
     var source: String? = nil
     var missingMacros: [String]? = nil
 
@@ -872,7 +873,7 @@ final class NutritionStore: ObservableObject {
 
     // MARK: - Cost
 
-    func price(for food: Food) -> FoodPrice? { foodPrices[FoodCost.key(for: food)] }
+    func price(for food: Food) -> FoodPrice? { FoodCost.price(for: food, prices: foodPrices) }
 
     func setPrice(_ price: FoodPrice, for food: Food) {
         let key = FoodCost.key(for: food)

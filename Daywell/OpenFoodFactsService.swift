@@ -71,13 +71,36 @@ struct OpenFoodFactsService {
         guard var url = URLComponents(string: "https://world.openfoodfacts.org/api/v2/product/\(cleaned).json") else {
             throw FoodLookupError.serverUnavailable
         }
-        url.queryItems = [URLQueryItem(name: "fields", value: "code,product_name,brands,serving_size,nutriments")]
+        url.queryItems = [URLQueryItem(name: "fields", value: "code,product_name,brands,serving_size,quantity,nutriments")]
         guard let requestURL = url.url else { throw FoodLookupError.serverUnavailable }
         let data = try await fetch(requestURL)
         let response = try JSONDecoder().decode(ProductResponse.self, from: data)
         guard response.status == 1, let product = response.product else { throw FoodLookupError.notFound }
         guard let food = product.asFood() else { throw FoodLookupError.missingNutrition }
         return food
+    }
+
+    /// Price lookup needs product identity and package size even when nutrition is absent.
+    func lookupForPricing(barcode: String) async throws -> Food {
+        let cleaned = barcode.filter(\.isNumber)
+        guard (8...14).contains(cleaned.count) else { throw FoodLookupError.invalidBarcode }
+        guard var url = URLComponents(string: "https://world.openfoodfacts.org/api/v2/product/\(cleaned).json") else {
+            throw FoodLookupError.serverUnavailable
+        }
+        url.queryItems = [URLQueryItem(name: "fields", value: "code,product_name,brands,serving_size,quantity,nutriments")]
+        guard let requestURL = url.url else { throw FoodLookupError.serverUnavailable }
+        let data = try await fetch(requestURL)
+        let response = try JSONDecoder().decode(ProductResponse.self, from: data)
+        guard response.status == 1, let product = response.product else { throw FoodLookupError.notFound }
+        if let food = product.asFood() { return food }
+        let listedName = product.name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let brand = product.brands?.text.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let name = !listedName.isEmpty ? listedName : (!brand.isEmpty ? "\(brand) product" : "Product \(cleaned)")
+        let serving = product.servingSize?.isEmpty == false ? product.servingSize! : "100 g"
+        return Food(name: name, brand: brand, serving: serving,
+                    calories: 0, protein: 0, carbs: 0, fat: 0,
+                    barcode: cleaned, packageQuantity: product.quantity,
+                    source: "Open Food Facts", missingMacros: ["calories", "protein", "carbs", "fat"])
     }
 
     private func fetch(_ url: URL) async throws -> Data {
@@ -123,12 +146,14 @@ private struct OpenFoodFactsProduct: Decodable {
     var name: String?
     var brands: BrandField?
     var servingSize: String?
+    var quantity: String?
     var nutriments: Nutriments?
 
     enum CodingKeys: String, CodingKey {
         case code, brands, nutriments
         case name = "product_name"
         case servingSize = "serving_size"
+        case quantity
     }
 
     func asFood() -> Food? {
@@ -150,7 +175,8 @@ private struct OpenFoodFactsProduct: Decodable {
                     fat: max(0, (nutrient.fat ?? 0) * factor),
                     fiber: nutrient.fiber.map { max(0, $0 * factor) },
                     sodium: nutrient.sodium.map { max(0, $0 * factor) },
-                    barcode: code, source: "Open Food Facts", missingMacros: missing)
+                    barcode: code, packageQuantity: quantity,
+                    source: "Open Food Facts", missingMacros: missing)
     }
 }
 
