@@ -333,6 +333,11 @@ private struct CostDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showingReceipt = false
     @State private var showingFoodPicker = false
+    @State private var search = ""
+    @State private var online: [Food] = []
+    @State private var isSearchingOnline = false
+    @State private var searchTask: Task<Void, Never>?
+    @FocusState private var searchFocused: Bool
     #if DEBUG
     @State private var debugFood: Food?
     #endif
@@ -342,15 +347,23 @@ private struct CostDetailView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    summary
-                    prices
+                    searchBox
+                    if search.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        summary
+                        prices
+                    } else {
+                        searchResults
+                    }
                 }
                 .padding(.horizontal, 18)
                 .padding(.vertical, 16)
             }
+            .scrollDismissesKeyboard(.interactively)
             .background(Theme.surface.ignoresSafeArea())
             .navigationTitle("Cost")
             .navigationBarTitleDisplayMode(.inline)
+            .onChange(of: search) { _, _ in searchOnline() }
+            .onDisappear { searchTask?.cancel() }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
@@ -360,6 +373,10 @@ private struct CostDetailView: View {
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") { searchFocused = false }
+                }
             }
             .sheet(isPresented: $showingReceipt) {
                 ReceiptPriceView().environmentObject(store)
@@ -392,6 +409,29 @@ private struct CostDetailView: View {
             }
             #endif
         }
+    }
+
+    private var searchBox: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "magnifyingglass").foregroundStyle(Theme.accentText)
+            TextField("Find a food or brand", text: $search)
+                .autocorrectionDisabled()
+                .submitLabel(.search)
+                .focused($searchFocused)
+                .onSubmit { searchFocused = false }
+            if !search.isEmpty {
+                Button {
+                    search = ""
+                    searchFocused = false
+                } label: {
+                    Image(systemName: "xmark.circle.fill").foregroundStyle(Theme.muted)
+                }
+                .accessibilityLabel("Clear search")
+            }
+        }
+        .foregroundStyle(Theme.ink)
+        .padding(16)
+        .nagisenGlass(in: RoundedRectangle(cornerRadius: 16))
     }
 
     private var summary: some View {
@@ -439,29 +479,32 @@ private struct CostDetailView: View {
 
     private var prices: some View {
         let foods = store.costFoods
+        let recent = store.unpricedFoods(limit: 8).filter { food in
+            !foods.contains { FoodCost.key(for: $0) == FoodCost.key(for: food) }
+        }
         return VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Prices")
+                Text("Your food prices")
                     .font(.system(size: 19, design: .serif))
                     .foregroundStyle(Theme.ink)
                 Spacer()
-                Button {
-                    showingFoodPicker = true
-                } label: {
-                    Label("Add", systemImage: "plus.circle")
-                        .font(.caption.weight(.semibold))
-                }
-                .foregroundStyle(Theme.accentText)
             }
-            Text("Add a food, then set its price by hand or ask the assistant for a typical Moroccan price. Weight-based prices follow the portion you log.")
+            Text("Tap a food to set what you paid. Search above for anything else.")
                 .font(.caption).foregroundStyle(Theme.muted)
 
-            if foods.isEmpty {
-                Text("No foods yet. Add one to price it.")
+            if foods.isEmpty && recent.isEmpty {
+                Text("Search for a food to add its price.")
                     .font(.caption).foregroundStyle(Theme.muted)
             } else {
                 ForEach(foods) { food in
                     PriceRow(food: food) { store.removeCostFood(food) }
+                }
+                if !recent.isEmpty {
+                    Divider()
+                    Text("RECENTLY EATEN · NEED A PRICE")
+                        .font(.caption2.weight(.semibold)).tracking(1.4)
+                        .foregroundStyle(Theme.muted)
+                    ForEach(recent) { food in PriceRow(food: food) }
                 }
             }
         }
@@ -469,13 +512,61 @@ private struct CostDetailView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .nagisenGlass(in: RoundedRectangle(cornerRadius: 20))
     }
+
+    private var searchResults: some View {
+        let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
+        let local = store.allFoods.filter {
+            $0.name.localizedCaseInsensitiveContains(query) || $0.brand.localizedCaseInsensitiveContains(query)
+        }
+        let known = Set(local.map { FoodCost.key(for: $0) })
+        let moroccan = MoroccanFoodCatalog.search(query).filter { !known.contains(FoodCost.key(for: $0)) }
+        return VStack(alignment: .leading, spacing: 14) {
+            Text("Find a price")
+                .font(.system(size: 19, design: .serif))
+                .foregroundStyle(Theme.ink)
+            ForEach(Array(local.prefix(15))) { food in PriceRow(food: food) }
+            ForEach(Array(moroccan.prefix(15))) { food in PriceRow(food: food) }
+            if isSearchingOnline {
+                ProgressView("Searching online…")
+            } else {
+                ForEach(online) { food in PriceRow(food: food) }
+            }
+            if local.isEmpty && moroccan.isEmpty && online.isEmpty && !isSearchingOnline {
+                Text("No matches. Try another name or brand.")
+                    .font(.caption).foregroundStyle(Theme.muted)
+            }
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .nagisenGlass(in: RoundedRectangle(cornerRadius: 20))
+    }
+
+    private func searchOnline() {
+        searchTask?.cancel()
+        online = []
+        let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard query.count >= 2 else { isSearchingOnline = false; return }
+        searchTask = Task {
+            try? await Task.sleep(nanoseconds: 450_000_000)
+            guard !Task.isCancelled else { return }
+            isSearchingOnline = true
+            let results = (try? await OpenFoodFactsService().search(query)) ?? []
+            guard !Task.isCancelled else { return }
+            let known = Set(store.allFoods.filter {
+                $0.name.localizedCaseInsensitiveContains(query) || $0.brand.localizedCaseInsensitiveContains(query)
+            }.map { FoodCost.key(for: $0) })
+                .union(MoroccanFoodCatalog.search(query).map { FoodCost.key(for: $0) })
+            online = results.filter { !known.contains(FoodCost.key(for: $0)) }
+            isSearchingOnline = false
+        }
+    }
 }
 
 
 private struct PriceRow: View {
     @EnvironmentObject private var store: NutritionStore
     let food: Food
-    let onDelete: () -> Void
+    var onDelete: (() -> Void)? = nil
 
     @State private var showingEditor = false
     @State private var runLookupOnOpen = false
@@ -517,12 +608,14 @@ private struct PriceRow: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Ask the assistant for the price of \(food.name)")
 
-            Button(action: onDelete) {
-                Image(systemName: "minus.circle")
-                    .foregroundStyle(Theme.red)
+            if let onDelete {
+                Button(action: onDelete) {
+                    Image(systemName: "minus.circle")
+                        .foregroundStyle(Theme.red)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Remove \(food.name) from the price list")
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Remove \(food.name) from the price list")
         }
         .foregroundStyle(Theme.ink)
         .sheet(isPresented: $showingEditor) {
@@ -555,6 +648,9 @@ private struct PriceEditorView: View {
     @State private var paid = ""
     @State private var isLooking = false
     @State private var note: String?
+    @FocusState private var focusedField: PriceField?
+
+    private enum PriceField: Hashable { case amount, paid }
 
     private var amountValue: Double? { number(amount) }
     private var paidValue: Double? { number(paid) }
@@ -570,12 +666,13 @@ private struct PriceEditorView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     header
                     fields
-                    result
+                    if derived != nil { result }
                     assistant
                 }
                 .padding(.horizontal, 18)
                 .padding(.vertical, 16)
             }
+            .scrollDismissesKeyboard(.interactively)
             .background(Theme.surface.ignoresSafeArea())
             .navigationTitle(food.name)
             .navigationBarTitleDisplayMode(.inline)
@@ -585,10 +682,17 @@ private struct PriceEditorView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        if let derived { store.setPrice(derived, for: food) }
+                        if let derived {
+                            store.setPrice(derived, for: food)
+                            store.addCostFood(food)
+                        }
                         dismiss()
                     }
                     .disabled(derived == nil)
+                }
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") { focusedField = nil }
                 }
             }
             .onAppear(perform: prefill)
@@ -605,7 +709,7 @@ private struct PriceEditorView: View {
             Text("How much did you buy?")
                 .font(.system(size: 19, design: .serif))
                 .foregroundStyle(Theme.ink)
-            Text("Enter the amount and what you paid. The price per 100 g or per serving is worked out from it.")
+            Text("Enter what you bought and what you paid in MAD.")
                 .font(.caption)
                 .foregroundStyle(Theme.muted)
         }
@@ -613,12 +717,14 @@ private struct PriceEditorView: View {
 
     private var fields: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Picker("Unit", selection: $unit) {
-                ForEach(PriceAmountUnit.allCases) { value in
-                    Text(value.rawValue.capitalized).tag(value)
+            if food.gramsPerServing != nil {
+                Picker("Unit", selection: $unit) {
+                    ForEach(PriceAmountUnit.allCases) { value in
+                        Text(value.rawValue.capitalized).tag(value)
+                    }
                 }
+                .pickerStyle(.segmented)
             }
-            .pickerStyle(.segmented)
 
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
@@ -627,12 +733,14 @@ private struct PriceEditorView: View {
                     TextField("0", text: $amount)
                         .keyboardType(.decimalPad)
                         .textFieldStyle(.roundedBorder)
+                        .focused($focusedField, equals: .amount)
                 }
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Paid in MAD").font(.caption).foregroundStyle(Theme.muted)
                     TextField("0", text: $paid)
                         .keyboardType(.decimalPad)
                         .textFieldStyle(.roundedBorder)
+                        .focused($focusedField, equals: .paid)
                 }
             }
 
@@ -704,6 +812,7 @@ private struct PriceEditorView: View {
     private func prefill() {
         guard let price = store.price(for: food) else {
             unit = food.gramsPerServing != nil ? .grams : .servings
+            amount = unit == .grams ? "100" : "1"
             return
         }
         if let grams = price.boughtGrams, let paidValue = price.paid {
