@@ -137,6 +137,28 @@ final class ReceiptPriceTests: XCTestCase {
         XCTAssertTrue(PriceLookupError.unitMismatch.localizedDescription.contains("unit"))
     }
 
+    func testRetailerPriceMatchesSweetPotatoAndConvertsKilograms() throws {
+        let response = """
+        {"resources":{"results":{"products":[
+          {"title":"Pomme de Terre Rouge 1Kg","price":"8.50","url":"/products/red-potato"},
+          {"title":"Patate Douce 1 kg","price":"13.10","url":"/products/patate-douce-1-kg"}
+        ]}}}
+        """.data(using: .utf8)!
+        let quote = try XCTUnwrap(RetailPriceService.parse(response, food: food("Sweet potato", serving: "100 g")))
+        XCTAssertEqual(quote.per100g, 1.31, accuracy: 0.001)
+        XCTAssertEqual(quote.sourceURL.host, "www.mymarket.ma")
+    }
+
+    func testRetailerPriceRejectsDifferentProductAndMissingWeight() {
+        let response = """
+        {"resources":{"results":{"products":[
+          {"title":"Pomme de Terre Rouge 1Kg","price":"8.50","url":"/products/red-potato"},
+          {"title":"Patate Douce","price":"13.10","url":"/products/patate-douce"}
+        ]}}}
+        """.data(using: .utf8)!
+        XCTAssertNil(RetailPriceService.parse(response, food: food("Sweet potato", serving: "100 g")))
+    }
+
     func testAWeightFoodWithNoPrintedWeightGetsNoPrice() throws {
         let line = try XCTUnwrap(ReceiptParser.parseLine("RIZ 45,00"))
         let rice = food("White rice", serving: "100 g")

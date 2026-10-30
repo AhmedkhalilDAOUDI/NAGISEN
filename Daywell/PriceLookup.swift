@@ -73,9 +73,11 @@ enum DeepSeekPrice {
         \(reference)
 
         Do not confuse a package price with a price per 100 g, and do not substitute another \
-        brand or package size. You have no live web access. Give a cautious estimate and a \
-        plausible range when the product is identifiable. If its identity is too vague, use \
-        null for both prices. Say clearly in the note that this is unverified. Return JSON only.
+        brand or package size. You have no live web access. Unbranded staples and produce such \
+        as sweet potatoes are identifiable foods: estimate their usual Moroccan price per kg, \
+        then divide by ten for a 100 g price. Do not return null merely because produce has no \
+        brand or verified barcode price. Give a cautious estimate and plausible range. Use null \
+        only when the food itself cannot be identified. Say clearly that this is unverified. Return JSON only.
         Example JSON: {"per100g": 12.5, "perServing": null, "low": 9, "high": 16, "note": "Unverified estimate."}
         """
 
@@ -158,6 +160,71 @@ enum DeepSeekPrice {
                                           kSecMatchLimit: kSecMatchLimitOne] as CFDictionary, &result)
         guard status == errSecSuccess, let data = result as? Data else { return nil }
         return String(data: data, encoding: .utf8)
+    }
+}
+
+/// A current retailer listing, used only when its food name and package weight can be matched.
+struct RetailPriceQuote: Equatable {
+    let per100g: Double
+    let productName: String
+    let sourceURL: URL
+}
+
+enum RetailPriceService {
+    static func lookup(food: Food) async -> RetailPriceQuote? {
+        // A different brand's shelf price must never be presented as this product's price.
+        guard food.brand.isEmpty, food.gramsPerServing != nil,
+              var components = URLComponents(string: "https://www.mymarket.ma/search/suggest.json") else { return nil }
+        components.queryItems = [URLQueryItem(name: "q", value: food.name),
+                                 URLQueryItem(name: "resources[type]", value: "product")]
+        guard let url = components.url else { return nil }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 10
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              (response as? HTTPURLResponse)?.statusCode == 200 else { return nil }
+        return parse(data, food: food)
+    }
+
+    static func parse(_ data: Data, food: Food) -> RetailPriceQuote? {
+        guard food.brand.isEmpty,
+              let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let resources = root["resources"] as? [String: Any],
+              let results = resources["results"] as? [String: Any],
+              let products = results["products"] as? [[String: Any]] else { return nil }
+        let wanted = ReceiptMatcher.tokens(food.name)
+        guard !wanted.isEmpty else { return nil }
+        let expandedWanted = ReceiptMatcher.expanded(wanted)
+        for product in products {
+            guard let title = product["title"] as? String,
+                  let path = product["url"] as? String,
+                  let url = URL(string: path, relativeTo: URL(string: "https://www.mymarket.ma"))?.absoluteURL,
+                  url.host == "www.mymarket.ma",
+                  let rawPrice = product["price"] as? String,
+                  let price = Double(rawPrice.replacingOccurrences(of: ",", with: ".")),
+                  price.isFinite, price > 0,
+                  let grams = packageGrams(in: title) else { continue }
+            let titleWithoutWeight = title.replacingOccurrences(
+                of: #"\b\d+(?:[.,]\d+)?\s*(?:kg|g)\b"#, with: "",
+                options: [.regularExpression, .caseInsensitive])
+            let listed = ReceiptMatcher.tokens(titleWithoutWeight)
+            let expandedListed = ReceiptMatcher.expanded(listed)
+            // Both directions must match. This excludes ordinary potatoes and flavored products.
+            guard wanted.isSubset(of: expandedListed), listed.isSubset(of: expandedWanted) else { continue }
+            let per100g = price / grams * 100
+            guard per100g.isFinite, per100g > 0 else { continue }
+            return RetailPriceQuote(per100g: per100g, productName: title, sourceURL: url)
+        }
+        return nil
+    }
+
+    private static func packageGrams(in title: String) -> Double? {
+        guard let range = title.range(of: #"\b\d+(?:[.,]\d+)?\s*(?:kg|g)\b"#,
+                                      options: [.regularExpression, .caseInsensitive]) else { return nil }
+        let match = String(title[range]).lowercased().replacingOccurrences(of: " ", with: "")
+        let kilograms = match.hasSuffix("kg")
+        let number = kilograms ? String(match.dropLast(2)) : String(match.dropLast())
+        guard let amount = Double(number.replacingOccurrences(of: ",", with: ".")), amount > 0 else { return nil }
+        return amount * (kilograms ? 1000 : 1)
     }
 }
 
