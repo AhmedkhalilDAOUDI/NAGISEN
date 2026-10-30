@@ -401,7 +401,8 @@ private struct CostDetailView: View {
             }
             .sheet(item: $scannedFood) { food in
                 PriceEditorView(food: food,
-                                autoLookUp: store.foodPrices[FoodCost.key(for: food)] == nil)
+                                autoLookUp: store.foodPrices[FoodCost.key(for: food)] == nil,
+                                scannedBarcode: true)
                     .environmentObject(store)
             }
             #if DEBUG
@@ -666,6 +667,7 @@ private struct PriceEditorView: View {
     @Environment(\.dismiss) private var dismiss
     let food: Food
     var autoLookUp = false
+    var scannedBarcode = false
 
     @State private var unit: PriceAmountUnit = .grams
     @State private var amount = ""
@@ -741,8 +743,8 @@ private struct PriceEditorView: View {
             Text("Enter what you bought and what you paid in MAD.")
                 .font(.caption)
                 .foregroundStyle(Theme.muted)
-            if let code = food.barcode {
-                Text("Product barcode: \(code)")
+            if scannedBarcode, let code = food.barcode {
+                Text("Scanned barcode: \(code)")
                     .font(.caption2.monospacedDigit())
                     .foregroundStyle(Theme.muted)
             }
@@ -886,7 +888,7 @@ private struct PriceEditorView: View {
         note = nil
         priceSourceURL = nil
         Task {
-            let observed = await OpenPricesService.lookup(food: food)
+            let observed = scannedBarcode ? await OpenPricesService.lookup(food: food) : nil
             if let observed, observed.isRecent, unit == .grams {
                 let grams = amountValue ?? 100
                 amount = grams.formatted(.number.precision(.fractionLength(0...2)))
