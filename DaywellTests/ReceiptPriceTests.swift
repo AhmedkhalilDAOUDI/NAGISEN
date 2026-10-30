@@ -123,6 +123,20 @@ final class ReceiptPriceTests: XCTestCase {
         XCTAssertEqual(suggestion?.perServing, 3.5)
     }
 
+    func testAssistantServingPriceCanBeConvertedToTheRequestedWeightUnit() throws {
+        let suggestion = try XCTUnwrap(DeepSeekPrice.parse(
+            "{\"per100g\":null,\"perServing\":8,\"low\":6,\"high\":10}"))
+        XCTAssertEqual(suggestion.value(perHundredGrams: true, gramsPerServing: 200) ?? 0,
+                       4, accuracy: 0.001)
+        XCTAssertNil(suggestion.value(perHundredGrams: true, gramsPerServing: nil))
+    }
+
+    func testPriceLookupErrorsExplainTheActualProblem() {
+        XCTAssertTrue(PriceLookupError.http(402).localizedDescription.contains("credit"))
+        XCTAssertTrue(PriceLookupError.noEstimate.localizedDescription.contains("estimate"))
+        XCTAssertTrue(PriceLookupError.unitMismatch.localizedDescription.contains("unit"))
+    }
+
     func testAWeightFoodWithNoPrintedWeightGetsNoPrice() throws {
         let line = try XCTUnwrap(ReceiptParser.parseLine("RIZ 45,00"))
         let rice = food("White rice", serving: "100 g")
