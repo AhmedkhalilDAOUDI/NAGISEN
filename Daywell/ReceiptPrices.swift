@@ -243,6 +243,7 @@ enum ReceiptMatcher {
         "pain": ["bread"], "farine": ["flour"], "sucre": ["sugar"], "sel": ["salt"],
         "dattes": ["dates"], "datte": ["dates"], "banane": ["banana"], "bananes": ["banana"],
         "pomme": ["apple"], "pommes": ["apple", "potato"], "terre": ["potato"],
+        "patate": ["potato"], "douce": ["sweet"],
         "tomate": ["tomato"], "tomates": ["tomato"], "avocat": ["avocado"],
         "orange": ["orange"], "citron": ["lemon"], "raisin": ["grapes"],
         "legumes": ["vegetables"], "salade": ["salad"], "eau": ["water"], "jus": ["juice"],

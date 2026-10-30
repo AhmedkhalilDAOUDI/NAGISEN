@@ -672,6 +672,7 @@ private struct PriceEditorView: View {
     @State private var paid = ""
     @State private var isLooking = false
     @State private var note: String?
+    @State private var priceSourceURL: URL?
     @State private var suggestedPrice = false
     @FocusState private var focusedField: PriceField?
 
@@ -741,8 +742,7 @@ private struct PriceEditorView: View {
                 .font(.caption)
                 .foregroundStyle(Theme.muted)
             if let code = food.barcode {
-                Text([food.brand, food.packageQuantity, code].compactMap { $0 }
-                    .filter { !$0.isEmpty }.joined(separator: " · "))
+                Text("Product barcode: \(code)")
                     .font(.caption2.monospacedDigit())
                     .foregroundStyle(Theme.muted)
             }
@@ -841,6 +841,11 @@ private struct PriceEditorView: View {
                     .foregroundStyle(Theme.muted)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            if let priceSourceURL {
+                Link("View shop listing", destination: priceSourceURL)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Theme.accentText)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(18)
@@ -879,6 +884,7 @@ private struct PriceEditorView: View {
     private func lookUp() {
         isLooking = true
         note = nil
+        priceSourceURL = nil
         Task {
             let observed = await OpenPricesService.lookup(food: food)
             if let observed, observed.isRecent, unit == .grams {
@@ -887,6 +893,16 @@ private struct PriceEditorView: View {
                 paid = (observed.value * grams / 100).formatted(.number.precision(.fractionLength(0...2)))
                 suggestedPrice = true
                 note = "Open Prices: exact barcode, \(observed.date), \(FoodCost.display(observed.value)) / 100 g. Check today's shelf price before saving."
+                isLooking = false
+                return
+            }
+            if unit == .grams, let retailer = await RetailPriceService.lookup(food: food) {
+                let grams = amountValue ?? 100
+                amount = grams.formatted(.number.precision(.fractionLength(0...2)))
+                paid = (retailer.per100g * grams / 100).formatted(.number.precision(.fractionLength(0...2)))
+                suggestedPrice = true
+                priceSourceURL = retailer.sourceURL
+                note = "MyMarket listing: \(retailer.productName), \(FoodCost.display(retailer.per100g)) / 100 g. This is an online shop price, so check your shelf or receipt before saving."
                 isLooking = false
                 return
             }
@@ -906,7 +922,7 @@ private struct PriceEditorView: View {
                 isLooking = false
             } catch {
                 note = (observed.map { "Last barcode record: \($0.date). " } ?? "")
-                    + error.localizedDescription + " Enter the shelf or receipt price instead."
+                    + error.localizedDescription
                 isLooking = false
             }
         }
