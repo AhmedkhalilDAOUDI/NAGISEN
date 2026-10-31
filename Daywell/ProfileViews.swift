@@ -8,6 +8,11 @@ struct ProfileView: View {
     @EnvironmentObject private var feed: FeedService
     @Environment(\.dismiss) private var dismiss
     @State private var showingSignIn = false
+    @AppStorage(Reminders.streakKey) private var streakReminder = false
+    @AppStorage(Reminders.streakHourKey) private var streakHour = Reminders.defaultStreakTime.hour
+    @AppStorage(Reminders.streakMinuteKey) private var streakMinute = Reminders.defaultStreakTime.minute
+    @AppStorage(Reminders.borderKey) private var borderNudge = false
+    @State private var notificationsDenied = false
     @State private var exportFile: DataExportFile?
     @State private var showingImporter = false
     @State private var pendingRestore: Data?
@@ -87,6 +92,65 @@ struct ProfileView: View {
         .softCardStyle()
     }
 
+    private var remindersCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("REMINDERS").font(.caption2.weight(.semibold)).tracking(2).foregroundStyle(Theme.muted)
+            Toggle(isOn: reminderBinding($streakReminder)) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Streak reminder").font(.body.weight(.medium))
+                    Text("Only if today isn't checked off yet.").font(.caption).foregroundStyle(Theme.muted)
+                }
+            }
+            if streakReminder {
+                DatePicker("Remind me at", selection: streakTime, displayedComponents: .hourAndMinute)
+                    .font(.subheadline)
+            }
+            Divider().overlay(Theme.line)
+            Toggle(isOn: reminderBinding($borderNudge)) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Border nudge").font(.body.weight(.medium))
+                    Text("Once, when you're \(Reminders.nudgeWithin) points or fewer from the next border.")
+                        .font(.caption).foregroundStyle(Theme.muted)
+                }
+            }
+            if notificationsDenied {
+                Text("Notifications are off for NAGISEN. Turn them on in iPhone Settings → Notifications.")
+                    .font(.caption).foregroundStyle(Theme.accentText)
+            }
+        }
+        .tint(Theme.accent)
+        .softCardStyle()
+        .onChange(of: streakHour) { _, _ in Reminders.reconcile(store: store) }
+        .onChange(of: streakMinute) { _, _ in Reminders.reconcile(store: store) }
+    }
+
+    /// Turning a reminder on asks for notification permission first.
+    private func reminderBinding(_ setting: Binding<Bool>) -> Binding<Bool> {
+        Binding(get: { setting.wrappedValue }, set: { on in
+            guard on else {
+                setting.wrappedValue = false
+                if !borderNudge { Reminders.cancelBorderNudge() }
+                Reminders.reconcile(store: store)
+                return
+            }
+            Reminders.requestPermission { granted in
+                notificationsDenied = !granted
+                setting.wrappedValue = granted
+                Reminders.reconcile(store: store)
+            }
+        })
+    }
+
+    private var streakTime: Binding<Date> {
+        Binding(get: {
+            Calendar.current.date(bySettingHour: streakHour, minute: streakMinute, second: 0, of: .now) ?? .now
+        }, set: { date in
+            let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
+            streakHour = parts.hour ?? Reminders.defaultStreakTime.hour
+            streakMinute = parts.minute ?? Reminders.defaultStreakTime.minute
+        })
+    }
+
     private var latestWeight: WeightEntry? {
         store.weights.max { $0.date < $1.date }
     }
@@ -102,6 +166,7 @@ struct ProfileView: View {
                     }
                     accountCard
                     pathCard
+                    remindersCard
 
                     VStack(spacing: 0) {
                         NavigationLink {

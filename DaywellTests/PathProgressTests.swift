@@ -172,4 +172,50 @@ final class PathProgressTests: XCTestCase {
         XCTAssertEqual(progress.points, 0)
         XCTAssertEqual(progress.tier, .none)
     }
+
+    // MARK: - Reminders
+
+    private var calendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Africa/Casablanca")!
+        return calendar
+    }
+
+    private func at(_ hour: Int, _ minute: Int = 0) -> Date {
+        calendar.date(from: DateComponents(year: 2026, month: 10, day: 31, hour: hour, minute: minute))!
+    }
+
+    func testAnUncheckedDayGetsTonightsReminderAndTheNextTwo() {
+        let dates = Reminders.streakReminderDates(now: at(15), todayChecked: false, hour: 20, minute: 30,
+                                                  calendar: calendar)
+        XCTAssertEqual(dates.count, 3)
+        XCTAssertEqual(dates.first, at(20, 30))
+    }
+
+    func testACheckedDaySkipsTonight() {
+        let dates = Reminders.streakReminderDates(now: at(15), todayChecked: true, hour: 20, minute: 30,
+                                                  calendar: calendar)
+        XCTAssertEqual(dates.count, 2)
+        XCTAssertGreaterThan(dates[0], at(23, 59))
+    }
+
+    func testTonightIsSkippedOnceTheTimeHasPassed() {
+        let dates = Reminders.streakReminderDates(now: at(21), todayChecked: false, hour: 20, minute: 30,
+                                                  calendar: calendar)
+        XCTAssertEqual(dates.count, 2)
+    }
+
+    func testANudgeComesWhenCloseToTheNextBorder() {
+        XCTAssertEqual(Reminders.borderToNudge(PathProgress(checkedDays: 26), lastNudged: nil), .hinoki)
+        XCTAssertNil(Reminders.borderToNudge(PathProgress(checkedDays: 20), lastNudged: nil), "10 points away")
+    }
+
+    func testEachBorderIsNudgedOnlyOnce() {
+        XCTAssertNil(Reminders.borderToNudge(PathProgress(checkedDays: 26),
+                                             lastNudged: BorderTier.hinoki.rawValue))
+    }
+
+    func testNoNudgeAfterTheLastBorder() {
+        XCTAssertNil(Reminders.borderToNudge(PathProgress(checkedDays: 5000), lastNudged: nil))
+    }
 }
