@@ -276,7 +276,7 @@ struct WorkoutMusicView: View {
                         HStack(spacing: 14) {
                             Image(systemName: "dumbbell.fill")
                                 .font(.title2)
-                                .foregroundStyle(Theme.workout)
+                                .foregroundStyle(Theme.red)
                                 .frame(width: 32)
                             VStack(alignment: .leading, spacing: 5) {
                                 Text("PERSONAL RECORDS")
@@ -326,7 +326,7 @@ struct WorkoutMusicView: View {
                                 .foregroundStyle(Theme.muted)
                             Spacer()
                             if challengeComplete {
-                                Image(systemName: "checkmark.seal.fill").foregroundStyle(Theme.gold)
+                                Image(systemName: "checkmark.seal.fill").foregroundStyle(Theme.red)
                             }
                             Button { showingShuffle = true } label: { DominoIcon() }
                                 .foregroundStyle(Theme.accentText)
@@ -359,7 +359,7 @@ struct WorkoutMusicView: View {
                                     Spacer(minLength: 0)
                                     if completedQuestIDs.contains(quest.id) {
                                         Image(systemName: "checkmark.circle.fill")
-                                            .foregroundStyle(Theme.workout)
+                                            .foregroundStyle(Theme.red)
                                     }
                                 }
                             }
@@ -671,7 +671,7 @@ private struct WorkoutSplitEditorView: View {
                                 .foregroundStyle(draft.name == template.rawValue ? Theme.accentText : Theme.ink)
                                 .padding(.horizontal, 14)
                                 .padding(.vertical, 10)
-                                .nagisenGlass(in: Capsule(), tint: draft.name == template.rawValue ? Theme.workout.opacity(0.18) : .clear)
+                                .nagisenGlass(in: Capsule(), tint: draft.name == template.rawValue ? Theme.red.opacity(0.18) : .clear)
                             }
                         }
                     }
@@ -921,7 +921,7 @@ private struct PersonalRecordsView: View {
                             HStack {
                                 Text(exercise).font(.system(size: 23, design: .serif))
                                 Spacer()
-                                Image(systemName: "medal.fill").foregroundStyle(Theme.gold)
+                                Image(systemName: "medal.fill").foregroundStyle(Theme.red)
                             }
                             Text("\(best.kilograms.formatted(.number.precision(.fractionLength(0...1)))) kg × \(best.reps) reps")
                                 .font(.title3.weight(.semibold))

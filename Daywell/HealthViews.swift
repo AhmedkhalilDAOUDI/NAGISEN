@@ -235,12 +235,12 @@ struct AccessoriesView: View {
 
                 if !health.hasRequestedAccess {
                     Button("Connect Apple Health") { health.requestAccess() }
-                        .buttonStyle(.borderedProminent).tint(Theme.accent)
+                        .buttonStyle(.borderedProminent).tint(Theme.red)
                 } else {
                     if #available(iOS 26.0, *) { LiveAccessoryWorkoutView() }
                     NagisenSection("Keep your log together") {
                         Toggle("Import Health workouts & weight", isOn: $autoImport)
-                            .tint(Theme.accent).frame(minHeight: 54)
+                            .tint(Theme.red).frame(minHeight: 54)
                         Divider()
                         Button("Import available data now") { importAvailable() }
                             .font(.subheadline.weight(.medium)).frame(minHeight: 52)

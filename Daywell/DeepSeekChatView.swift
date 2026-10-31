@@ -402,7 +402,7 @@ struct DeepSeekChatView: View {
                     }
                     NagisenSection("Personalization") {
                     Toggle("Use my NAGISEN data", isOn: $useContext)
-                        .tint(Theme.accent)
+                        .tint(Theme.red)
                         .frame(minHeight: 54)
                     Divider()
                     Text("When on, each message includes a short summary of today’s food, goals, workouts and permitted step count. This summary is sent to DeepSeek with your question.")
