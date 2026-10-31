@@ -177,8 +177,35 @@ alter table public.reports drop constraint if exists reports_one_target;
 alter table public.reports add constraint reports_one_target
     check ((post_id is null) <> (comment_id is null));
 
+-- Appreciation: a quiet mark on a post. Members see only their own marks; a post's author
+-- sees every mark on it. Counting through these rules gives the author the full number and
+-- everyone else 0 or 1.
+create table if not exists public.appreciations (
+    post_id uuid not null references public.posts (id) on delete cascade,
+    member_id uuid not null default auth.uid() references public.profiles (id) on delete cascade,
+    created_at timestamptz not null default now(),
+    primary key (post_id, member_id)
+);
+alter table public.appreciations enable row level security;
+
+drop policy if exists "appreciations visible to giver and author" on public.appreciations;
+create policy "appreciations visible to giver and author" on public.appreciations
+    for select to authenticated using (
+        member_id = auth.uid() or
+        exists (select 1 from public.posts p where p.id = post_id and p.author_id = auth.uid())
+    );
+drop policy if exists "appreciations give on others' visible posts" on public.appreciations;
+create policy "appreciations give on others' visible posts" on public.appreciations
+    for insert to authenticated with check (
+        member_id = auth.uid() and
+        exists (select 1 from public.posts p where p.id = post_id and p.author_id <> auth.uid())
+    );
+drop policy if exists "appreciations take back own" on public.appreciations;
+create policy "appreciations take back own" on public.appreciations
+    for delete to authenticated using (member_id = auth.uid());
+
 -- Account deletion (App Store guideline 5.1.1(v)). The app removes the member's media
--- folder first; deleting the auth user cascades to profile, posts, comments, reports and blocks.
+-- folder first; deleting the auth user cascades to profile, posts, comments, appreciations, reports and blocks.
 create or replace function public.delete_my_account()
 returns void
 language sql

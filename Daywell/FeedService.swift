@@ -42,12 +42,15 @@ struct FeedPost: Identifiable, Decodable, Equatable {
     let createdAt: Date
     let author: FeedMember
     var commentCount: Int
+    /// For your own posts, how many members appreciated it; for anyone else's, 1 if you did.
+    /// The database rules decide which marks you can see, so the same count serves both.
+    var appreciationCount: Int
 
     var username: String { author.username }
 
     private struct Count: Decodable { let count: Int }
     private enum CodingKeys: String, CodingKey {
-        case id, body, comments
+        case id, body, comments, appreciations
         case authorID = "author_id"
         case mediaPath = "media_path"
         case mediaKind = "media_kind"
@@ -56,7 +59,8 @@ struct FeedPost: Identifiable, Decodable, Equatable {
     }
 
     init(id: UUID, authorID: UUID, body: String, mediaPath: String? = nil,
-         mediaKind: MediaKind? = nil, createdAt: Date = .now, username: String, commentCount: Int = 0) {
+         mediaKind: MediaKind? = nil, createdAt: Date = .now, username: String, commentCount: Int = 0,
+         appreciationCount: Int = 0) {
         self.id = id
         self.authorID = authorID
         self.body = body
@@ -65,6 +69,7 @@ struct FeedPost: Identifiable, Decodable, Equatable {
         self.createdAt = createdAt
         self.author = FeedMember(id: authorID, username: username, avatarPath: nil, borderTier: .none, bio: "")
         self.commentCount = commentCount
+        self.appreciationCount = appreciationCount
     }
 
     init(from decoder: any Decoder) throws {
@@ -79,6 +84,7 @@ struct FeedPost: Identifiable, Decodable, Equatable {
             FeedMember(id: authorID, username: "member", avatarPath: nil, borderTier: .none, bio: "")
         // PostgREST returns `comments(count)` as a one-element array.
         commentCount = (try? c.decode([Count].self, forKey: .comments).first?.count) ?? 0
+        appreciationCount = (try? c.decode([Count].self, forKey: .appreciations).first?.count) ?? 0
     }
 }
 
@@ -478,7 +484,7 @@ final class FeedService: ObservableObject {
     // MARK: - Feed
 
     private var feedQuery: String {
-        "id, author_id, body, media_path, media_kind, created_at, \(ProfileJoin.columns), comments(count)"
+        "id, author_id, body, media_path, media_kind, created_at, \(ProfileJoin.columns), comments(count), appreciations(count)"
     }
 
     func refresh() async {
@@ -609,6 +615,34 @@ final class FeedService: ObservableObject {
             await refresh()
         } catch {
             message = Self.describe(error, doing: "unblock")
+        }
+    }
+
+    // MARK: - Appreciation
+
+    /// Whether you've marked someone else's post.
+    func hasAppreciated(_ post: FeedPost) -> Bool { !isMine(post) && post.appreciationCount > 0 }
+
+    /// Gives or takes back your mark on someone else's post. Updates the screen first and
+    /// undoes it if the server refuses.
+    func toggleAppreciation(_ post: FeedPost) async {
+        guard let client, let userID, !isMine(post),
+              let index = posts.firstIndex(where: { $0.id == post.id }) else { return }
+        let giving = posts[index].appreciationCount == 0
+        posts[index].appreciationCount = giving ? 1 : 0
+        struct Mark: Encodable { let post_id: UUID }
+        do {
+            if giving {
+                try await client.from("appreciations").upsert(Mark(post_id: post.id), onConflict: "post_id,member_id").execute()
+            } else {
+                try await client.from("appreciations").delete()
+                    .eq("post_id", value: post.id).eq("member_id", value: userID).execute()
+            }
+        } catch {
+            if let again = posts.firstIndex(where: { $0.id == post.id }) {
+                posts[again].appreciationCount = giving ? 0 : 1
+            }
+            message = Self.describe(error, doing: giving ? "appreciate the post" : "take back your appreciation")
         }
     }
 
