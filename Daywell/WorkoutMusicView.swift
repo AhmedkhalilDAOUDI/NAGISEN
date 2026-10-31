@@ -166,42 +166,28 @@ struct WorkoutMusicView: View {
         showingShuffle = false
     }
 
-    private var completedQuestCount: Int {
-        Set(store.workouts.compactMap { workout -> String? in
-            guard let day = workout.challengeDayKey else { return nil }
-            return "\(day)/\(workout.challengeID ?? "legacy")"
-        }).count
-    }
 
     private var trophies: [Trophy] {
-        let totalMinutes = store.workouts.reduce(0) { $0 + $1.minutes }
+        let milestones = Milestones(workouts: store.workouts, plans: store.challengePlans)
+        let finishedDays = Milestones.finishedPackDays(workouts: store.workouts, plans: store.challengePlans)
         let dailyNames = ["Koi Current", "Moonlit Bell", "Crimson Crane", "Quiet Thunder", "Iron Lantern",
                           "Silver Fox", "Rising Cedar", "Tidal Fox", "Golden Heron", "Storm Ink",
                           "Foxfire", "Night Bloom", "Mountain Echo", "Paper Tiger", "Sunrise Koi"]
         let daily = store.challengePlans.keys.sorted(by: >).compactMap { key -> Trophy? in
             guard let plan = store.challengePlans[key] else { return nil }
-            let questIDs = plan.activeQuests(for: key).map(\.id)
-            guard !questIDs.isEmpty else { return nil }
-            let logged = Set(store.workouts.filter { $0.challengeDayKey == key }.compactMap(\.challengeID))
-            let earned = questIDs.allSatisfy { logged.contains($0) }
+            guard !plan.activeQuests(for: key).isEmpty else { return nil }
+            let earned = finishedDays.contains(key)
             let nameIndex = key.utf8.reduce(0) { ($0 * 31 + Int($1)) % dailyNames.count }
             return Trophy(id: "daily-\(key)", title: "\(dailyNames[nameIndex]) · \(key.suffix(5))",
                           subtitle: "Finish the day's pack", symbol: "medal", earned: earned)
         }
-        let shuffledPackEarned = store.challengePlans.contains { pair in
-            let (key, plan) = pair
-            guard plan.wasShuffled == true else { return false }
-            let ids = plan.activeQuests(for: key).map(\.id)
-            let logged = Set(store.workouts.filter { $0.challengeDayKey == key }.compactMap(\.challengeID))
-            return !ids.isEmpty && ids.allSatisfy { logged.contains($0) }
-        }
         return daily + [
-            Trophy(id: "domino", title: "Domino Dealer", subtitle: "Finish a shuffled pack", symbol: "die.face.5", earned: shuffledPackEarned),
-            Trophy(id: "first", title: store.trophyNames["first"] ?? "First spark", subtitle: "Log a workout", symbol: "figure.walk", earned: !store.workouts.isEmpty),
-            Trophy(id: "century", title: store.trophyNames["century"] ?? "Sweat legend", subtitle: "Move 100 minutes", symbol: "flame", earned: totalMinutes >= 100),
-            Trophy(id: "hunter", title: store.trophyNames["hunter"] ?? "Quest goblin", subtitle: "Finish 3 side quests", symbol: "bolt", earned: completedQuestCount >= 3),
-            Trophy(id: "seven", title: store.trophyNames["seven"] ?? "Seven strong", subtitle: "Log 7 workouts", symbol: "7.circle", earned: store.workouts.count >= 7),
-            Trophy(id: "long", title: store.trophyNames["long"] ?? "Moon mover", subtitle: "Move 500 minutes", symbol: "crown", earned: totalMinutes >= 500)
+            Trophy(id: "domino", title: "Domino Dealer", subtitle: "Finish a shuffled pack", symbol: "die.face.5", earned: milestones.shuffledPack),
+            Trophy(id: "first", title: store.trophyNames["first"] ?? "First spark", subtitle: "Log a workout", symbol: "figure.walk", earned: milestones.firstWorkout),
+            Trophy(id: "century", title: store.trophyNames["century"] ?? "Sweat legend", subtitle: "Move 100 minutes", symbol: "flame", earned: milestones.hundredMinutes),
+            Trophy(id: "hunter", title: store.trophyNames["hunter"] ?? "Quest goblin", subtitle: "Finish 3 side quests", symbol: "bolt", earned: milestones.threeQuests),
+            Trophy(id: "seven", title: store.trophyNames["seven"] ?? "Seven strong", subtitle: "Log 7 workouts", symbol: "7.circle", earned: milestones.sevenWorkouts),
+            Trophy(id: "long", title: store.trophyNames["long"] ?? "Moon mover", subtitle: "Move 500 minutes", symbol: "crown", earned: milestones.fiveHundredMinutes)
         ]
     }
 
