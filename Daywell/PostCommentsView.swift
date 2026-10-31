@@ -53,20 +53,6 @@ struct PostCommentsView: View {
                 loading = false
             }
             .sheet(item: $viewingMember) { MemberPageView(member: $0) }
-            .nagisenActions(isPresented: Binding(get: { actionsFor != nil }, set: { if !$0 { actionsFor = nil } }),
-                            title: "Comment") {
-                guard let comment = actionsFor else { return [] }
-                var actions: [NagisenAction] = []
-                if !feed.isMine(comment) {
-                    actions.append(NagisenAction(title: "Report comment", symbol: "flag") { reporting = comment })
-                    actions.append(NagisenAction(title: "Block @\(comment.username)", symbol: "hand.raised",
-                                                 destructive: true) { blocking = comment })
-                }
-                if feed.canDelete(comment, on: post) {
-                    actions.append(NagisenAction(title: "Delete comment", symbol: "trash", destructive: true) { deleting = comment })
-                }
-                return actions
-            }
             .confirmationDialog("Delete this comment?", isPresented: Binding(
                 get: { deleting != nil }, set: { if !$0 { deleting = nil } }
             )) {
@@ -176,6 +162,20 @@ struct PostCommentsView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("More for this comment")
+                .nagisenActions(isPresented: Binding(get: { actionsFor?.id == comment.id },
+                                                     set: { if !$0 { actionsFor = nil } }),
+                                title: "Comment") {
+                    var actions: [NagisenAction] = []
+                    if !feed.isMine(comment) {
+                        actions.append(NagisenAction(title: "Report comment", symbol: "flag") { reporting = comment })
+                        actions.append(NagisenAction(title: "Block @\(comment.username)", symbol: "hand.raised",
+                                                 destructive: true) { blocking = comment })
+                    }
+                    if feed.canDelete(comment, on: post) {
+                        actions.append(NagisenAction(title: "Delete comment", symbol: "trash", destructive: true) { deleting = comment })
+                    }
+                    return actions
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
