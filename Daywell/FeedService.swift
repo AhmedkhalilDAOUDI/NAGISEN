@@ -519,6 +519,22 @@ final class FeedService: ObservableObject {
 
     func isMine(_ post: FeedPost) -> Bool { post.authorID == userID }
 
+    func isMe(_ member: FeedMember) -> Bool { member.id == userID }
+
+    /// A member's latest 50 posts for their page. Blocked members return nothing.
+    func posts(by member: FeedMember) async -> [FeedPost]? {
+        guard let client, state == .ready else { return nil }
+        do {
+            return try await client.from("posts").select(feedQuery)
+                .eq("author_id", value: member.id)
+                .order("created_at", ascending: false).limit(50)
+                .execute().value
+        } catch {
+            message = Self.describe(error, doing: "load @\(member.username)'s posts")
+            return nil
+        }
+    }
+
     func mediaURL(for post: FeedPost) -> URL? {
         guard let client, let path = post.mediaPath else { return nil }
         return try? client.storage.from(bucket).getPublicURL(path: path)

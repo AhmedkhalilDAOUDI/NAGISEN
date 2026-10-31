@@ -108,38 +108,3 @@ struct AvatarView: View {
         }
     }
 }
-
-/// What other members see when they tap a name: picture, border, username and bio.
-struct MemberCardView: View {
-    let member: FeedMember
-    @EnvironmentObject private var feed: FeedService
-
-    var body: some View {
-        VStack(spacing: 14) {
-            AvatarView(url: feed.avatarURL(member.avatarPath), username: member.username,
-                       tier: member.borderTier, special: member.special, size: 104)
-            Text("@\(member.username)")
-                .font(.system(size: 25, design: .serif))
-            if let special = member.special {
-                Text("\(special.name.uppercased()) · \(special.title.uppercased())")
-                    .font(.caption2.weight(.semibold)).tracking(2)
-                    .foregroundStyle(Theme.accentText)
-            } else if member.borderTier != .none {
-                Text("\(member.borderTier.name.uppercased()) BORDER")
-                    .font(.caption2.weight(.semibold)).tracking(2)
-                    .foregroundStyle(Theme.muted)
-            }
-            Text(member.bio.isEmpty ? "No bio yet." : member.bio)
-                .font(.subheadline)
-                .foregroundStyle(member.bio.isEmpty ? Theme.muted : Theme.ink)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .foregroundStyle(Theme.ink)
-        .padding(28)
-        .frame(maxWidth: .infinity)
-        .background(NagisenBackdrop())
-        .presentationDetents([.medium])
-        .presentationDragIndicator(.visible)
-    }
-}
