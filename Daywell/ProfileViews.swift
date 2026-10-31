@@ -17,7 +17,7 @@ struct ProfileView: View {
     @State private var showingCloudChoice = false
 
     private var path: PathProgress {
-        PathProgress(workouts: store.workouts, plans: store.challengePlans, lifts: store.strengthRecords)
+        PathProgress(store: store)
     }
 
     @ViewBuilder

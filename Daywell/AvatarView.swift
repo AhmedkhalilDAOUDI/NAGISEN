@@ -6,10 +6,16 @@ extension BorderTier {
         switch self {
         case .none: [Theme.line]
         case .washi: [Color(hex: 0xF2EBDF), Color(hex: 0xCFC3B0), Color(hex: 0xF2EBDF)]
+        case .hinoki: [Color(hex: 0xE8D1A8), Color(hex: 0x9C7650), Color(hex: 0xD2B385), Color(hex: 0xE8D1A8)]
         case .copper: [Color(hex: 0xE0A070), Color(hex: 0x8A4B24), Color(hex: 0xC7834F), Color(hex: 0xE0A070)]
+        case .bronze: [Color(hex: 0xD6A665), Color(hex: 0x6F4A24), Color(hex: 0xB08045), Color(hex: 0xD6A665)]
         case .silver: [Color(hex: 0xF4F6F7), Color(hex: 0x8F989F), Color(hex: 0xDADFE3), Color(hex: 0xF4F6F7)]
         case .gold: [Color(hex: 0xF5DFA3), Color(hex: 0xA97A3E), Color(hex: 0xE9C77B), Color(hex: 0xF5DFA3)]
+        case .sakura: [Color(hex: 0xF9E6EA), Color(hex: 0xC98A98), Color(hex: 0xF0C6CF), Color(hex: 0xF9E6EA)]
+        case .indigo: [Color(hex: 0x8FA3D6), Color(hex: 0x223666), Color(hex: 0x4C64A3), Color(hex: 0x8FA3D6)]
         case .jade: [Color(hex: 0x9AD5BC), Color(hex: 0x1F5E4A), Color(hex: 0x4FA285), Color(hex: 0x9AD5BC)]
+        case .sumi: [Color(hex: 0x8A8A92), Color(hex: 0x111113), Color(hex: 0x4A4A50), Color(hex: 0x8A8A92)]
+        case .kintsugi: [Color(hex: 0x17171A), Color(hex: 0xE2BC66), Color(hex: 0x17171A), Color(hex: 0xF5DC92), Color(hex: 0x17171A)]
         }
     }
 }
@@ -55,7 +61,7 @@ struct AvatarView: View {
         .accessibilityElement()
         .accessibilityLabel(tier == .none ? "@\(username)" : "@\(username), \(tier.name) border")
         .onAppear {
-            guard tier == .jade, !reduceMotion else { return }
+            guard tier.shimmers, !reduceMotion else { return }
             withAnimation(.linear(duration: 9).repeatForever(autoreverses: false)) { sheen = true }
         }
     }

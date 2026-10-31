@@ -73,7 +73,7 @@ struct DaywellApp: App {
 
     /// Publishes the border earned from this iPhone's challenges, records and trophies.
     private func syncBorder() async {
-        let path = PathProgress(workouts: store.workouts, plans: store.challengePlans, lifts: store.strengthRecords)
+        let path = PathProgress(store: store)
         await feed.syncBorder(path.tier)
     }
 }
