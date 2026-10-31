@@ -103,8 +103,47 @@ create policy "post-media list own folder" on storage.objects
         bucket_id = 'post-media' and (storage.foldername(name))[1] = auth.uid()::text
     );
 
+-- Comments on posts.
+create table if not exists public.comments (
+    id uuid primary key default gen_random_uuid(),
+    post_id uuid not null references public.posts (id) on delete cascade,
+    author_id uuid not null default auth.uid() references public.profiles (id) on delete cascade,
+    body text not null check (char_length(btrim(body)) between 1 and 500),
+    created_at timestamptz not null default now()
+);
+create index if not exists comments_post_idx on public.comments (post_id, created_at);
+alter table public.comments enable row level security;
+
+-- Members see comments except from people they blocked; they comment only on posts they can
+-- see; they delete their own comments, and a post's author deletes any comment on it.
+drop policy if exists "comments readable except blocked" on public.comments;
+create policy "comments readable except blocked" on public.comments
+    for select to authenticated using (
+        not exists (select 1 from public.blocks b
+                    where b.blocker_id = auth.uid() and b.blocked_id = comments.author_id)
+    );
+drop policy if exists "comments insert own on visible posts" on public.comments;
+create policy "comments insert own on visible posts" on public.comments
+    for insert to authenticated with check (
+        author_id = auth.uid() and exists (select 1 from public.posts p where p.id = post_id)
+    );
+drop policy if exists "comments delete own or on own post" on public.comments;
+create policy "comments delete own or on own post" on public.comments
+    for delete to authenticated using (
+        author_id = auth.uid() or
+        exists (select 1 from public.posts p where p.id = post_id and p.author_id = auth.uid())
+    );
+
+-- Reports can point at a post or a comment, never both.
+alter table public.reports alter column post_id drop not null;
+alter table public.reports add column if not exists
+    comment_id uuid references public.comments (id) on delete cascade;
+alter table public.reports drop constraint if exists reports_one_target;
+alter table public.reports add constraint reports_one_target
+    check ((post_id is null) <> (comment_id is null));
+
 -- Account deletion (App Store guideline 5.1.1(v)). The app removes the member's media
--- folder first; deleting the auth user cascades to profile, posts, reports and blocks.
+-- folder first; deleting the auth user cascades to profile, posts, comments, reports and blocks.
 create or replace function public.delete_my_account()
 returns void
 language sql
