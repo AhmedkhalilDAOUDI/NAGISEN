@@ -22,6 +22,11 @@ final class FeedTests: XCTestCase {
         XCTAssertEqual(FeedRules.normalizedUsername("  Khalil_D "), "khalil_d")
     }
 
+    func testTheMediaFolderMatchesTheLowercaseIDTheStoragePolicyChecks() {
+        let id = UUID(uuidString: "1B9D6BCD-BBFD-4B2D-9B5D-AB8DFBBD4BED")!
+        XCTAssertEqual(FeedRules.mediaFolder(for: id), "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed")
+    }
+
     // MARK: - Decoding rows
 
     private func decode(_ json: String) throws -> FeedPost {

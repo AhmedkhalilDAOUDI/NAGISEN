@@ -67,6 +67,12 @@ enum FeedRules {
     static func normalizedUsername(_ name: String) -> String {
         name.trimmingCharacters(in: .whitespaces).lowercased()
     }
+
+    /// The member's storage folder. Lowercase, because the storage policy compares it with
+    /// `auth.uid()::text` and Swift's `uuidString` is uppercase.
+    static func mediaFolder(for user: UUID) -> String {
+        user.uuidString.lowercased()
+    }
 }
 
 @MainActor
@@ -240,9 +246,10 @@ final class FeedService: ObservableObject {
         isBusy = true
         defer { isBusy = false }
         do {
-            let files = try await client.storage.from(bucket).list(path: userID.uuidString)
+            let folder = FeedRules.mediaFolder(for: userID)
+            let files = try await client.storage.from(bucket).list(path: folder)
             if !files.isEmpty {
-                _ = try await client.storage.from(bucket).remove(paths: files.map { "\(userID.uuidString)/\($0.name)" })
+                _ = try await client.storage.from(bucket).remove(paths: files.map { "\(folder)/\($0.name)" })
             }
             try await client.rpc("delete_my_account").execute()
             try? await client.auth.signOut(scope: .local)
@@ -307,7 +314,7 @@ final class FeedService: ObservableObject {
         var uploadedPath: String?
         do {
             if let attachment {
-                let path = "\(userID.uuidString)/\(UUID().uuidString.lowercased()).\(attachment.fileExtension)"
+                let path = "\(FeedRules.mediaFolder(for: userID))/\(UUID().uuidString.lowercased()).\(attachment.fileExtension)"
                 try await client.storage.from(bucket).upload(path, fileURL: attachment.fileURL,
                                                              options: FileOptions(contentType: attachment.contentType))
                 uploadedPath = path
