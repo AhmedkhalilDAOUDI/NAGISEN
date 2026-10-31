@@ -4,3 +4,4 @@ work/
 xcuserdata/
 .DS_Store
 *.tar.gz
+Config/Secrets.xcconfig
