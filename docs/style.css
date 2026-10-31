@@ -1,0 +1,139 @@
+:root {
+  --paper: #F9F7F2;
+  --surface: #FFFCF7;
+  --ink: #2F322C;
+  --muted: #716F69;
+  --line: #E2D9CC;
+  --accent: #8B2B49;
+  --accent-text: #8B2B49;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #242427;
+    --surface: #2C2C30;
+    --ink: #F0E8DB;
+    --muted: #B8B0A7;
+    --line: #3E3D42;
+    --accent: #8B2B49;
+    --accent-text: #DC90A2;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 17px/1.6 -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+}
+
+.page {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 40px 24px 72px;
+}
+
+nav {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  margin-bottom: 64px;
+  font-size: 14px;
+}
+
+nav .brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-right: auto;
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 600;
+  letter-spacing: 0.32em;
+  font-size: 12px;
+}
+
+nav .brand img { width: 28px; height: 28px; border-radius: 7px; }
+
+nav a { color: var(--muted); text-decoration: none; }
+nav a:hover, nav a[aria-current] { color: var(--ink); }
+
+h1, h2, h3 {
+  font-family: ui-serif, "New York", Georgia, "Times New Roman", serif;
+  font-weight: 400;
+  line-height: 1.2;
+}
+
+h1 { font-size: clamp(38px, 8vw, 56px); margin: 0 0 18px; }
+h2 { font-size: 26px; margin: 52px 0 12px; }
+h3 { font-size: 20px; margin: 30px 0 6px; }
+
+.kicker {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 14px;
+}
+
+.lead { font-size: 19px; color: var(--muted); margin: 0 0 8px; }
+
+p, li { color: var(--ink); }
+.muted { color: var(--muted); }
+
+a { color: var(--accent-text); }
+
+.mark {
+  display: block;
+  width: 96px;
+  height: 96px;
+  border-radius: 22px;
+  margin-bottom: 36px;
+}
+
+.features {
+  list-style: none;
+  padding: 0;
+  margin: 28px 0 0;
+  border-top: 0.5px solid var(--line);
+}
+
+.features li {
+  padding: 18px 0;
+  border-bottom: 0.5px solid var(--line);
+}
+
+.features strong {
+  display: block;
+  font-family: ui-serif, "New York", Georgia, serif;
+  font-weight: 400;
+  font-size: 20px;
+}
+
+.features span { color: var(--muted); font-size: 15px; }
+
+.panel {
+  background: var(--surface);
+  border: 0.5px solid var(--line);
+  border-radius: 20px;
+  padding: 22px 24px;
+  margin: 28px 0;
+}
+
+ul.plain { padding-left: 20px; }
+ul.plain li { margin: 6px 0; }
+
+footer {
+  margin-top: 80px;
+  padding-top: 20px;
+  border-top: 0.5px solid var(--line);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+footer a { color: var(--muted); }
