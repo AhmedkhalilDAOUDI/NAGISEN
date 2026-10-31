@@ -22,9 +22,7 @@ struct SocialFeedView: View {
     @State private var deletingPost: FeedPost?
     @State private var reportingPost: FeedPost?
     @State private var blockingPost: FeedPost?
-
-    private static let reportReasons = ["Spam", "Harassment or hate", "Sexual or violent content",
-                                        "Something else"]
+    @State private var commentingPost: FeedPost?
 
     private var drafts: [FeedDraft] {
         (try? JSONDecoder().decode([FeedDraft].self, from: savedDrafts)) ?? []
@@ -91,6 +89,7 @@ struct SocialFeedView: View {
                 composer.onAppear { feed.message = nil }
             }
             .sheet(isPresented: $showingAccount) { FeedAccountView(openedSignedIn: feed.state == .ready) }
+            .sheet(item: $commentingPost) { PostCommentsView(post: $0) }
             .confirmationDialog("Delete this post for everyone?", isPresented: Binding(
                 get: { deletingPost != nil }, set: { if !$0 { deletingPost = nil } }
             )) {
@@ -103,7 +102,7 @@ struct SocialFeedView: View {
             .confirmationDialog("Why are you reporting this post?", isPresented: Binding(
                 get: { reportingPost != nil }, set: { if !$0 { reportingPost = nil } }
             ), titleVisibility: .visible) {
-                ForEach(Self.reportReasons, id: \.self) { reason in
+                ForEach(FeedRules.reportReasons, id: \.self) { reason in
                     Button(reason) {
                         guard let post = reportingPost else { return }
                         reportingPost = nil
@@ -221,6 +220,10 @@ struct SocialFeedView: View {
                 }
             }
             HStack(spacing: 20) {
+                Button { commentingPost = post } label: {
+                    Label(post.commentCount == 0 ? "Comment" : "\(post.commentCount)", systemImage: "bubble.left")
+                }
+                .accessibilityLabel(post.commentCount == 1 ? "1 comment" : "\(post.commentCount) comments")
                 if !post.body.isEmpty {
                     ShareLink(item: post.body) {
                         Label("Share", systemImage: "square.and.arrow.up")

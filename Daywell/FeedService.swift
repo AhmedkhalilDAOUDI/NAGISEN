@@ -12,10 +12,12 @@ struct FeedPost: Identifiable, Decodable, Equatable {
     let mediaKind: MediaKind?
     let createdAt: Date
     let username: String
+    var commentCount: Int
 
     private struct Author: Decodable { let username: String }
+    private struct Count: Decodable { let count: Int }
     private enum CodingKeys: String, CodingKey {
-        case id, body
+        case id, body, comments
         case authorID = "author_id"
         case mediaPath = "media_path"
         case mediaKind = "media_kind"
@@ -24,7 +26,7 @@ struct FeedPost: Identifiable, Decodable, Equatable {
     }
 
     init(id: UUID, authorID: UUID, body: String, mediaPath: String? = nil,
-         mediaKind: MediaKind? = nil, createdAt: Date = .now, username: String) {
+         mediaKind: MediaKind? = nil, createdAt: Date = .now, username: String, commentCount: Int = 0) {
         self.id = id
         self.authorID = authorID
         self.body = body
@@ -32,6 +34,7 @@ struct FeedPost: Identifiable, Decodable, Equatable {
         self.mediaKind = mediaKind
         self.createdAt = createdAt
         self.username = username
+        self.commentCount = commentCount
     }
 
     init(from decoder: any Decoder) throws {
@@ -41,6 +44,37 @@ struct FeedPost: Identifiable, Decodable, Equatable {
         body = try c.decodeIfPresent(String.self, forKey: .body) ?? ""
         mediaPath = try c.decodeIfPresent(String.self, forKey: .mediaPath)
         mediaKind = try c.decodeIfPresent(MediaKind.self, forKey: .mediaKind)
+        createdAt = try c.decode(Date.self, forKey: .createdAt)
+        username = (try? c.decode(Author.self, forKey: .author).username) ?? "member"
+        // PostgREST returns `comments(count)` as a one-element array.
+        commentCount = (try? c.decode([Count].self, forKey: .comments).first?.count) ?? 0
+    }
+}
+
+/// A comment on a post, decoded from a `comments` row joined with its author's profile.
+struct FeedComment: Identifiable, Decodable, Equatable {
+    let id: UUID
+    let postID: UUID
+    let authorID: UUID
+    let body: String
+    let createdAt: Date
+    let username: String
+
+    private struct Author: Decodable { let username: String }
+    private enum CodingKeys: String, CodingKey {
+        case id, body
+        case postID = "post_id"
+        case authorID = "author_id"
+        case createdAt = "created_at"
+        case author = "profiles"
+    }
+
+    init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        postID = try c.decode(UUID.self, forKey: .postID)
+        authorID = try c.decode(UUID.self, forKey: .authorID)
+        body = try c.decode(String.self, forKey: .body)
         createdAt = try c.decode(Date.self, forKey: .createdAt)
         username = (try? c.decode(Author.self, forKey: .author).username) ?? "member"
     }
@@ -57,6 +91,8 @@ struct PostAttachment {
 
 enum FeedRules {
     static let maxBodyLength = 1000
+    static let maxCommentLength = 500
+    static let reportReasons = ["Spam", "Harassment or hate", "Sexual or violent content", "Something else"]
 
     /// Lowercase letters, digits and underscores, 3 to 20 characters, as the database enforces.
     static func isValidUsername(_ name: String) -> Bool {
@@ -263,7 +299,9 @@ final class FeedService: ObservableObject {
 
     // MARK: - Feed
 
-    private var feedQuery: String { "id, author_id, body, media_path, media_kind, created_at, profiles(username)" }
+    private var feedQuery: String {
+        "id, author_id, body, media_path, media_kind, created_at, profiles(username), comments(count)"
+    }
 
     func refresh() async {
         guard let client, state == .ready else { return }
@@ -364,15 +402,24 @@ final class FeedService: ObservableObject {
     }
 
     func block(_ post: FeedPost) async {
-        guard let client, !isMine(post) else { return }
+        guard !isMine(post) else { return }
+        await block(authorID: post.authorID)
+    }
+
+    /// Blocks a member: their posts and comments disappear for this account on every device.
+    @discardableResult
+    func block(authorID: UUID) async -> Bool {
+        guard let client, authorID != userID else { return false }
         struct NewBlock: Encodable { let blocked_id: UUID }
         do {
-            try await client.from("blocks").upsert(NewBlock(blocked_id: post.authorID),
+            try await client.from("blocks").upsert(NewBlock(blocked_id: authorID),
                                                    onConflict: "blocker_id,blocked_id").execute()
-            posts.removeAll { $0.authorID == post.authorID }
+            posts.removeAll { $0.authorID == authorID }
             blockedCount += 1
+            return true
         } catch {
             message = Self.describe(error, doing: "block this member")
+            return false
         }
     }
 
@@ -385,6 +432,86 @@ final class FeedService: ObservableObject {
         } catch {
             message = Self.describe(error, doing: "unblock")
         }
+    }
+
+    // MARK: - Comments
+
+    private var commentQuery: String { "id, post_id, author_id, body, created_at, profiles(username)" }
+
+    /// The oldest 200 comments on a post, oldest first.
+    func comments(on post: FeedPost) async -> [FeedComment]? {
+        guard let client, state == .ready else { return nil }
+        do {
+            let rows: [FeedComment] = try await client.from("comments").select(commentQuery)
+                .eq("post_id", value: post.id).order("created_at", ascending: true).limit(200)
+                .execute().value
+            if rows.count < 200 { setCommentCount(rows.count, on: post.id) }
+            return rows
+        } catch {
+            message = Self.describe(error, doing: "load the comments")
+            return nil
+        }
+    }
+
+    func addComment(_ text: String, to post: FeedPost) async -> FeedComment? {
+        guard let client, let userID, state == .ready else { return nil }
+        let body = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !body.isEmpty, body.count <= FeedRules.maxCommentLength else {
+            message = "Comments can be up to \(FeedRules.maxCommentLength) characters."
+            return nil
+        }
+        isBusy = true
+        defer { isBusy = false }
+        struct NewComment: Encodable { let post_id: UUID; let author_id: UUID; let body: String }
+        do {
+            let saved: FeedComment = try await client.from("comments")
+                .insert(NewComment(post_id: post.id, author_id: userID, body: body))
+                .select(commentQuery).single().execute().value
+            adjustCommentCount(by: 1, on: post.id)
+            message = nil
+            return saved
+        } catch {
+            message = Self.describe(error, doing: "add the comment")
+            return nil
+        }
+    }
+
+    func isMine(_ comment: FeedComment) -> Bool { comment.authorID == userID }
+
+    /// Your own comments, and any comment on your own post.
+    func canDelete(_ comment: FeedComment, on post: FeedPost) -> Bool { isMine(comment) || isMine(post) }
+
+    func deleteComment(_ comment: FeedComment, on post: FeedPost) async -> Bool {
+        guard let client, canDelete(comment, on: post) else { return false }
+        do {
+            try await client.from("comments").delete().eq("id", value: comment.id).execute()
+            adjustCommentCount(by: -1, on: post.id)
+            return true
+        } catch {
+            message = Self.describe(error, doing: "delete the comment")
+            return false
+        }
+    }
+
+    func report(_ comment: FeedComment, reason: String) async {
+        guard let client, !isMine(comment) else { return }
+        struct NewReport: Encodable { let comment_id: UUID; let reason: String }
+        do {
+            try await client.from("reports").insert(NewReport(comment_id: comment.id, reason: reason)).execute()
+            message = "Thanks. The comment is hidden and has been sent for review."
+        } catch {
+            message = Self.describe(error, doing: "send the report")
+        }
+    }
+
+    private func adjustCommentCount(by delta: Int, on postID: UUID) {
+        guard let index = posts.firstIndex(where: { $0.id == postID }) else { return }
+        posts[index].commentCount = max(0, posts[index].commentCount + delta)
+    }
+
+    private func setCommentCount(_ count: Int, on postID: UUID) {
+        guard let index = posts.firstIndex(where: { $0.id == postID }) else { return }
+        posts[index].commentCount = count
     }
 
     // MARK: - Errors

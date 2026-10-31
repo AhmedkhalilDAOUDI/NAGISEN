@@ -65,6 +65,35 @@ final class FeedTests: XCTestCase {
         XCTAssertEqual(post.mediaKind, .video)
     }
 
+    func testAPostCarriesItsCommentCount() throws {
+        let post = try decode("""
+        {"id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d", "author_id": "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed",
+         "body": "Leg day", "media_path": null, "media_kind": null,
+         "created_at": "2026-10-31T09:15:00+00:00", "profiles": {"username": "khalil"},
+         "comments": [{"count": 3}]}
+        """)
+        XCTAssertEqual(post.commentCount, 3)
+    }
+
+    func testAPostWithoutCountShowsNoComments() throws {
+        let post = try decode("""
+        {"id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d", "author_id": "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed",
+         "body": "Rest day", "created_at": "2026-10-31T09:15:00+00:00", "profiles": {"username": "khalil"}}
+        """)
+        XCTAssertEqual(post.commentCount, 0)
+    }
+
+    func testACommentRowDecodesWithItsAuthor() throws {
+        let comment = try PostgrestClient.Configuration.jsonDecoder.decode(FeedComment.self, from: Data("""
+        {"id": "3f2504e0-4f89-41d3-9a0c-0305e82c3301", "post_id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
+         "author_id": "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed", "body": "Strong work",
+         "created_at": "2026-10-31T10:00:00.5+00:00", "profiles": {"username": "sara_runs"}}
+        """.utf8))
+        XCTAssertEqual(comment.body, "Strong work")
+        XCTAssertEqual(comment.username, "sara_runs")
+        XCTAssertEqual(comment.postID, UUID(uuidString: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d"))
+    }
+
     // MARK: - Media limits
 
     func testVideosUpToAMinuteAreAccepted() throws {
