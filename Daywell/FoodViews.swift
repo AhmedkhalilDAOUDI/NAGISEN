@@ -65,15 +65,11 @@ struct LogFoodView: View {
                         .font(.caption.weight(.medium)).foregroundStyle(Theme.accentText)
                 }
                 NagisenSection("Log to diary") {
-                Picker("Meal", selection: $meal) {
-                    ForEach(Meal.allCases) { meal in Text(meal.rawValue).tag(meal) }
-                }
+                NagisenPicker("Meal", selection: $meal, options: Meal.allCases.map { ($0, $0.rawValue) })
                 .frame(minHeight: 54)
                 Divider()
                 if selectedFood.gramsPerServing != nil {
-                    Picker("Serving unit", selection: $unit) {
-                        ForEach(PortionUnit.allCases, id: \.self) { item in Text(item.rawValue).tag(item) }
-                    }
+                    NagisenPicker("Serving unit", selection: $unit, options: PortionUnit.allCases.map { ($0, $0.rawValue) })
                     .onChange(of: unit) { _, newUnit in
                         amount = newUnit == .grams ? String(Int(selectedFood.gramsPerServing ?? 100)) : "1"
                     }

@@ -297,31 +297,16 @@ struct DietPlanView: View {
                     }
                     .frame(minHeight: 46)
                     Divider()
-                    Picker("Calorie equation", selection: Binding<EnergyEquation?>(
-                        get: { store.dietPreferences.equation },
-                        set: { store.dietPreferences.equation = $0 })) {
-                        Text("Choose").tag(nil as EnergyEquation?)
-                        ForEach(EnergyEquation.allCases) { value in
-                            Text(value.rawValue).tag(Optional(value))
-                        }
-                    }
+                    NagisenPicker("Calorie equation", selection: $store.dietPreferences.equation,
+                                  options: [(nil, "Choose")] + EnergyEquation.allCases.map { (Optional($0), $0.rawValue) })
                     .frame(minHeight: 48)
                     Divider()
-                    Picker("Activity", selection: Binding<DietActivity?>(
-                        get: { store.dietPreferences.activity },
-                        set: { store.dietPreferences.activity = $0 })) {
-                        Text("Choose").tag(nil as DietActivity?)
-                        ForEach(DietActivity.allCases) { value in
-                            Text(value.rawValue).tag(Optional(value))
-                        }
-                    }
+                    NagisenPicker("Activity", selection: $store.dietPreferences.activity,
+                                  options: [(nil, "Choose")] + DietActivity.allCases.map { (Optional($0), $0.rawValue) })
                     .frame(minHeight: 48)
                     Divider()
-                    Picker("Goal", selection: $store.dietPreferences.direction) {
-                        ForEach(DietDirection.allCases) { value in
-                            Text(value.rawValue).tag(value)
-                        }
-                    }
+                    NagisenPicker("Goal", selection: $store.dietPreferences.direction,
+                                  options: DietDirection.allCases.map { ($0, $0.rawValue) })
                     .frame(minHeight: 48)
                     Text("Uses the Mifflin–St Jeor estimate. Activity and body data affect the result; adjust your daily goals if your needs differ.")
                         .font(.caption).foregroundStyle(Theme.muted)
@@ -513,9 +498,7 @@ private struct PlannedMealLogView: View {
             VStack(alignment: .leading, spacing: 24) {
                 NagisenHeader("Log planned meal", subtitle: meal.title, symbol: "xmark", onBack: { dismiss() })
                 NagisenSection("Diary") {
-                    Picker("Meal", selection: $mealSlot) {
-                        ForEach(Meal.allCases) { slot in Text(slot.rawValue).tag(slot) }
-                    }
+                    NagisenPicker("Meal", selection: $mealSlot, options: Meal.allCases.map { ($0, $0.rawValue) })
                     .frame(minHeight: 54)
                     Divider()
                     DatePicker("Date", selection: $date, in: ...Date.now, displayedComponents: .date)

@@ -519,9 +519,8 @@ struct QuickAddView: View {
                 NagisenSection("Entry") {
                     TextField("Name", text: $name).frame(minHeight: 52)
                     Divider()
-                    Picker("Meal", selection: $meal) {
-                        ForEach(Meal.allCases) { choice in Text(choice.rawValue).tag(choice) }
-                    }.frame(minHeight: 52)
+                    NagisenPicker("Meal", selection: $meal, options: Meal.allCases.map { ($0, $0.rawValue) })
+                        .frame(minHeight: 52)
                     Divider()
                     LabeledContent("Date", value: date.formatted(date: .abbreviated, time: .omitted))
                         .frame(minHeight: 52)
@@ -573,9 +572,7 @@ private struct RepeatMealView: View {
             VStack(alignment: .leading, spacing: 24) {
                 NagisenHeader("Repeat meal", subtitle: "Bring a familiar meal forward.", symbol: "xmark", onBack: { dismiss() })
                 NagisenSection("Log to") {
-                Picker("Meal", selection: $meal) {
-                    ForEach(Meal.allCases) { item in Text(item.rawValue).tag(item) }
-                }
+                NagisenPicker("Meal", selection: $meal, options: Meal.allCases.map { ($0, $0.rawValue) })
                 .frame(minHeight: 54)
                 Divider()
                 LabeledContent("Date", value: date.formatted(date: .abbreviated, time: .omitted))

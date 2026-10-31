@@ -12,6 +12,7 @@ struct PostCommentsView: View {
     @State private var reporting: FeedComment?
     @State private var blocking: FeedComment?
     @State private var viewingMember: FeedMember?
+    @State private var actionsFor: FeedComment?
 
     var body: some View {
         NavigationStack {
@@ -52,6 +53,20 @@ struct PostCommentsView: View {
                 loading = false
             }
             .sheet(item: $viewingMember) { MemberPageView(member: $0) }
+            .nagisenActions(isPresented: Binding(get: { actionsFor != nil }, set: { if !$0 { actionsFor = nil } }),
+                            title: "Comment") {
+                guard let comment = actionsFor else { return [] }
+                var actions: [NagisenAction] = []
+                if !feed.isMine(comment) {
+                    actions.append(NagisenAction(title: "Report comment", symbol: "flag") { reporting = comment })
+                    actions.append(NagisenAction(title: "Block @\(comment.username)", symbol: "hand.raised",
+                                                 destructive: true) { blocking = comment })
+                }
+                if feed.canDelete(comment, on: post) {
+                    actions.append(NagisenAction(title: "Delete comment", symbol: "trash", destructive: true) { deleting = comment })
+                }
+                return actions
+            }
             .confirmationDialog("Delete this comment?", isPresented: Binding(
                 get: { deleting != nil }, set: { if !$0 { deleting = nil } }
             )) {
@@ -152,22 +167,14 @@ struct PostCommentsView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             if feed.canDelete(comment, on: post) || !feed.isMine(comment) {
-                Menu {
-                    if feed.canDelete(comment, on: post) {
-                        Button("Delete comment", systemImage: "trash", role: .destructive) { deleting = comment }
-                    }
-                    if !feed.isMine(comment) {
-                        Button("Report comment", systemImage: "flag") { reporting = comment }
-                        Button("Block @\(comment.username)", systemImage: "hand.raised",
-                               role: .destructive) { blocking = comment }
-                    }
-                } label: {
+                Button { actionsFor = comment } label: {
                     Image(systemName: "ellipsis")
                         .font(.caption)
                         .foregroundStyle(Theme.muted)
                         .frame(width: 32, height: 28)
                         .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
                 .accessibilityLabel("More for this comment")
             }
         }

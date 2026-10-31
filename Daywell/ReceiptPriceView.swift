@@ -17,6 +17,7 @@ struct ReceiptPriceView: View {
     @State private var isReading = false
     @State private var status: String?
     @State private var rows: [DraftRow] = []
+    @State private var choosingFoodFor: UUID?
 
     struct DraftRow: Identifiable {
         let id = UUID()
@@ -53,6 +54,20 @@ struct ReceiptPriceView: View {
                 .padding(.vertical, 16)
             }
             .background(NagisenBackdrop())
+            .nagisenActions(isPresented: Binding(get: { choosingFoodFor != nil }, set: { if !$0 { choosingFoodFor = nil } }),
+                            title: "Which food is this?") {
+                guard let index = rows.firstIndex(where: { $0.id == choosingFoodFor }) else { return [] }
+                let line = rows[index].line
+                return candidates(for: line).map { candidate in
+                    NagisenAction(title: candidate.name, selected: rows[index].food?.id == candidate.id) {
+                        rows[index].food = candidate
+                        rows[index].price = ReceiptMatcher.price(for: line, food: candidate)
+                    }
+                } + [NagisenAction(title: "Not a food I track", selected: rows[index].food == nil) {
+                    rows[index].food = nil
+                    rows[index].price = nil
+                }]
+            }
             .nagisenSheetBar("Receipt prices", onClose: { dismiss() }, actionTitle: "Save",
                              actionEnabled: !rows.filter { $0.include && $0.food != nil && $0.price != nil }.isEmpty,
                              onAction: save)
@@ -141,15 +156,7 @@ struct ReceiptPriceView: View {
                     }
 
                     HStack(spacing: 8) {
-                        Menu {
-                            ForEach(candidates(for: row.line), id: \.id) { candidate in
-                                Button(candidate.name) {
-                                    row.food = candidate
-                                    row.price = ReceiptMatcher.price(for: row.line, food: candidate)
-                                }
-                            }
-                            Button("Not a food I track") { row.food = nil; row.price = nil }
-                        } label: {
+                        Button { choosingFoodFor = row.id } label: {
                             HStack(spacing: 4) {
                                 Text(row.food?.name ?? "Choose food")
                                     .font(.caption.weight(.semibold))
@@ -162,6 +169,7 @@ struct ReceiptPriceView: View {
                             .background(Theme.surface.opacity(0.7), in: Capsule())
                             .foregroundStyle(Theme.ink)
                         }
+                        .buttonStyle(.plain)
 
                         Spacer()
 

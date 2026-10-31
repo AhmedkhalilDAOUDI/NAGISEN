@@ -172,9 +172,8 @@ private struct LiveAccessoryWorkoutView: View {
                 Button(workout.isPreparing ? "Cancel" : "End workout") { workout.stop() }
                     .foregroundStyle(Theme.accentText).frame(minHeight: 48)
             } else {
-                Picker("Activity", selection: $activity) {
-                    ForEach(activities.indices, id: \.self) { index in Text(activities[index].0).tag(index) }
-                }.frame(minHeight: 52)
+                NagisenPicker("Activity", selection: $activity, options: activities.indices.map { ($0, activities[$0].0) })
+                    .frame(minHeight: 52)
                 Divider()
                 Button("Start with heart rate") { workout.start(activities[activity].1, name: activities[activity].0) }
                     .font(.subheadline.weight(.semibold))
