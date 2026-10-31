@@ -112,7 +112,16 @@ struct ContentView: View {
         .softTopScrollEdgeEffect()
         .overlay(alignment: .bottom) {
             if !keyboardVisible {
-                BottomGlassMenu(section: section, onSelect: selectSection)
+                ZStack(alignment: .bottom) {
+                    LinearGradient(stops: [.init(color: Theme.paper.opacity(0), location: 0),
+                                           .init(color: Theme.paper.opacity(0.78), location: 0.55),
+                                           .init(color: Theme.paper.opacity(0.92), location: 1)],
+                                   startPoint: .top, endPoint: .bottom)
+                        .frame(height: 130)
+                        .ignoresSafeArea(edges: .bottom)
+                        .allowsHitTesting(false)
+                    BottomGlassMenu(section: section, onSelect: selectSection)
+                }
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
@@ -205,12 +214,12 @@ private struct BottomGlassMenu: View {
         .background {
             if #available(iOS 26.0, *) {
                 Color.clear
-                    .glassEffect(.clear, in: Capsule())
+                    .glassEffect(.regular.tint(Theme.paper.opacity(0.30)), in: Capsule())
                     .overlay(Capsule().strokeBorder(.white.opacity(0.20), lineWidth: 0.7))
             } else {
                 Capsule()
                     .fill(.ultraThinMaterial)
-                    .opacity(0.45)
+                    .overlay(Capsule().fill(Theme.paper.opacity(0.30)))
                     .overlay(Capsule().strokeBorder(.white.opacity(0.18), lineWidth: 0.7))
             }
         }
@@ -350,9 +359,8 @@ private struct HomeView: View {
                         Rectangle().fill(Theme.line).frame(height: 1)
                         WaterCard(date: date)
                     }
-                    .padding(20)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Theme.surface.opacity(0.52))
+                    .cardStyle()
+                    .padding(.horizontal, 18)
                     CreatineCard(date: date)
                         .padding(.horizontal, 18)
                     CaffeineCard(date: date)
