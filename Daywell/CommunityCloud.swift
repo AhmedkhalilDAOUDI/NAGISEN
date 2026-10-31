@@ -70,6 +70,11 @@ final class CommunityCloud: ObservableObject {
         accountReady = false
         accountMessage = "iCloud community is available on iPhone."
         return
+        #elseif NAGISEN_NO_ICLOUD
+        // Builds signed by a personal team cannot carry the iCloud entitlement.
+        accountReady = false
+        accountMessage = "iCloud isn’t available in this test build."
+        return
         #else
         let status: CKAccountStatus = await withCheckedContinuation { continuation in
             container.accountStatus { status, _ in continuation.resume(returning: status) }
