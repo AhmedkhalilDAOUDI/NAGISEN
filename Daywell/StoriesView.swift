@@ -206,7 +206,7 @@ struct StoryViewer: View {
             if let story {
                 AvatarView(url: feed.avatarURL(story.author.avatarPath), username: story.author.username,
                            tier: story.author.borderTier, special: story.author.special, size: 32)
-                Text(story.author.username).font(.subheadline.weight(.semibold))
+                Text(story.author.username).font(.subheadline.weight(.semibold)).memberName(story.author.special)
                 Text(story.createdAt, format: .relative(presentation: .numeric, unitsStyle: .narrow))
                     .font(.caption).foregroundStyle(.white.opacity(0.7))
             }

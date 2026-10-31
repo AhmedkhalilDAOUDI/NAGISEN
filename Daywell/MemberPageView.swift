@@ -89,7 +89,7 @@ struct MemberPageView: View {
                 }
             }
             VStack(alignment: .leading, spacing: 4) {
-                Text(shown.username).font(.subheadline.weight(.semibold))
+                Text(shown.username).font(.subheadline.weight(.semibold)).memberName(shown.special)
                 if let special = shown.special {
                     Text("\(special.name.uppercased()) · \(special.title.uppercased())")
                         .font(.caption2.weight(.semibold)).tracking(1.6).foregroundStyle(Theme.accentText)

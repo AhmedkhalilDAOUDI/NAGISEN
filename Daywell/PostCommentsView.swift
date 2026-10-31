@@ -18,7 +18,7 @@ struct PostCommentsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("@\(post.username)").font(.subheadline.weight(.semibold))
+                        Text("@\(post.username)").font(.subheadline.weight(.semibold)).memberName(post.author.special)
                         if !post.body.isEmpty {
                             Text(post.body).font(.subheadline).lineLimit(4)
                         } else {
@@ -113,7 +113,7 @@ struct PostCommentsView: View {
                     HStack(spacing: 8) {
                         AvatarView(url: feed.avatarURL(comment.author.avatarPath), username: comment.username,
                                    tier: comment.author.borderTier, special: comment.author.special, size: 26)
-                        Text("@\(comment.username)").font(.caption.weight(.semibold))
+                        Text("@\(comment.username)").font(.caption.weight(.semibold)).memberName(comment.author.special)
                     }
                 }
                 .buttonStyle(.plain)

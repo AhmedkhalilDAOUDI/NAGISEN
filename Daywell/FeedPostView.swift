@@ -189,7 +189,7 @@ struct FeedPostView: View {
                 HStack(spacing: 10) {
                     AvatarView(url: feed.avatarURL(post.author.avatarPath), username: post.username,
                                tier: post.author.borderTier, special: post.author.special, size: 34)
-                    Text(post.username).font(.subheadline.weight(.semibold))
+                    Text(post.username).font(.subheadline.weight(.semibold)).memberName(post.author.special)
                 }
             }
             .buttonStyle(.plain)
@@ -281,7 +281,7 @@ struct FeedPostView: View {
     }
 
     private var caption: some View {
-        (Text(post.username).fontWeight(.semibold) + Text(" ") + Text(post.body))
+        (nameText(post.username, post.author.special).fontWeight(.semibold) + Text(" ") + Text(post.body))
             .font(.subheadline)
             .lineLimit(captionExpanded ? nil : 2)
             .fixedSize(horizontal: false, vertical: true)
