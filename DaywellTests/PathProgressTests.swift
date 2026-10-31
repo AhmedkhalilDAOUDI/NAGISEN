@@ -276,4 +276,29 @@ final class PathProgressTests: XCTestCase {
     func testNoLogsMeansNoUsualFoods() {
         XCTAssertTrue(NutritionStore.frequentFoods(in: [], limit: 10).isEmpty)
     }
+
+    // MARK: - Streak celebration
+
+    func testTheCelebrationWeekRunsMondayToSunday() {
+        let saturday = calendar.date(from: DateComponents(year: 2026, month: 10, day: 31, hour: 20))!
+        let week = StreakCelebration.week(containing: saturday, calendar: calendar)
+        XCTAssertEqual(week.count, 7)
+        XCTAssertEqual(calendar.component(.weekday, from: week[0]), 2, "starts on Monday")
+        XCTAssertEqual(calendar.component(.day, from: week[0]), 26)
+        XCTAssertEqual(calendar.component(.weekday, from: week[6]), 1, "ends on Sunday")
+    }
+
+    func testTheAverageCountsOnlyLoggedDaysInTheLast28() {
+        let today = calendar.date(from: DateComponents(year: 2026, month: 10, day: 31, hour: 20))!
+        func eaten(_ calories: Int, daysAgo: Int) -> DiaryEntry {
+            DiaryEntry(food: Food(name: "Meal", brand: "", serving: "1", calories: calories, protein: 0, carbs: 0, fat: 0),
+                       meal: .lunch, servings: 1,
+                       date: calendar.date(byAdding: .day, value: -daysAgo, to: today)!)
+        }
+        let entries = [eaten(1500, daysAgo: 0), eaten(2300, daysAgo: 3), eaten(100, daysAgo: 40)]
+        // (2000-1500) and (2000-2300) average to 100 under; the day 40 days ago is ignored.
+        XCTAssertEqual(StreakCelebration.averageUnderGoal(entries: entries, goal: { _ in 2000 },
+                                                          upTo: today, calendar: calendar), 100)
+        XCTAssertNil(StreakCelebration.averageUnderGoal(entries: [], goal: { _ in 2000 }, upTo: today, calendar: calendar))
+    }
 }
