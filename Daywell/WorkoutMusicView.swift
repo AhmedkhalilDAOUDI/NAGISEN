@@ -269,8 +269,7 @@ struct WorkoutMusicView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 23) {
                     NagisenPageHeading(kicker: "NAGISEN MOVE", title: "Keep moving",
-                                       subtitle: Date.now.formatted(.dateTime.weekday(.wide).month(.wide).day()),
-                                       accent: Theme.workout)
+                                       subtitle: Date.now.formatted(.dateTime.weekday(.wide).month(.wide).day()))
 
                     NavigationLink {
                         PersonalRecordsView()
@@ -307,7 +306,7 @@ struct WorkoutMusicView: View {
                         .foregroundStyle(Theme.ink)
                         .padding(18)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .nagisenGlass(in: RoundedRectangle(cornerRadius: 20), tint: Theme.gold.opacity(0.10))
+                        .nagisenGlass(in: RoundedRectangle(cornerRadius: 20), tint: Theme.surface.opacity(0.20))
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Personal records, \(trackedLiftCount) lifts tracked")
@@ -377,7 +376,7 @@ struct WorkoutMusicView: View {
                             }
                         }
                     }
-                    .accentCardStyle(Theme.gold)
+                    .cardStyle()
 
                     Button { selectedQuest = nil; showingAdd = true } label: {
                         Label("Log a workout", systemImage: "plus")
@@ -419,7 +418,7 @@ struct WorkoutMusicView: View {
                             }
                         }
                     }
-                    .accentCardStyle(Theme.gold)
+                    .cardStyle()
 
                     NavigationLink {
                         HealthView()
@@ -543,7 +542,7 @@ struct WorkoutMusicView: View {
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .nagisenGlass(in: RoundedRectangle(cornerRadius: 20), tint: Theme.workout.opacity(0.10))
+        .nagisenGlass(in: RoundedRectangle(cornerRadius: 20), tint: Theme.surface.opacity(0.20))
         .accessibilityLabel(split == nil ? "Set up workout split" : "Workout split, \(split?.focus(on: .now) ?? "") today")
     }
 }

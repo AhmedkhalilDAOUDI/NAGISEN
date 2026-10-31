@@ -35,7 +35,7 @@ struct SocialFeedView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     NagisenPageHeading(kicker: "NAGISEN COMMUNITY", title: "Feed",
-                                       subtitle: "The people who keep you moving.", accent: Theme.protein)
+                                       subtitle: "The people who keep you moving.")
                     accountCard
 
                     if let message = feed.message {
@@ -153,8 +153,15 @@ struct SocialFeedView: View {
                 }
             case .ready:
                 HStack {
-                    Label("@\(feed.username ?? "")", systemImage: "person.crop.circle")
-                        .font(.subheadline.weight(.semibold))
+                    Button { viewingMember = feed.me } label: {
+                        HStack(spacing: 10) {
+                            AvatarView(url: feed.avatarURL(feed.avatarPath), username: feed.username ?? "",
+                                       tier: feed.borderTier, special: feed.specialBorder, size: 34)
+                            Text("@\(feed.username ?? "")").font(.subheadline.weight(.semibold))
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Opens your member page")
                     Spacer()
                     Button { showingActivity = true } label: {
                         Image(systemName: "bell")

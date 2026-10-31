@@ -175,6 +175,11 @@ private struct BottomGlassMenu: View {
     let onSelect: (MainSection) -> Void
     @Namespace private var selectionAnimation
 
+    /// The AI coach opens from Dashboard, so Dashboard stays highlighted while it is on screen.
+    private func isCurrent(_ item: MainSection) -> Bool {
+        section == item || (section == .ai && item == .dashboard)
+    }
+
     var body: some View {
         HStack(spacing: 2) {
             ForEach(MainSection.bottomSections) { item in
@@ -183,18 +188,18 @@ private struct BottomGlassMenu: View {
                 } label: {
                     VStack(spacing: 4) {
                         Image(systemName: item.symbol)
-                            .font(.system(size: 21, weight: section == item ? .semibold : .regular))
+                            .font(.system(size: 21, weight: isCurrent(item) ? .semibold : .regular))
                             .frame(height: 24)
                         Text(item.name)
-                            .font(.system(size: 10, weight: section == item ? .semibold : .medium))
+                            .font(.system(size: 10, weight: isCurrent(item) ? .semibold : .medium))
                             .lineLimit(1)
                             .minimumScaleFactor(0.75)
                     }
-                    .foregroundStyle(section == item ? Theme.accentText : Theme.ink)
+                    .foregroundStyle(isCurrent(item) ? Theme.accentText : Theme.ink)
                     .frame(maxWidth: .infinity)
                     .frame(height: 61)
                     .background {
-                        if section == item {
+                        if isCurrent(item) {
                             Capsule()
                                 .fill(Theme.accent.opacity(0.13))
                                 .overlay(Capsule().strokeBorder(Theme.accentText.opacity(0.28), lineWidth: 0.7))
@@ -205,7 +210,7 @@ private struct BottomGlassMenu: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(item.name)
-                .accessibilityAddTraits(section == item ? .isSelected : [])
+                .accessibilityAddTraits(isCurrent(item) ? .isSelected : [])
             }
         }
         .padding(.horizontal, 5)
@@ -1487,12 +1492,12 @@ struct NagisenPageHeading: View {
     let kicker: String
     let title: String
     let subtitle: String
-    let accent: Color
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                Circle().fill(accent).frame(width: 9, height: 9)
+                // One brand color for every section, matching the dot beside NAGISEN on Dashboard.
+                Circle().fill(Theme.red).frame(width: 9, height: 9)
                 Text(kicker.uppercased())
                     .font(.caption2.weight(.semibold)).tracking(2.5)
                     .foregroundStyle(Theme.muted)

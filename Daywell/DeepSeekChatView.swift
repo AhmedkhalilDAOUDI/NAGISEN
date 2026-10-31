@@ -149,7 +149,7 @@ struct DeepSeekChatView: View {
             VStack(spacing: 0) {
                 HStack(alignment: .top, spacing: 8) {
                     NagisenPageHeading(kicker: "NAGISEN AI", title: "Your coach",
-                                       subtitle: "A space to think things through.", accent: Theme.fat)
+                                       subtitle: "A space to think things through.")
                     if !chat.messages.isEmpty {
                         headerButton("square.and.pencil", label: "New chat") {
                             chat.clearHistory(); composerFocused = false
@@ -303,7 +303,7 @@ struct DeepSeekChatView: View {
     private func coachMessage(_ message: CoachMessage) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
-                Circle().fill(Theme.fat).frame(width: 6, height: 6)
+                Circle().fill(Theme.red).frame(width: 6, height: 6)
                 Text("NAGISEN").font(.caption2.weight(.semibold)).tracking(2)
             }
             .foregroundStyle(Theme.muted)
