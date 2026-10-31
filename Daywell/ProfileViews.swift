@@ -5,7 +5,9 @@ import UniformTypeIdentifiers
 struct ProfileView: View {
     @EnvironmentObject private var store: NutritionStore
     @EnvironmentObject private var community: CommunityCloud
+    @EnvironmentObject private var feed: FeedService
     @Environment(\.dismiss) private var dismiss
+    @State private var showingSignIn = false
     @State private var exportFile: DataExportFile?
     @State private var showingImporter = false
     @State private var pendingRestore: Data?
@@ -13,6 +15,77 @@ struct ProfileView: View {
     @State private var showingAutomaticRestore = false
     @State private var showingLoseItImport = false
     @State private var showingCloudChoice = false
+
+    private var path: PathProgress {
+        PathProgress(workouts: store.workouts, plans: store.challengePlans, lifts: store.strengthRecords)
+    }
+
+    @ViewBuilder
+    private var accountCard: some View {
+        switch feed.state {
+        case .notConfigured:
+            EmptyView()
+        case .signedOut, .needsUsername:
+            Button { showingSignIn = true } label: {
+                HStack(spacing: 16) {
+                    AvatarView(url: nil, username: "N", tier: path.tier, size: 58)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(feed.state == .signedOut ? "Join the community" : "Choose a username")
+                            .font(.system(size: 21, design: .serif))
+                        Text("Share moments and wear the border you earn.")
+                            .font(.caption).foregroundStyle(Theme.muted)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(Theme.muted)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .softCardStyle()
+            .sheet(isPresented: $showingSignIn) { FeedAccountView() }
+        case .ready:
+            NavigationLink {
+                AccountSettingsView()
+            } label: {
+                HStack(spacing: 16) {
+                    AvatarView(url: feed.avatarURL(feed.avatarPath), username: feed.username ?? "",
+                               tier: feed.borderTier, size: 58)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("@\(feed.username ?? "")").font(.system(size: 21, design: .serif))
+                        Text(feed.bio.isEmpty ? "Add a photo and a line about you" : feed.bio)
+                            .font(.caption).foregroundStyle(Theme.muted).lineLimit(2)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(Theme.muted)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .softCardStyle()
+        }
+    }
+
+    private var pathCard: some View {
+        let progress = path
+        return NavigationLink {
+            PathView(progress: progress)
+        } label: {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text("PATH").font(.caption2.weight(.semibold)).tracking(2).foregroundStyle(Theme.muted)
+                    Spacer()
+                    Text(progress.tier.name).font(.caption.weight(.semibold)).foregroundStyle(Theme.accentText)
+                }
+                ProgressView(value: progress.fractionToNext).tint(Theme.accent)
+                Text(progress.pointsToNext.map { "\(progress.points) points · \($0) to \(progress.tier.next?.name ?? "")" }
+                     ?? "\(progress.points) points · every border earned")
+                    .font(.caption).foregroundStyle(Theme.muted)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .softCardStyle()
+    }
 
     private var latestWeight: WeightEntry? {
         store.weights.max { $0.date < $1.date }
@@ -22,11 +95,13 @@ struct ProfileView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
-                    NagisenHeader("Your space", subtitle: "A little about you.", symbol: "xmark", onBack: { dismiss() })
+                    NagisenHeader("Settings", subtitle: "Your account and your app.", symbol: "xmark", onBack: { dismiss() })
                     if store.storageRecoveryNeeded {
                         Text("NAGISEN could not read part of your local history. Restore a recent backup below before logging new data.")
                             .font(.subheadline.weight(.medium)).foregroundStyle(Theme.accentText)
                     }
+                    accountCard
+                    pathCard
 
                     VStack(spacing: 0) {
                         NavigationLink {

@@ -46,7 +46,11 @@ struct DaywellApp: App {
                         try? await Task.sleep(for: .seconds(12))
                         guard !Task.isCancelled else { return }
                         await community.sync(store)
+                        await syncBorder()
                     }
+                }
+                .onChange(of: feed.state) { _, state in
+                    if state == .ready { Task { await syncBorder() } }
                 }
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active {
@@ -65,6 +69,12 @@ struct DaywellApp: App {
                     }
                 }
         }
+    }
+
+    /// Publishes the border earned from this iPhone's challenges, records and trophies.
+    private func syncBorder() async {
+        let path = PathProgress(workouts: store.workouts, plans: store.challengePlans, lifts: store.strengthRecords)
+        await feed.syncBorder(path.tier)
     }
 }
 

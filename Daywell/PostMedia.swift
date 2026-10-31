@@ -58,6 +58,31 @@ enum PostMedia {
         return PostAttachment(kind: .photo, fileURL: url)
     }
 
+    static let avatarSide: CGFloat = 512
+
+    /// The centered square to cut from a photo for a profile picture.
+    static func centerSquare(of size: CGSize) -> CGRect {
+        let side = min(size.width, size.height)
+        return CGRect(x: ((size.width - side) / 2).rounded(), y: ((size.height - side) / 2).rounded(),
+                      width: side, height: side)
+    }
+
+    /// A profile picture: the photo's centered square, 512 px, JPEG.
+    static func avatar(from data: Data) throws -> Data {
+        guard let image = UIImage(data: data) else { throw PostMediaError.unreadable }
+        let square = centerSquare(of: image.size)
+        let side = min(avatarSide, square.width)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let scale = side / square.width
+        let output = UIGraphicsImageRenderer(size: CGSize(width: side, height: side), format: format).image { _ in
+            image.draw(in: CGRect(x: -square.minX * scale, y: -square.minY * scale,
+                                  width: image.size.width * scale, height: image.size.height * scale))
+        }
+        guard let jpeg = output.jpegData(compressionQuality: 0.85) else { throw PostMediaError.unreadable }
+        return jpeg
+    }
+
     static func video(at source: URL) async throws -> PostAttachment {
         let asset = AVURLAsset(url: source)
         let duration = try await asset.load(.duration).seconds

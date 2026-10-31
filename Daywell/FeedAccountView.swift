@@ -2,8 +2,8 @@ import AuthenticationServices
 import CryptoKit
 import SwiftUI
 
-/// Sign in, create an account, choose a username, or manage the account, depending on
-/// where the member is. Closes itself once they are signed in with a username.
+/// Sign in, create an account, or choose a username, depending on where the member is.
+/// Closes itself once they are signed in with a username; Settings → Account manages the rest.
 struct FeedAccountView: View {
     @EnvironmentObject private var feed: FeedService
     @Environment(\.dismiss) private var dismiss
@@ -12,12 +12,6 @@ struct FeedAccountView: View {
     @State private var password = ""
     @State private var username = ""
     @State private var appleNonce = ""
-    @State private var confirmingDelete = false
-    private let openedSignedIn: Bool
-
-    init(openedSignedIn: Bool = false) {
-        self.openedSignedIn = openedSignedIn
-    }
 
     var body: some View {
         NavigationStack {
@@ -32,7 +26,7 @@ struct FeedAccountView: View {
                     case .needsUsername:
                         chooseUsername
                     case .ready:
-                        account
+                        Text("You're signed in.").font(.subheadline).foregroundStyle(Theme.muted)
                     }
                     if let message = feed.message {
                         Text(message)
@@ -52,22 +46,14 @@ struct FeedAccountView: View {
                 }
             }
             .onChange(of: feed.state) { _, state in
-                if state == .ready && !openedSignedIn { dismiss() }
-            }
-            .confirmationDialog("Delete your NAGISEN account?", isPresented: $confirmingDelete,
-                                titleVisibility: .visible) {
-                Button("Delete account and posts", role: .destructive) {
-                    Task { if await feed.deleteAccount() { dismiss() } }
-                }
-            } message: {
-                Text("Your username, every post and every photo or video you shared are removed for good. Your nutrition and workout history on this iPhone is not affected.")
+                if state == .ready { dismiss() }
             }
         }
     }
 
     private var title: String {
         switch feed.state {
-        case .ready: "Account"
+        case .ready: "Signed in"
         case .needsUsername: "Choose a username"
         default: creating ? "Create account" : "Sign in"
         }
@@ -157,22 +143,6 @@ struct FeedAccountView: View {
             Button("Sign out") { Task { await feed.signOut() } }
                 .font(.subheadline).foregroundStyle(Theme.muted)
                 .frame(maxWidth: .infinity)
-        }
-    }
-
-    private var account: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Text("@\(feed.username ?? "")")
-                .font(.system(size: 25, design: .serif))
-            Text("Your posts are visible to every signed-in NAGISEN member.")
-                .font(.subheadline).foregroundStyle(Theme.muted)
-            NagisenPrimaryButton("Sign out", enabled: !feed.isBusy) {
-                Task { await feed.signOut(); dismiss() }
-            }
-            Button("Delete account", role: .destructive) { confirmingDelete = true }
-                .font(.subheadline.weight(.semibold))
-                .frame(maxWidth: .infinity)
-                .disabled(feed.isBusy)
         }
     }
 

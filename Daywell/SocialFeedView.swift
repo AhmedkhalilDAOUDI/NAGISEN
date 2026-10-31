@@ -23,6 +23,7 @@ struct SocialFeedView: View {
     @State private var reportingPost: FeedPost?
     @State private var blockingPost: FeedPost?
     @State private var commentingPost: FeedPost?
+    @State private var viewingMember: FeedMember?
 
     private var drafts: [FeedDraft] {
         (try? JSONDecoder().decode([FeedDraft].self, from: savedDrafts)) ?? []
@@ -88,8 +89,15 @@ struct SocialFeedView: View {
             .sheet(isPresented: $showingComposer, onDismiss: clearAttachment) {
                 composer.onAppear { feed.message = nil }
             }
-            .sheet(isPresented: $showingAccount) { FeedAccountView(openedSignedIn: feed.state == .ready) }
+            .sheet(isPresented: $showingAccount) {
+                if feed.state == .ready {
+                    NavigationStack { AccountSettingsView(inSheet: true) }
+                } else {
+                    FeedAccountView()
+                }
+            }
             .sheet(item: $commentingPost) { PostCommentsView(post: $0) }
+            .sheet(item: $viewingMember) { MemberCardView(member: $0) }
             .confirmationDialog("Delete this post for everyone?", isPresented: Binding(
                 get: { deletingPost != nil }, set: { if !$0 { deletingPost = nil } }
             )) {
@@ -183,9 +191,14 @@ struct SocialFeedView: View {
     private func postCard(_ post: FeedPost) -> some View {
         VStack(alignment: .leading, spacing: 13) {
             HStack {
-                Image(systemName: "person.crop.circle.fill")
-                    .font(.title3).foregroundStyle(Theme.protein)
-                Text("@\(post.username)").font(.subheadline.weight(.semibold))
+                Button { viewingMember = post.author } label: {
+                    HStack(spacing: 10) {
+                        AvatarView(url: feed.avatarURL(post.author.avatarPath), username: post.username,
+                                   tier: post.author.borderTier, size: 34)
+                        Text("@\(post.username)").font(.subheadline.weight(.semibold))
+                    }
+                }
+                .buttonStyle(.plain)
                 Spacer()
                 Text(post.createdAt, style: .relative)
                     .font(.caption).foregroundStyle(Theme.muted)

@@ -94,6 +94,28 @@ final class FeedTests: XCTestCase {
         XCTAssertEqual(comment.postID, UUID(uuidString: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d"))
     }
 
+    func testAPostCarriesItsAuthorsPictureBorderAndBio() throws {
+        let post = try decode("""
+        {"id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d", "author_id": "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed",
+         "body": "Leg day", "created_at": "2026-10-31T09:15:00+00:00",
+         "profiles": {"username": "khalil", "avatar_path": "1b9d6bcd/avatar-x.jpg", "border_tier": 3, "bio": "Lifting slowly"}}
+        """)
+        XCTAssertEqual(post.author.avatarPath, "1b9d6bcd/avatar-x.jpg")
+        XCTAssertEqual(post.author.borderTier, .silver)
+        XCTAssertEqual(post.author.bio, "Lifting slowly")
+        XCTAssertEqual(post.author.id, post.authorID)
+    }
+
+    func testAnUnknownBorderFromTheServerShowsNoBorder() throws {
+        let post = try decode("""
+        {"id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d", "author_id": "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed",
+         "body": "x", "created_at": "2026-10-31T09:15:00+00:00",
+         "profiles": {"username": "khalil", "avatar_path": null, "border_tier": 9, "bio": null}}
+        """)
+        XCTAssertEqual(post.author.borderTier, .none)
+        XCTAssertEqual(post.author.bio, "")
+    }
+
     // MARK: - Media limits
 
     func testVideosUpToAMinuteAreAccepted() throws {
@@ -129,6 +151,24 @@ final class FeedTests: XCTestCase {
         XCTAssertEqual(attachment.contentType, "image/jpeg")
         let saved = try XCTUnwrap(UIImage(contentsOfFile: attachment.fileURL.path))
         XCTAssertEqual(max(saved.size.width, saved.size.height), 2048)
+    }
+
+    func testAvatarsAreTheCenteredSquare() {
+        XCTAssertEqual(PostMedia.centerSquare(of: CGSize(width: 4000, height: 3000)),
+                       CGRect(x: 500, y: 0, width: 3000, height: 3000))
+        XCTAssertEqual(PostMedia.centerSquare(of: CGSize(width: 900, height: 1600)),
+                       CGRect(x: 0, y: 350, width: 900, height: 900))
+    }
+
+    func testAnAvatarIsA512PixelSquareJPEG() throws {
+        let photo = UIGraphicsImageRenderer(size: CGSize(width: 3000, height: 2000)).image { context in
+            UIColor.systemTeal.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 3000, height: 2000))
+        }
+        let jpeg = try PostMedia.avatar(from: try XCTUnwrap(photo.pngData()))
+        let avatar = try XCTUnwrap(UIImage(data: jpeg))
+        XCTAssertEqual(avatar.size.width * avatar.scale, 512)
+        XCTAssertEqual(avatar.size.height * avatar.scale, 512)
     }
 
     func testAnUnreadableFileIsReportedNotGuessed() {
