@@ -64,14 +64,14 @@ struct ActivityView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     switch item.kind {
                     case .comment(let text):
-                        (Text("@\(item.member.username)").fontWeight(.semibold) + Text(" commented"))
+                        (nameText("@\(item.member.username)", item.member.special).fontWeight(.semibold) + Text(" commented"))
                             .font(.subheadline)
                         Text(text).font(.subheadline).foregroundStyle(Theme.muted).lineLimit(2)
                     case .like:
-                        (Text("@\(item.member.username)").fontWeight(.semibold) + Text(" liked your post"))
+                        (nameText("@\(item.member.username)", item.member.special).fontWeight(.semibold) + Text(" liked your post"))
                             .font(.subheadline)
                     case .follow:
-                        (Text("@\(item.member.username)").fontWeight(.semibold) + Text(" started following you"))
+                        (nameText("@\(item.member.username)", item.member.special).fontWeight(.semibold) + Text(" started following you"))
                             .font(.subheadline)
                     }
                     Text(item.date, style: .relative)

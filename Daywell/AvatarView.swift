@@ -31,6 +31,49 @@ extension SpecialBorder {
 
     /// The fine gold line just inside the ring, like the gilded edge of lacquerware.
     var innerLine: Color { Color(hex: 0xD9B36A) }
+
+    /// The red of the name, light enough to read on the dark paper.
+    var nameColor: Color { Color(hex: 0xB04A66) }
+
+    /// For a name inside a sentence, where it can't animate.
+    var nameStyle: LinearGradient {
+        LinearGradient(colors: [nameColor, innerLine, nameColor], startPoint: .leading, endPoint: .trailing)
+    }
+}
+
+/// A name inside a sentence (Text + Text): tinted, not animated, for a special border.
+func nameText(_ name: String, _ special: SpecialBorder?) -> Text {
+    special.map { Text(name).foregroundStyle($0.nameStyle) } ?? Text(name)
+}
+
+extension View {
+    /// Writes a member's name: plain for most, glowing lacquer with a gold sheen for a special border.
+    func memberName(_ special: SpecialBorder?) -> some View { modifier(MemberNameStyle(special: special)) }
+}
+
+private struct MemberNameStyle: ViewModifier {
+    let special: SpecialBorder?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if let special {
+            TimelineView(.animation(minimumInterval: 1 / 60, paused: reduceMotion)) { context in
+                // Gold sweeps left to right over 2.2 s, then rests off the edge until the 3.5 s cycle ends.
+                let x = reduceMotion ? 0.5
+                    : context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 3.5) / 2.2 * 2.4 - 0.7
+                content
+                    .foregroundStyle(LinearGradient(stops: [.init(color: special.nameColor, location: 0),
+                                                            .init(color: special.innerLine, location: 0.5),
+                                                            .init(color: special.nameColor, location: 1)],
+                                                    startPoint: UnitPoint(x: x - 0.35, y: 0.5),
+                                                    endPoint: UnitPoint(x: x + 0.35, y: 0.5)))
+                    .shadow(color: special.nameColor.opacity(0.75), radius: 5)
+            }
+        } else {
+            content
+        }
+    }
 }
 
 private extension Color {

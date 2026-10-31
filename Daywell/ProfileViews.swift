@@ -56,7 +56,7 @@ struct ProfileView: View {
                     AvatarView(url: feed.avatarURL(feed.avatarPath), username: feed.username ?? "",
                                tier: feed.borderTier, special: feed.specialBorder, size: 58)
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("@\(feed.username ?? "")").font(.system(size: 21, design: .serif))
+                        Text("@\(feed.username ?? "")").font(.system(size: 21, design: .serif)).memberName(feed.specialBorder)
                         Text(feed.bio.isEmpty ? "Add a photo and a line about you" : feed.bio)
                             .font(.caption).foregroundStyle(Theme.muted).lineLimit(2)
                     }

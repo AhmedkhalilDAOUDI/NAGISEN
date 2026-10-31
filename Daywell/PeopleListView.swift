@@ -48,7 +48,7 @@ struct PeopleListView: View {
                     AvatarView(url: feed.avatarURL(member.avatarPath), username: member.username,
                                tier: member.borderTier, special: member.special, size: 44)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(member.username).font(.subheadline.weight(.semibold))
+                        Text(member.username).font(.subheadline.weight(.semibold)).memberName(member.special)
                         if !member.bio.isEmpty {
                             Text(member.bio).font(.caption).foregroundStyle(Theme.muted).lineLimit(1)
                         }
