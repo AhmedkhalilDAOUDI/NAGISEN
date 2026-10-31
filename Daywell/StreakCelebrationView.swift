@@ -38,7 +38,6 @@ struct StreakCelebrationView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var shown = 0.0
-    @State private var drifting = false
 
     private var week: [Date] { StreakCelebration.week(containing: date) }
     private var average: Int? {
@@ -82,7 +81,7 @@ struct StreakCelebrationView: View {
             NagisenPrimaryButton("Keep going") { dismiss() }
         }
         .padding(22)
-        .background { bubbles }
+        .background { DriftingCircles() }
         .background(Theme.paper, in: RoundedRectangle(cornerRadius: 30))
         .clipShape(RoundedRectangle(cornerRadius: 30))
         .padding(.horizontal, 16)
@@ -90,7 +89,6 @@ struct StreakCelebrationView: View {
             if reduceMotion { shown = Double(streak); return }
             shown = Double(max(0, streak - min(streak, 60)))
             withAnimation(.easeOut(duration: 1.3)) { shown = Double(streak) }
-            withAnimation(.easeInOut(duration: 6).repeatForever(autoreverses: true)) { drifting = true }
         }
         .sensoryFeedback(.success, trigger: shown == Double(streak))
     }
@@ -124,9 +122,14 @@ struct StreakCelebrationView: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(day.formatted(.dateTime.weekday(.wide))), \(done ? "logged" : future ? "ahead" : "not logged")")
     }
+}
 
-    /// Soft wine and copper circles drifting behind the card.
-    private var bubbles: some View {
+/// Soft wine and copper circles drifting behind a celebration card; still with Reduce Motion.
+struct DriftingCircles: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var drifting = false
+
+    var body: some View {
         GeometryReader { geometry in
             let w = geometry.size.width, h = geometry.size.height
             ZStack {
@@ -142,6 +145,10 @@ struct StreakCelebrationView: View {
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(.easeInOut(duration: 6).repeatForever(autoreverses: true)) { drifting = true }
+        }
     }
 }
 

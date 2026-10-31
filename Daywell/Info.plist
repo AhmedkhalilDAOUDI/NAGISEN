@@ -13,6 +13,7 @@
     <key>CFBundleVersion</key><string>$(CURRENT_PROJECT_VERSION)</string>
     <key>LSRequiresIPhoneOS</key><true/>
     <key>ITSAppUsesNonExemptEncryption</key><false/>
+    <key>CADisableMinimumFrameDurationOnPhone</key><true/>
     <key>SupabaseURL</key><string>$(SUPABASE_URL)</string>
     <key>SupabaseAnonKey</key><string>$(SUPABASE_ANON_KEY)</string>
     <key>MinimumOSVersion</key><string>$(IPHONEOS_DEPLOYMENT_TARGET)</string>
