@@ -96,7 +96,6 @@ struct ContentView: View {
     @State private var section: MainSection = .launchSection
     @State private var showingCoach = MainSection.launchOpensCoach
     @State private var showingIntro = true
-    @Environment(\.scenePhase) private var scenePhase
     @State private var slideDirection: CGFloat = 1
     @State private var keyboardVisible = false
 
@@ -130,8 +129,6 @@ struct ContentView: View {
         .overlay {
             if showingIntro { LaunchIntroView { showingIntro = false }.ignoresSafeArea() }
         }
-        // Leaving the app arms the intro, so it plays again on the way back in.
-        .onChange(of: scenePhase) { _, phase in if phase == .background { showingIntro = true } }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
             keyboardVisible = true
         }
