@@ -9,12 +9,14 @@ create table if not exists public.profiles (
     created_at timestamptz not null default now()
 );
 
--- Profile picture, bio and earned border (0 none … 5 jade), added after the first release.
+-- Profile picture, bio and earned border (0 none … 11 kintsugi), added after the first release.
 alter table public.profiles add column if not exists avatar_path text;
 alter table public.profiles add column if not exists bio text not null default ''
     check (char_length(bio) <= 150);
-alter table public.profiles add column if not exists border_tier smallint not null default 0
-    check (border_tier between 0 and 5);
+alter table public.profiles add column if not exists border_tier smallint not null default 0;
+-- Room for future borders without another migration.
+alter table public.profiles drop constraint if exists profiles_border_tier_check;
+alter table public.profiles add constraint profiles_border_tier_check check (border_tier between 0 and 30);
 
 -- Posts: text, one photo or video, or both.
 create table if not exists public.posts (

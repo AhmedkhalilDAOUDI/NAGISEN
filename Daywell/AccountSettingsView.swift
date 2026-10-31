@@ -193,6 +193,14 @@ struct PathView: View {
                 .softCardStyle()
 
                 VStack(spacing: 0) {
+                    row("Days checked", count: progress.checkedDays, each: PathProgress.pointsPerCheckedDay)
+                    Divider().overlay(Theme.line)
+                    row("Calorie goal hit", count: progress.goalDays, each: PathProgress.pointsPerGoalDay)
+                    Divider().overlay(Theme.line)
+                    row("7-day streaks", count: progress.weekStreaks, each: PathProgress.pointsPerWeekStreak)
+                    Divider().overlay(Theme.line)
+                    row("30-day streaks", count: progress.monthStreaks, each: PathProgress.pointsPerMonthStreak)
+                    Divider().overlay(Theme.line)
                     row("Daily packs finished", count: progress.finishedPacks, each: PathProgress.pointsPerPack)
                     Divider().overlay(Theme.line)
                     row("Personal records beaten", count: progress.personalRecords, each: PathProgress.pointsPerRecord)
@@ -217,7 +225,7 @@ struct PathView: View {
                 }
                 .softCardStyle()
 
-                Text("Finish a day's challenge pack, beat a lift in Personal records, or earn a workout trophy. Your border shows next to your posts and comments.")
+                Text("Check off your day, land within 10% of your calorie goal, keep your streak going, finish a challenge pack, beat a lift or earn a workout trophy. Days imported from Lose It! don't count. Your border shows next to your posts and comments.")
                     .font(.caption).foregroundStyle(Theme.muted)
                     .fixedSize(horizontal: false, vertical: true)
             }

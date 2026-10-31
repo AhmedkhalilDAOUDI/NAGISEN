@@ -98,7 +98,7 @@ final class FeedTests: XCTestCase {
         let post = try decode("""
         {"id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d", "author_id": "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed",
          "body": "Leg day", "created_at": "2026-10-31T09:15:00+00:00",
-         "profiles": {"username": "khalil", "avatar_path": "1b9d6bcd/avatar-x.jpg", "border_tier": 3, "bio": "Lifting slowly"}}
+         "profiles": {"username": "khalil", "avatar_path": "1b9d6bcd/avatar-x.jpg", "border_tier": 5, "bio": "Lifting slowly"}}
         """)
         XCTAssertEqual(post.author.avatarPath, "1b9d6bcd/avatar-x.jpg")
         XCTAssertEqual(post.author.borderTier, .silver)
@@ -110,7 +110,7 @@ final class FeedTests: XCTestCase {
         let post = try decode("""
         {"id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d", "author_id": "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed",
          "body": "x", "created_at": "2026-10-31T09:15:00+00:00",
-         "profiles": {"username": "khalil", "avatar_path": null, "border_tier": 9, "bio": null}}
+         "profiles": {"username": "khalil", "avatar_path": null, "border_tier": 40, "bio": null}}
         """)
         XCTAssertEqual(post.author.borderTier, .none)
         XCTAssertEqual(post.author.bio, "")

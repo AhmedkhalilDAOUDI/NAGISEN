@@ -27,29 +27,87 @@ final class PathProgressTests: XCTestCase {
 
     func testBordersStartAtTheirThresholds() {
         XCTAssertEqual(BorderTier.forPoints(0), .none)
-        XCTAssertEqual(BorderTier.forPoints(4), .none)
-        XCTAssertEqual(BorderTier.forPoints(5), .washi)
-        XCTAssertEqual(BorderTier.forPoints(15), .copper)
-        XCTAssertEqual(BorderTier.forPoints(34), .copper)
-        XCTAssertEqual(BorderTier.forPoints(35), .silver)
-        XCTAssertEqual(BorderTier.forPoints(70), .gold)
-        XCTAssertEqual(BorderTier.forPoints(120), .jade)
-        XCTAssertEqual(BorderTier.forPoints(5000), .jade)
+        XCTAssertEqual(BorderTier.forPoints(9), .none)
+        XCTAssertEqual(BorderTier.forPoints(10), .washi)
+        XCTAssertEqual(BorderTier.forPoints(30), .hinoki)
+        XCTAssertEqual(BorderTier.forPoints(99), .copper)
+        XCTAssertEqual(BorderTier.forPoints(100), .bronze)
+        XCTAssertEqual(BorderTier.forPoints(250), .gold)
+        XCTAssertEqual(BorderTier.forPoints(680), .jade)
+        XCTAssertEqual(BorderTier.forPoints(1200), .kintsugi)
+        XCTAssertEqual(BorderTier.forPoints(50_000), .kintsugi)
     }
 
-    func testPointsWeighMilestonesDouble() {
-        let progress = PathProgress(finishedPacks: 3, personalRecords: 2, milestones: 4)
-        XCTAssertEqual(progress.points, 3 + 2 + 8)
-        XCTAssertEqual(progress.tier, .washi)
-        XCTAssertEqual(progress.pointsToNext, 2)
+    func testThresholdsRiseWithEveryBorder() {
+        let thresholds = BorderTier.allCases.map(\.threshold)
+        XCTAssertEqual(thresholds, thresholds.sorted())
+        XCTAssertEqual(Set(thresholds).count, thresholds.count)
+    }
+
+    func testOnlyTheTopBordersShimmer() {
+        XCTAssertFalse(BorderTier.gold.shimmers)
+        XCTAssertTrue(BorderTier.jade.shimmers)
+        XCTAssertTrue(BorderTier.kintsugi.shimmers)
+    }
+
+    func testEverySourceAddsItsPoints() {
+        let progress = PathProgress(checkedDays: 30, goalDays: 20, weekStreaks: 4, monthStreaks: 1,
+                                    finishedPacks: 3, personalRecords: 2, milestones: 4)
+        XCTAssertEqual(progress.points, 30 + 20 + 4 * 5 + 1 * 20 + 3 + 2 + 4 * 2)
+        XCTAssertEqual(progress.tier, .bronze)
+        XCTAssertEqual(progress.pointsToNext, 160 - 103)
     }
 
     func testProgressToTheNextBorder() {
-        XCTAssertEqual(PathProgress(finishedPacks: 10, personalRecords: 0, milestones: 0).fractionToNext, 0.5)
-        let top = PathProgress(finishedPacks: 200, personalRecords: 0, milestones: 0)
-        XCTAssertEqual(top.tier, .jade)
+        XCTAssertEqual(PathProgress(checkedDays: 20).fractionToNext, 0.5)
+        let top = PathProgress(checkedDays: 2000)
+        XCTAssertEqual(top.tier, .kintsugi)
         XCTAssertNil(top.pointsToNext)
         XCTAssertEqual(top.fractionToNext, 1)
+    }
+
+    // MARK: - Streaks
+
+    func testRunsOfConsecutiveDays() {
+        let keys: Set<String> = ["2026-10-01", "2026-10-02", "2026-10-03", "2026-10-05", "2026-10-31", "2026-11-01"]
+        XCTAssertEqual(PathProgress.streakRuns(keys).sorted(), [1, 2, 3])
+    }
+
+    func testEverySevenDaysInARowIsAWeekStreak() {
+        let thirty = (1...30).map { String(format: "2026-09-%02d", $0) }
+        let progress = PathProgress(workouts: [], plans: [:], lifts: [], checkedDayKeys: Set(thirty))
+        XCTAssertEqual(progress.checkedDays, 30)
+        XCTAssertEqual(progress.weekStreaks, 4)
+        XCTAssertEqual(progress.monthStreaks, 1)
+    }
+
+    func testABrokenStreakStartsCountingAgain() {
+        let first = (1...6).map { String(format: "2026-09-%02d", $0) }
+        let second = (8...14).map { String(format: "2026-09-%02d", $0) }
+        let progress = PathProgress(workouts: [], plans: [:], lifts: [], checkedDayKeys: Set(first + second))
+        XCTAssertEqual(progress.weekStreaks, 1)
+        XCTAssertEqual(progress.monthStreaks, 0)
+    }
+
+    // MARK: - Calorie goal
+
+    private func entry(_ calories: Int, on offset: Int, imported: Bool = false) -> DiaryEntry {
+        DiaryEntry(food: Food(name: "Meal", brand: "", serving: "1 plate", calories: calories, protein: 0, carbs: 0, fat: 0),
+                   meal: .lunch, servings: 1, date: day(offset),
+                   importFingerprint: imported ? "loseit-\(offset)" : nil)
+    }
+
+    func testAGoalDayLandsWithinTenPercent() {
+        let entries = [entry(1000, on: 0), entry(950, on: 0),   // 1950 of 2000: hit
+                       entry(2300, on: 1),                      // 15% over: missed
+                       entry(1700, on: 2),                      // 15% under: missed
+                       entry(2200, on: 3)]                      // exactly 10% over: hit
+        XCTAssertEqual(PathProgress.goalDayCount(entries: entries, goal: { _ in 2000 }), 2)
+    }
+
+    func testImportedFoodDoesNotEarnGoalDays() {
+        let entries = [entry(2000, on: 0, imported: true), entry(2000, on: 1)]
+        XCTAssertEqual(PathProgress.goalDayCount(entries: entries, goal: { _ in 2000 }), 1)
     }
 
     // MARK: - Personal records
@@ -98,7 +156,7 @@ final class PathProgressTests: XCTestCase {
         XCTAssertEqual(milestones.earnedCount, 4)
     }
 
-    func testProgressAddsPacksRecordsAndMilestones() {
+    func testProgressAddsPacksRecordsAndMilestonesFromTheStoreData() {
         let plans = ["2026-10-30": plan(["a"])]
         let workouts = [quest("a", on: "2026-10-30", minutes: 20)]
         let lifts = [lift("Squat", 100, 5, day: 0), lift("Squat", 110, 5, day: 1)]
