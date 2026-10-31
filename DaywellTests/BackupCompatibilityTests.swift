@@ -80,6 +80,46 @@ final class BackupCompatibilityTests: XCTestCase {
         XCTAssertEqual(store.longestStreakRecorded, 1563)
     }
 
+    func testWorkoutSplitSurvivesExportAndRestore() throws {
+        store.workoutSplit = WorkoutSplitTemplate.boxingStrength.split
+        let exported = try XCTUnwrap(store.exportJSON())
+        XCTAssertTrue(store.restoreJSON(Self.minimalBackup()))
+        XCTAssertNil(store.workoutSplit)
+        XCTAssertTrue(store.restoreJSON(exported))
+        XCTAssertEqual(store.workoutSplit, WorkoutSplitTemplate.boxingStrength.split)
+    }
+
+    func testMalformedWorkoutSplitIsNotRestored() {
+        let broken = Self.minimalBackup(extra: """
+        "workoutSplit": {"name": "Custom", "days": ["Push"]}
+        """)
+        XCTAssertFalse(store.restoreJSON(broken))
+    }
+
+    func testGroceryPlanRebalancesAfterEatingAndReturnsFoodAfterDeletion() throws {
+        let date = Calendar.current.startOfDay(for: .now)
+        let rice = Food(name: "Rice", serving: "100 g", calories: 100,
+                        protein: 0, carbs: 25, fat: 0)
+        let stock = [GroceryStock(food: rice, servings: 10)]
+        let target = NutritionGoals(calories: 500, protein: 0, carbs: 125, fat: 0)
+        let initial = try XCTUnwrap(GroceryPlanner.make(stock: stock, count: 1, start: date,
+            goalsForDate: { _ in target }, avoiding: [], diary: []))
+        XCTAssertEqual(initial.days[0].calories, 500)
+
+        let eaten = DiaryEntry(food: rice, meal: .lunch, servings: 2, date: date)
+        let replanned = try XCTUnwrap(GroceryPlanner.make(stock: stock, count: 1, start: date,
+            goalsForDate: { _ in target }, avoiding: [], diary: [eaten],
+            anchorEntryIDs: initial.anchorEntryIDs))
+        XCTAssertEqual(replanned.days[0].calories, 300)
+        XCTAssertEqual(replanned.stockSnapshot[0].servings, 8)
+
+        let afterDelete = try XCTUnwrap(GroceryPlanner.make(stock: stock, count: 1, start: date,
+            goalsForDate: { _ in target }, avoiding: [], diary: [],
+            anchorEntryIDs: initial.anchorEntryIDs))
+        XCTAssertEqual(afterDelete.days[0].calories, 500)
+        XCTAssertEqual(afterDelete.stockSnapshot[0].servings, 10)
+    }
+
     func testUnknownFutureFieldsArePreserved() throws {
         let future = Self.minimalBackup(extra: """
         "futureField": {"nested": [1, 2, 3]}, "schemaVersion": 9

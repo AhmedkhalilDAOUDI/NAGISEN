@@ -217,14 +217,8 @@ struct FoodSearchView: View {
 
     @ViewBuilder private var searchSections: some View {
         if search.isEmpty {
-            let recent = Array(store.recentFoods(for: initialMeal).prefix(8))
-            if !recent.isEmpty {
-                Section("Recent for \(initialMeal.rawValue)") {
-                    ForEach(recent) { food in foodRow(food) }
-                }
-            }
             Section("Starter foods") {
-                ForEach(store.allFoods) { food in foodRow(food) }
+                ForEach(NutritionStore.starterFoods) { food in foodRow(food) }
             }
         } else {
             if !localMatches.isEmpty {
@@ -255,7 +249,10 @@ struct FoodSearchView: View {
                 ForEach(store.customFoods) { food in foodRow(food) }
             }
         }
-        let recent = Array(store.recentFoods().prefix(30))
+        let createdKeys = Set(store.customFoods.map { FoodCost.key(for: $0) })
+        let recent = Array(store.recentFoods()
+            .filter { !createdKeys.contains(FoodCost.key(for: $0)) }
+            .prefix(30))
         if !recent.isEmpty {
             Section("Previously logged") {
                 ForEach(recent) { food in foodRow(food) }

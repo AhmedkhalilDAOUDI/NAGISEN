@@ -5,6 +5,8 @@ struct DaywellApp: App {
     @StateObject private var store = NutritionStore()
     @StateObject private var spotify = SpotifyManager()
     @StateObject private var health = HealthManager()
+    @StateObject private var community = CommunityCloud()
+    @State private var syncTask: Task<Void, Never>?
     @AppStorage("nagisen.health.autoImport") private var autoImportHealth = false
     @Environment(\.scenePhase) private var scenePhase
 
@@ -14,6 +16,7 @@ struct DaywellApp: App {
                 .environmentObject(store)
                 .environmentObject(spotify)
                 .environmentObject(health)
+                .environmentObject(community)
                 .onOpenURL { spotify.handle(url: $0) }
                 .onReceive(health.$workouts) { _ in
                     if autoImportHealth { _ = store.importHealth(workouts: health.workouts, weights: health.weightSamples) }
@@ -24,18 +27,37 @@ struct DaywellApp: App {
                 .onAppear {
                     WaterReminders.reconcile()
                     spotify.connectIfAuthorized()
+                    Task {
+                        await community.connect()
+                        await community.sync(store)
+                    }
                     #if DEBUG
                     DebugMigration.runIfRequested(store: store)
                     #endif
+                }
+                .onReceive(store.objectWillChange) { _ in
+                    syncTask?.cancel()
+                    syncTask = Task {
+                        try? await Task.sleep(for: .seconds(12))
+                        guard !Task.isCancelled else { return }
+                        await community.sync(store)
+                    }
                 }
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active {
                         spotify.connectIfAuthorized()
                         health.refresh()
                         WaterReminders.reconcile()
+                        Task {
+                            await community.connect()
+                            await community.sync(store)
+                        }
                     }
                     if phase == .inactive { spotify.disconnect() }
-                    if phase == .background { store.backupNow() }
+                    if phase == .background {
+                        store.backupNow()
+                        Task { await community.sync(store) }
+                    }
                 }
         }
     }

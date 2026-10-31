@@ -110,15 +110,6 @@ struct ContentView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .softTopScrollEdgeEffect()
-        .simultaneousGesture(DragGesture(minimumDistance: 45).onEnded { gesture in
-            let horizontal = gesture.translation.width
-            guard abs(horizontal) > 85,
-                  abs(horizontal) > abs(gesture.translation.height) * 1.5,
-                  let current = MainSection.allCases.firstIndex(of: section) else { return }
-            let next = current + (horizontal < 0 ? 1 : -1)
-            guard MainSection.allCases.indices.contains(next) else { return }
-            selectSection(MainSection.allCases[next])
-        })
         .overlay(alignment: .bottom) {
             if !keyboardVisible {
                 BottomGlassMenu(section: section, onSelect: selectSection)
@@ -144,7 +135,9 @@ struct ContentView: View {
     @ViewBuilder private var selectedSectionView: some View {
         switch section {
         case .dashboard:
-            HomeView(date: $selectedDate) { meal in addContext = AddContext(date: selectedDate, meal: meal) }
+            HomeView(date: $selectedDate, onOpenAI: { selectSection(.ai) }) { meal in
+                addContext = AddContext(date: selectedDate, meal: meal)
+            }
         case .grocery:
             NavigationStack { GroceryPlannerView(showBackButton: false) }
         case .workouts:
@@ -175,7 +168,7 @@ private struct BottomGlassMenu: View {
 
     var body: some View {
         HStack(spacing: 2) {
-            ForEach(MainSection.allCases) { item in
+            ForEach(MainSection.bottomSections) { item in
                 Button {
                     onSelect(item)
                 } label: {
@@ -229,6 +222,7 @@ private struct BottomGlassMenu: View {
 private enum MainSection: String, CaseIterable, Identifiable {
     case dashboard, grocery, workouts, feed, ai
     var id: Self { self }
+    static let bottomSections: [MainSection] = [.dashboard, .grocery, .workouts, .feed]
     var name: String {
         switch self {
         case .dashboard: "Dashboard"
@@ -257,6 +251,7 @@ private struct HomeView: View {
     @State private var showingCalendar = false
     @State private var showingProfile = false
     @Binding var date: Date
+    let onOpenAI: () -> Void
     let onAdd: (Meal) -> Void
 
     var body: some View {
@@ -311,6 +306,13 @@ private struct HomeView: View {
                                         .nagisenGlass(in: Circle(), tint: Theme.surface.opacity(0.16))
                                 }
                                 .accessibilityLabel(colorScheme == .dark ? "Turn off dark mode" : "Turn on dark mode")
+                                Button(action: onOpenAI) {
+                                    Image(systemName: "sparkles")
+                                        .font(.body.weight(.medium))
+                                        .frame(width: 34, height: 34)
+                                        .nagisenGlass(in: Circle(), tint: Theme.surface.opacity(0.16))
+                                }
+                                .accessibilityLabel("Open AI coach")
                                 Button { showingProfile = true } label: {
                                     Image(systemName: "person.crop.circle")
                                         .font(.body.weight(.medium))
@@ -338,7 +340,7 @@ private struct HomeView: View {
                             }
                             .accessibilityLabel("Today’s steps: \(health.steps.map { $0.formatted() } ?? "connect Apple Health")")
                         }
-                        .frame(width: 76)
+                        .frame(width: 112)
                     }
                     .padding(.horizontal, 18)
                     VStack(alignment: .leading, spacing: 22) {
