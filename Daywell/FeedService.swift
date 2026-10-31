@@ -875,7 +875,9 @@ final class FeedService: ObservableObject {
 
     // MARK: - Errors
 
-    static func describe(_ error: any Error, doing action: String) -> String {
+    /// Nil for a load that was cancelled (the screen left or refreshed); that isn't a failure to report.
+    static func describe(_ error: any Error, doing action: String) -> String? {
+        if error is CancellationError || (error as? URLError)?.code == .cancelled { return nil }
         if let urlError = error as? URLError, urlError.code == .notConnectedToInternet {
             return "You're offline. Couldn't \(action)."
         }

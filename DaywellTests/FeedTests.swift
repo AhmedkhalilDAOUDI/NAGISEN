@@ -26,6 +26,14 @@ final class FeedTests: XCTestCase {
         XCTAssertEqual(FeedRules.normalizedUsername("  Khalil_D "), "Khalil_D", "trimmed, capitals kept")
     }
 
+    @MainActor
+    func testACancelledLoadIsNotReportedAsAnError() {
+        XCTAssertNil(FeedService.describe(CancellationError(), doing: "load the feed"))
+        XCTAssertNil(FeedService.describe(URLError(.cancelled), doing: "load the feed"))
+        XCTAssertEqual(FeedService.describe(URLError(.notConnectedToInternet), doing: "load the feed"),
+                       "You're offline. Couldn't load the feed.")
+    }
+
     func testTheMediaFolderMatchesTheLowercaseIDTheStoragePolicyChecks() {
         let id = UUID(uuidString: "1B9D6BCD-BBFD-4B2D-9B5D-AB8DFBBD4BED")!
         XCTAssertEqual(FeedRules.mediaFolder(for: id), "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed")
