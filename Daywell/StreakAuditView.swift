@@ -33,14 +33,8 @@ struct StreakAuditView: View {
                 .padding(.horizontal, 18)
                 .padding(.vertical, 16)
             }
-            .background(Theme.surface.ignoresSafeArea())
-            .navigationTitle("Streak audit")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
-                }
-            }
+            .background(NagisenBackdrop())
+            .nagisenSheetBar("Streak audit", onClose: { dismiss() })
         }
         .task {
             guard audit == nil else { return }

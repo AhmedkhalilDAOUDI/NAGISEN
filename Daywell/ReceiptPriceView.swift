@@ -52,16 +52,10 @@ struct ReceiptPriceView: View {
                 .padding(.horizontal, 18)
                 .padding(.vertical, 16)
             }
-            .background(Theme.surface.ignoresSafeArea())
-            .navigationTitle("Receipt prices")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { save() }
-                        .disabled(rows.filter { $0.include && $0.food != nil && $0.price != nil }.isEmpty)
-                }
-            }
+            .background(NagisenBackdrop())
+            .nagisenSheetBar("Receipt prices", onClose: { dismiss() }, actionTitle: "Save",
+                             actionEnabled: !rows.filter { $0.include && $0.food != nil && $0.price != nil }.isEmpty,
+                             onAction: save)
             .sheet(isPresented: $showingCamera) {
                 ReceiptCamera { image in
                     showingCamera = false

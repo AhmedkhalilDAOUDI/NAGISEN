@@ -396,6 +396,7 @@ struct DeepSeekChatView: View {
                     if chat.hasKey {
                         Divider()
                         Button("Remove saved key", role: .destructive) { chat.removeKey(); hasKey = false }
+                            .foregroundStyle(Theme.danger)
                             .frame(minHeight: 54)
                     }
                     }
@@ -410,6 +411,7 @@ struct DeepSeekChatView: View {
                     }
                     NagisenSection("Conversation") {
                         Button("Clear chat history", role: .destructive) { chat.clearHistory() }
+                            .foregroundStyle(Theme.danger)
                             .frame(minHeight: 54)
                     }
                     Text("The key is stored in this iPhone's Keychain. Chat history stays on this device. Messages you send go to DeepSeek.")

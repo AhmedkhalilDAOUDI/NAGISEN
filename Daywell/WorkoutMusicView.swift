@@ -1180,7 +1180,7 @@ private struct AddWorkoutView: View {
                                             ))
                                             .keyboardType(.numberPad)
                                         }
-                                        .textFieldStyle(.roundedBorder)
+                                        .textFieldStyle(.nagisen)
                                     }
                                 }
                             }

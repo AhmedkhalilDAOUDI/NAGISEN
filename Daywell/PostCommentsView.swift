@@ -16,24 +16,19 @@ struct PostCommentsView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("@\(post.username)").font(.subheadline.weight(.semibold)).memberName(post.author.special)
-                        if !post.body.isEmpty {
-                            Text(post.body).font(.subheadline).lineLimit(4)
-                        } else {
-                            Label(post.mediaKind == .video ? "Video" : "Photo",
-                                  systemImage: post.mediaKind == .video ? "video" : "photo")
-                                .font(.subheadline).foregroundStyle(Theme.muted)
-                        }
-                    }
-                    .softCardStyle()
+                VStack(alignment: .leading, spacing: 26) {
+                    original
 
                     if loading {
                         ProgressView().frame(maxWidth: .infinity).padding(.top, 20)
                     } else if comments.isEmpty {
-                        Text("No comments yet. Start the conversation.")
-                            .font(.subheadline).foregroundStyle(Theme.muted)
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("No comments yet")
+                                .font(.system(size: 21, design: .serif))
+                            Text("Say something kind to start the conversation.")
+                                .font(.subheadline).foregroundStyle(Theme.muted)
+                        }
+                        .padding(.top, 4)
                     } else {
                         ForEach(comments) { comment in row(comment) }
                     }
@@ -43,17 +38,14 @@ struct PostCommentsView: View {
                     }
                 }
                 .foregroundStyle(Theme.ink)
-                .padding(20)
+                .padding(.horizontal, 22)
+                .padding(.top, 14)
+                .padding(.bottom, 24)
             }
-            .safeAreaInset(edge: .bottom) { composerBar }
+            .scrollDismissesKeyboard(.interactively)
+            .safeAreaInset(edge: .bottom, spacing: 0) { composerBar }
             .background(NagisenBackdrop())
-            .navigationTitle("Comments")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }
-                }
-            }
+            .nagisenSheetBar("Comments", onClose: { dismiss() })
             .task {
                 feed.message = nil
                 comments = await feed.comments(on: post) ?? []
@@ -106,74 +98,128 @@ struct PostCommentsView: View {
         }
     }
 
-    private func row(_ comment: FeedComment) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                Button { viewingMember = comment.author } label: {
-                    HStack(spacing: 8) {
-                        AvatarView(url: feed.avatarURL(comment.author.avatarPath), username: comment.username,
-                                   tier: comment.author.borderTier, special: comment.author.special, size: 26)
-                        Text("@\(comment.username)").font(.caption.weight(.semibold)).memberName(comment.author.special)
-                    }
-                }
-                .buttonStyle(.plain)
-                Text(comment.createdAt, style: .relative)
+    /// The post being discussed, set like a quotation above the thread.
+    private var original: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 10) {
+                AvatarView(url: feed.avatarURL(post.author.avatarPath), username: post.username,
+                           tier: post.author.borderTier, special: post.author.special, size: 30)
+                Text(post.username).font(.subheadline.weight(.semibold)).memberName(post.author.special)
+                Text(post.createdAt.formatted(.relative(presentation: .numeric, unitsStyle: .narrow)))
                     .font(.caption).foregroundStyle(Theme.muted)
-                Spacer()
-                if feed.canDelete(comment, on: post) || !feed.isMine(comment) {
-                    Menu {
-                        if feed.canDelete(comment, on: post) {
-                            Button("Delete comment", systemImage: "trash", role: .destructive) { deleting = comment }
-                        }
-                        if !feed.isMine(comment) {
-                            Button("Report comment", systemImage: "flag") { reporting = comment }
-                            Button("Block @\(comment.username)", systemImage: "hand.raised",
-                                   role: .destructive) { blocking = comment }
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .font(.caption)
-                            .frame(width: 30, height: 22)
-                            .contentShape(Rectangle())
-                    }
-                    .accessibilityLabel("More for this comment")
-                }
             }
-            Text(comment.body).font(.subheadline)
-                .fixedSize(horizontal: false, vertical: true)
+            if !post.body.isEmpty {
+                Text(post.body)
+                    .font(.system(size: 19, design: .serif))
+                    .lineSpacing(3)
+                    .lineLimit(6)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                Label(post.mediaKind == .video ? "A video" : "A photo",
+                      systemImage: post.mediaKind == .video ? "video" : "photo")
+                    .font(.subheadline).foregroundStyle(Theme.muted)
+            }
+            HStack(spacing: 12) {
+                Text(comments.isEmpty ? "THE THREAD" : "\(comments.count) \(comments.count == 1 ? "COMMENT" : "COMMENTS")")
+                    .font(.caption2.weight(.semibold)).tracking(2.2)
+                    .foregroundStyle(Theme.muted)
+                    .fixedSize()
+                Rectangle().fill(Theme.ink.opacity(0.12)).frame(height: 0.5)
+            }
+            .padding(.top, 8)
+        }
+    }
+
+    private func row(_ comment: FeedComment) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Button { viewingMember = comment.author } label: {
+                AvatarView(url: feed.avatarURL(comment.author.avatarPath), username: comment.username,
+                           tier: comment.author.borderTier, special: comment.author.special, size: 34)
+            }
+            .buttonStyle(.plain)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Button { viewingMember = comment.author } label: {
+                        Text(comment.username).font(.footnote.weight(.semibold)).memberName(comment.author.special)
+                    }
+                    .buttonStyle(.plain)
+                    Text(comment.createdAt.formatted(.relative(presentation: .numeric, unitsStyle: .narrow)))
+                        .font(.caption).foregroundStyle(Theme.muted)
+                    Spacer(minLength: 0)
+                }
+                Text(comment.body).font(.subheadline)
+                    .lineSpacing(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if feed.canDelete(comment, on: post) || !feed.isMine(comment) {
+                Menu {
+                    if feed.canDelete(comment, on: post) {
+                        Button("Delete comment", systemImage: "trash", role: .destructive) { deleting = comment }
+                    }
+                    if !feed.isMine(comment) {
+                        Button("Report comment", systemImage: "flag") { reporting = comment }
+                        Button("Block @\(comment.username)", systemImage: "hand.raised",
+                               role: .destructive) { blocking = comment }
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.caption)
+                        .foregroundStyle(Theme.muted)
+                        .frame(width: 32, height: 28)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityLabel("More for this comment")
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    private var canSend: Bool {
+        !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+            text.count <= FeedRules.maxCommentLength && !feed.isBusy
+    }
+
     private var composerBar: some View {
-        HStack(alignment: .bottom, spacing: 10) {
-            TextField("Add a comment", text: $text, axis: .vertical)
-                .lineLimit(1...4)
-                .font(.subheadline)
-            Button {
-                Task {
-                    if let saved = await feed.addComment(text, to: post) {
-                        comments.append(saved)
-                        text = ""
+        VStack(spacing: 0) {
+            Rectangle().fill(Theme.ink.opacity(0.10)).frame(height: 0.5)
+            HStack(alignment: .center, spacing: 12) {
+                AvatarView(url: feed.avatarURL(feed.avatarPath), username: feed.username ?? "",
+                           tier: feed.borderTier, special: feed.specialBorder, size: 32)
+                TextField("Add a comment…", text: $text, axis: .vertical)
+                    .lineLimit(1...5)
+                    .font(.subheadline)
+                    .padding(.vertical, 10)
+                Button {
+                    Task {
+                        if let saved = await feed.addComment(text, to: post) {
+                            withAnimation(.smooth(duration: 0.25)) { comments.append(saved) }
+                            text = ""
+                        }
                     }
+                } label: {
+                    Group {
+                        if feed.isBusy {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Image(systemName: "arrow.up").font(.system(size: 14, weight: .semibold))
+                        }
+                    }
+                    .foregroundStyle(.white)
+                    .frame(width: 32, height: 32)
+                    .background(Theme.accent, in: Circle())
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
                 }
-            } label: {
-                if feed.isBusy {
-                    ProgressView()
-                } else {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .font(.title2)
-                        .foregroundStyle(Theme.accent)
-                }
+                .buttonStyle(.plain)
+                .opacity(canSend || feed.isBusy ? 1 : 0)
+                .animation(.smooth(duration: 0.2), value: canSend)
+                .disabled(!canSend)
+                .accessibilityLabel("Send comment")
             }
-            .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                      text.count > FeedRules.maxCommentLength || feed.isBusy)
-            .accessibilityLabel("Send comment")
+            .padding(.leading, 20).padding(.trailing, 10)
+            .padding(.vertical, 4)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .nagisenGlass(in: RoundedRectangle(cornerRadius: 22), tint: Theme.surface.opacity(0.18))
-        .padding(.horizontal, 16)
-        .padding(.bottom, 8)
+        .foregroundStyle(Theme.ink)
+        .background(Theme.paper)
     }
 }

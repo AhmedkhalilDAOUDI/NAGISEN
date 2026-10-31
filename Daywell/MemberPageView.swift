@@ -35,20 +35,28 @@ struct MemberPageView: View {
             }
             .refreshable { await load() }
             .background(NagisenBackdrop())
-            .navigationTitle(shown.username)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
-                if !isMe {
-                    ToolbarItem(placement: .primaryAction) {
-                        Menu {
-                            Button("Block @\(member.username)", systemImage: "hand.raised", role: .destructive) {
-                                confirmingBlock = true
+            .toolbar(.hidden, for: .navigationBar)
+            .safeAreaInset(edge: .top, spacing: 0) {
+                NagisenSheetBar(title: shown.username, onClose: { dismiss() })
+                    .overlay(alignment: .trailing) {
+                        if !isMe {
+                            Menu {
+                                Button("Block @\(member.username)", systemImage: "hand.raised", role: .destructive) {
+                                    confirmingBlock = true
+                                }
+                            } label: {
+                                Image(systemName: "ellipsis")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(Theme.ink)
+                                    .frame(width: 34, height: 34)
+                                    .overlay(Circle().strokeBorder(Theme.ink.opacity(0.16), lineWidth: 0.5))
+                                    .frame(width: 44, height: 44)
                             }
-                        } label: { Image(systemName: "ellipsis") }
-                        .accessibilityLabel("More for @\(member.username)")
+                            .padding(.trailing, 12).padding(.top, 4)
+                            .accessibilityLabel("More for @\(member.username)")
+                        }
                     }
-                }
+                    .background(Theme.paper)
             }
             .task { feed.message = nil; await load() }
             .onChange(of: feed.isFollowing(member)) { _, _ in Task { counts = await feed.counts(for: member) } }

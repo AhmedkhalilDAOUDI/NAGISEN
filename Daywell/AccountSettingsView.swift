@@ -36,6 +36,7 @@ struct AccountSettingsView: View {
                         }
                         Button("Delete account", role: .destructive) { confirmingDelete = true }
                             .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Theme.danger)
                             .disabled(feed.isBusy)
                     }
                     .frame(maxWidth: .infinity)
@@ -91,6 +92,7 @@ struct AccountSettingsView: View {
                 if feed.avatarPath != nil {
                     Button("Remove photo", role: .destructive) { Task { await feed.removeAvatar() } }
                         .font(.subheadline)
+                        .foregroundStyle(Theme.danger)
                 }
                 if feed.isBusy { ProgressView() }
             }
