@@ -128,7 +128,7 @@ struct ContentView: View {
             }
         }
         .overlay {
-            if showingIntro { LaunchIntroView { showingIntro = false } }
+            if showingIntro { LaunchIntroView { showingIntro = false }.ignoresSafeArea() }
         }
         // Leaving the app arms the intro, so it plays again on the way back in.
         .onChange(of: scenePhase) { _, phase in if phase == .background { showingIntro = true } }
