@@ -13,8 +13,8 @@ struct ProgressViewScreen: View {
     }
 
     private var lastRecorded: String {
-        guard let latestWeight else { return "No entries yet" }
-        return "Last recorded " + RelativeDateTimeFormatter().localizedString(for: latestWeight.date, relativeTo: .now)
+        guard let latestWeight else { return String(localized: "No entries yet") }
+        return String(localized: "Last recorded ") + RelativeDateTimeFormatter().localizedString(for: latestWeight.date, relativeTo: .now)
     }
 
     private var days: [Date] {
@@ -24,11 +24,11 @@ struct ProgressViewScreen: View {
     var body: some View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 23) {
-                    NagisenHeader("Your goals", subtitle: "Daily targets and your progress", onBack: { dismiss() })
+                    NagisenHeader("Your goals", subtitle: String(localized: "Daily targets and your progress"), onBack: { dismiss() })
                     VStack(alignment: .leading, spacing: 16) {
                         HStack {
                             Text("TODAY'S TARGETS")
-                                .font(.caption2.weight(.semibold)).tracking(2.2)
+                                .font(.caption2.weight(.semibold)).nagisenTracking(2.2)
                                 .foregroundStyle(Theme.muted)
                             Spacer()
                             Button("Edit") { showingGoals = true }
@@ -101,7 +101,7 @@ struct ProgressViewScreen: View {
                     .softCardStyle()
                     VStack(alignment: .leading, spacing: 18) {
                         Text("DAILY CALORIES")
-                            .font(.caption2.weight(.semibold)).tracking(2.2)
+                            .font(.caption2.weight(.semibold)).nagisenTracking(2.2)
                             .foregroundStyle(Theme.muted)
                         HStack(alignment: .bottom, spacing: 10) {
                             ForEach(days, id: \.self) { day in
@@ -135,8 +135,8 @@ struct ProgressViewScreen: View {
                     let loggedDays = days.filter { !store.entries(on: $0).isEmpty }
                     let total = loggedDays.reduce(0) { $0 + store.totals(on: $1).calories }
                     HStack(spacing: 14) {
-                        StatCard(value: "\(loggedDays.count)", label: "days logged")
-                        StatCard(value: loggedDays.isEmpty ? "–" : "\(total / loggedDays.count)", label: "avg. calories / logged day")
+                        StatCard(value: "\(loggedDays.count)", label: String(localized: "days logged"))
+                        StatCard(value: loggedDays.isEmpty ? "–" : "\(total / loggedDays.count)", label: String(localized: "avg. calories / logged day"))
                     }
                     Text("Your entries stay on this device. Nutritional values in the starter catalog are estimates; check packaging for accuracy.")
                         .font(.footnote).foregroundStyle(Theme.muted)
@@ -167,7 +167,7 @@ struct ProgressViewScreen: View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 5) {
                 Circle().fill(color).frame(width: 6, height: 6)
-                Text(name.uppercased()).font(.caption2.weight(.semibold))
+                Text(ui: name).textCase(.uppercase).font(.caption2.weight(.semibold))
             }
             .foregroundStyle(color)
             Text("\(grams)g").font(.system(size: 21, design: .serif)).foregroundStyle(color)
@@ -184,7 +184,7 @@ private struct StatCard: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(value).font(.system(size: 30, weight: .regular, design: .serif))
                 .foregroundStyle(Theme.ink)
-            Text(label).font(.caption).foregroundStyle(Theme.muted)
+            Text(ui: label).font(.caption).foregroundStyle(Theme.muted)
         }
         .frame(maxWidth: .infinity, minHeight: 100, alignment: .leading)
         .cardStyle()
@@ -199,8 +199,8 @@ struct GoalsView: View {
     @State private var fat = ""
     @State private var selectedWeekday = 0
 
-    private let weekdays = [(1, "Sunday"), (2, "Monday"), (3, "Tuesday"), (4, "Wednesday"),
-                            (5, "Thursday"), (6, "Friday"), (7, "Saturday")]
+    private let weekdays = [(1, String(localized: "Sunday")), (2, String(localized: "Monday")), (3, String(localized: "Tuesday")), (4, String(localized: "Wednesday")),
+                            (5, String(localized: "Thursday")), (6, String(localized: "Friday")), (7, String(localized: "Saturday"))]
 
     private func goal(_ text: String) -> Int? {
         guard let value = Int(text), value > 0, value <= 10_000 else { return nil }
@@ -217,11 +217,11 @@ struct GoalsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 26) {
-                NagisenHeader("Daily goals", subtitle: "Your targets, at a glance.", onBack: { dismiss() },
-                              actionTitle: "Save", actionEnabled: valid, onAction: save)
+                NagisenHeader("Daily goals", subtitle: String(localized: "Your targets, at a glance."), onBack: { dismiss() },
+                              actionTitle: String(localized: "Save"), actionEnabled: valid, onAction: save)
                 NagisenSection("Schedule") {
                     NagisenPicker("Apply to", selection: $selectedWeekday,
-                                  options: [(0, "Every day")] + weekdays.map { ($0.0, $0.1) })
+                                  options: [(0, String(localized: "Every day"))] + weekdays.map { ($0.0, $0.1) })
                     .frame(minHeight: 54)
                 }
                 NagisenSection("Energy") {
@@ -294,7 +294,7 @@ private struct WeeklyReviewView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                NagisenHeader("Weekly check-in", subtitle: "A small course correction, when the data supports it.",
+                NagisenHeader("Weekly check-in", subtitle: String(localized: "A small course correction, when the data supports it."),
                               symbol: "xmark", onBack: { dismiss() })
                 NagisenSection("Your evidence") {
                     LabeledContent("Food days", value: "\(review.loggedDays) / 14").frame(minHeight: 54)

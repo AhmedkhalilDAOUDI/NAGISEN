@@ -47,7 +47,7 @@ struct LogFoodView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                NagisenHeader("Log food", subtitle: "Add it to your day.", onBack: { dismiss() })
+                NagisenHeader("Log food", subtitle: String(localized: "Add it to your day."), onBack: { dismiss() })
                 Text(selectedFood.name).font(.system(size: 26, design: .serif))
                 Text([selectedFood.brand, selectedFood.serving].filter { !$0.isEmpty }.joined(separator: " · "))
                     .foregroundStyle(Theme.muted)
@@ -209,8 +209,8 @@ struct CreateFoodView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                NagisenHeader(initialFood == nil ? "Custom food" : "Correct nutrition",
-                              subtitle: initialFood == nil ? "Keep your own favourites close." : "Use the package label as your guide.",
+                NagisenHeader(initialFood == nil ? String(localized: "Custom food") : String(localized: "Correct nutrition"),
+                              subtitle: initialFood == nil ? String(localized: "Keep your own favourites close.") : String(localized: "Use the package label as your guide."),
                               symbol: "xmark", onBack: { dismiss() })
                 NagisenSection("Food") {
                     TextField("Name", text: $name).frame(minHeight: 54)
@@ -243,7 +243,7 @@ struct CreateFoodView: View {
                                 fiber: self.fiber.isEmpty ? nil : number(self.fiber),
                                 sodium: self.sodium.isEmpty ? nil : number(self.sodium).map { $0 / 1000 },
                                 barcode: initialFood?.barcode,
-                                source: initialFood == nil ? nil : "Corrected by you"))
+                                source: initialFood == nil ? nil : String(localized: "Corrected by you")))
                 }
             }
             .padding(.horizontal, 24).padding(.top, 10).padding(.bottom, 32)

@@ -57,7 +57,7 @@ struct PostCommentsView: View {
                 get: { deleting != nil }, set: { if !$0 { deleting = nil } }
             )) {
                 guard let comment = deleting else { return [] }
-                return [NagisenAction(title: "Delete comment", destructive: true) {
+                return [NagisenAction(title: String(localized: "Delete comment"), destructive: true) {
                     Task {
                         if await feed.deleteComment(comment, on: post) {
                             comments.removeAll { $0.id == comment.id }
@@ -67,7 +67,7 @@ struct PostCommentsView: View {
             }
             .nagisenDialog("Why are you reporting this comment?", isPresented: Binding(
                 get: { reporting != nil }, set: { if !$0 { reporting = nil } }
-            ), message: "The comment will be hidden for you and sent for review.") {
+            ), message: String(localized: "The comment will be hidden for you and sent for review.")) {
                 guard let comment = reporting else { return [] }
                 return FeedRules.reportReasons.map { reason in
                     NagisenAction(title: reason) {
@@ -78,9 +78,9 @@ struct PostCommentsView: View {
             }
             .nagisenDialog("Block @\(blocking?.username ?? "member")?", isPresented: Binding(
                 get: { blocking != nil }, set: { if !$0 { blocking = nil } }
-            ), message: "You won’t see their posts or comments anymore. They aren’t told.") {
+            ), message: String(localized: "You won’t see their posts or comments anymore. They aren’t told.")) {
                 guard let comment = blocking else { return [] }
-                return [NagisenAction(title: "Block", destructive: true) {
+                return [NagisenAction(title: String(localized: "Block"), destructive: true) {
                     Task {
                         guard await feed.block(authorID: comment.authorID) else { return }
                         comments.removeAll { $0.authorID == comment.authorID }
@@ -115,7 +115,7 @@ struct PostCommentsView: View {
             }
             HStack(spacing: 12) {
                 Text(comments.isEmpty ? "THE THREAD" : "\(comments.count) \(comments.count == 1 ? "COMMENT" : "COMMENTS")")
-                    .font(.caption2.weight(.semibold)).tracking(2.2)
+                    .font(.caption2.weight(.semibold)).nagisenTracking(2.2)
                     .foregroundStyle(Theme.muted)
                     .fixedSize()
                 Rectangle().fill(Theme.ink.opacity(0.12)).frame(height: 0.5)
@@ -157,15 +157,15 @@ struct PostCommentsView: View {
                 .accessibilityLabel("More for this comment")
                 .nagisenActions(isPresented: Binding(get: { actionsFor?.id == comment.id },
                                                      set: { if !$0 { actionsFor = nil } }),
-                                title: "Comment") {
+                                title: String(localized: "Comment")) {
                     var actions: [NagisenAction] = []
                     if !feed.isMine(comment) {
-                        actions.append(NagisenAction(title: "Report comment", symbol: "flag") { reporting = comment })
-                        actions.append(NagisenAction(title: "Block @\(comment.username)", symbol: "hand.raised",
+                        actions.append(NagisenAction(title: String(localized: "Report comment"), symbol: "flag") { reporting = comment })
+                        actions.append(NagisenAction(title: String(localized: "Block @\(comment.username)"), symbol: "hand.raised",
                                                  destructive: true) { blocking = comment })
                     }
                     if feed.canDelete(comment, on: post) {
-                        actions.append(NagisenAction(title: "Delete comment", symbol: "trash", destructive: true) { deleting = comment })
+                        actions.append(NagisenAction(title: String(localized: "Delete comment"), symbol: "trash", destructive: true) { deleting = comment })
                     }
                     return actions
                 }

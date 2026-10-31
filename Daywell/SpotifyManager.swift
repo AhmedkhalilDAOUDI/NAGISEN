@@ -9,7 +9,7 @@ final class SpotifyManager: NSObject, ObservableObject, SPTAppRemoteDelegate, SP
     @Published var artistName: String?
     @Published var artwork: UIImage?
     @Published var isConnected = false
-    @Published var status = "Looking for your Spotify playback…"
+    @Published var status = String(localized: "Looking for your Spotify playback…")
 
     // Public Spotify app identifier; the Client Secret is never included in the iOS app.
     static let clientID = "abb075eecece4014ba7bcc4f6dfa5265"
@@ -31,17 +31,17 @@ final class SpotifyManager: NSObject, ObservableObject, SPTAppRemoteDelegate, SP
         let remote = SPTAppRemote(configuration: configuration, logLevel: .debug)
         remote.delegate = self
         appRemote = remote
-        if loadToken() == nil { status = "Connect Spotify once to show your current song." }
+        if loadToken() == nil { status = String(localized: "Connect Spotify once to show your current song.") }
     }
 
     func connect() {
         guard let remote = appRemote else {
-            status = "Spotify setup is not finished yet."
+            status = String(localized: "Spotify setup is not finished yet.")
             return
         }
         guard !remote.isConnected else { refreshCurrentTrack(); return }
         guard !isConnecting else { return }
-        status = "Connecting to Spotify…"
+        status = String(localized: "Connecting to Spotify…")
         if let token = loadToken() {
             startConnection(remote, token: token)
         } else {
@@ -59,10 +59,10 @@ final class SpotifyManager: NSObject, ObservableObject, SPTAppRemoteDelegate, SP
     }
 
     private func authorize(_ remote: SPTAppRemote) {
-        status = "Opening Spotify to connect…"
+        status = String(localized: "Opening Spotify to connect…")
         remote.authorizeAndPlayURI("") { [weak self] installed in
             if !installed {
-                DispatchQueue.main.async { self?.status = "Install Spotify on this iPhone to connect." }
+                DispatchQueue.main.async { self?.status = String(localized: "Install Spotify on this iPhone to connect.") }
             }
         }
     }
@@ -91,7 +91,7 @@ final class SpotifyManager: NSObject, ObservableObject, SPTAppRemoteDelegate, SP
             isConnecting = false
             startConnection(remote, token: token)
         } else {
-            status = parameters?[SPTAppRemoteErrorDescriptionKey] ?? "Spotify authorization was cancelled."
+            status = parameters?[SPTAppRemoteErrorDescriptionKey] ?? String(localized: "Spotify authorization was cancelled.")
         }
     }
 
@@ -99,7 +99,7 @@ final class SpotifyManager: NSObject, ObservableObject, SPTAppRemoteDelegate, SP
         guard let remote = appRemote else { return }
         if remote.isConnected { refreshCurrentTrack(); return }
         guard let token = loadToken() else { return }
-        status = "Looking for your Spotify playback…"
+        status = String(localized: "Looking for your Spotify playback…")
         startConnection(remote, token: token)
     }
 
@@ -114,7 +114,7 @@ final class SpotifyManager: NSObject, ObservableObject, SPTAppRemoteDelegate, SP
     private func didConnect(_ appRemote: SPTAppRemote) {
         isConnecting = false
         isConnected = true
-        status = "Connected to Spotify"
+        status = String(localized: "Connected to Spotify")
         appRemote.playerAPI?.delegate = self
         appRemote.playerAPI?.subscribe(toPlayerState: { [weak self] _, error in
             if let error { DispatchQueue.main.async { self?.status = error.localizedDescription } }
@@ -150,7 +150,7 @@ final class SpotifyManager: NSObject, ObservableObject, SPTAppRemoteDelegate, SP
     private func didDisconnect(error: Error?) {
         isConnecting = false
         isConnected = false
-        status = error == nil ? "Reconnecting when you return…" : "Spotify disconnected. Open Spotify and return."
+        status = error == nil ? String(localized: "Reconnecting when you return…") : String(localized: "Spotify disconnected. Open Spotify and return.")
     }
 
     nonisolated func appRemote(_ appRemote: SPTAppRemote, didFailConnectionAttemptWithError error: Error?) {
@@ -164,7 +164,7 @@ final class SpotifyManager: NSObject, ObservableObject, SPTAppRemoteDelegate, SP
         artistName = nil
         artwork = nil
         lastTrackURI = nil
-        status = "Open Spotify and return to see your current song."
+        status = String(localized: "Open Spotify and return to see your current song.")
     }
 
     nonisolated func playerStateDidChange(_ playerState: SPTAppRemotePlayerState) {
@@ -176,7 +176,7 @@ final class SpotifyManager: NSObject, ObservableObject, SPTAppRemoteDelegate, SP
     private func updatePlayerState(_ playerState: SPTAppRemotePlayerState) {
         trackName = playerState.track.name
         artistName = playerState.track.artist.name
-        status = playerState.isPaused ? "Paused in Spotify" : "Playing in Spotify"
+        status = playerState.isPaused ? String(localized: "Paused in Spotify") : String(localized: "Playing in Spotify")
         guard lastTrackURI != playerState.track.uri else { return }
         lastTrackURI = playerState.track.uri
         artwork = nil

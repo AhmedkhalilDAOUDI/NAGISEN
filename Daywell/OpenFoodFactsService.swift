@@ -39,10 +39,10 @@ enum FoodLookupError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .invalidBarcode: "Enter a valid barcode number."
-        case .notFound: "This barcode is not in Open Food Facts. You can add the food manually."
-        case .missingNutrition: "This product has no usable nutrition data. You can add it manually."
-        case .serverUnavailable: "Food search is unavailable right now. Check your connection and try again."
+        case .invalidBarcode: String(localized: "Enter a valid barcode number.")
+        case .notFound: String(localized: "This barcode is not in Open Food Facts. You can add the food manually.")
+        case .missingNutrition: String(localized: "This product has no usable nutrition data. You can add it manually.")
+        case .serverUnavailable: String(localized: "Food search is unavailable right now. Check your connection and try again.")
         }
     }
 }

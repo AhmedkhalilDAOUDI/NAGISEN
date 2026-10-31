@@ -57,7 +57,7 @@ struct ProfileView: View {
                                tier: feed.borderTier, special: feed.specialBorder, size: 58)
                     VStack(alignment: .leading, spacing: 4) {
                         Text("@\(feed.username ?? "")").font(.system(size: 21, design: .serif)).memberName(feed.specialBorder)
-                        Text(feed.bio.isEmpty ? "Add a photo and a line about you" : feed.bio)
+                        Text(feed.bio.isEmpty ? String(localized: "Add a photo and a line about you") : feed.bio)
                             .font(.caption).foregroundStyle(Theme.muted).lineLimit(2)
                     }
                     Spacer()
@@ -77,7 +77,7 @@ struct ProfileView: View {
         } label: {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Text("PATH").font(.caption2.weight(.semibold)).tracking(2).foregroundStyle(Theme.muted)
+                    Text("PATH").font(.caption2.weight(.semibold)).nagisenTracking(2).foregroundStyle(Theme.muted)
                     Spacer()
                     Text(progress.tier.name).font(.caption.weight(.semibold)).foregroundStyle(Theme.accentText)
                 }
@@ -94,7 +94,7 @@ struct ProfileView: View {
 
     private var remindersCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("REMINDERS").font(.caption2.weight(.semibold)).tracking(2).foregroundStyle(Theme.muted)
+            Text("REMINDERS").font(.caption2.weight(.semibold)).nagisenTracking(2).foregroundStyle(Theme.muted)
             Toggle(isOn: reminderBinding($streakReminder)) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Streak reminder").font(.body.weight(.medium))
@@ -159,7 +159,7 @@ struct ProfileView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
-                    NagisenHeader("Settings", subtitle: "Your account and your app.", symbol: "xmark", onBack: { dismiss() })
+                    NagisenHeader("Settings", subtitle: String(localized: "Your account and your app."), symbol: "xmark", onBack: { dismiss() })
                     if store.storageRecoveryNeeded {
                         Text("NAGISEN could not read part of your local history. Restore a recent backup below before logging new data.")
                             .font(.subheadline.weight(.medium)).foregroundStyle(Theme.accentText)
@@ -172,36 +172,36 @@ struct ProfileView: View {
                         NavigationLink {
                             ProgressViewScreen()
                         } label: {
-                            MenuRow(symbol: "target", title: "Goals",
-                                    detail: "Daily targets, insights & progress")
+                            MenuRow(symbol: "target", title: String(localized: "Goals"),
+                                    detail: String(localized: "Daily targets, insights & progress"))
                         }
                         Divider().overlay(Theme.line)
                         NavigationLink {
                             DietPlanView()
                         } label: {
-                            MenuRow(symbol: "fork.knife", title: "Food plan",
-                                    detail: "Meals, calories & macros")
+                            MenuRow(symbol: "fork.knife", title: String(localized: "Food plan"),
+                                    detail: String(localized: "Meals, calories & macros"))
                         }
                         Divider().overlay(Theme.line)
                         NavigationLink {
                             WeightHistoryView()
                         } label: {
-                            MenuRow(symbol: "scalemass", title: "Weight log",
-                                    detail: latestWeight.map { "\($0.kilograms.formatted(.number.precision(.fractionLength(1)))) kg latest" } ?? "Add your first weight")
+                            MenuRow(symbol: "scalemass", title: String(localized: "Weight log"),
+                                    detail: latestWeight.map { "\($0.kilograms.formatted(.number.precision(.fractionLength(1)))) kg latest" } ?? String(localized: "Add your first weight"))
                         }
                         Divider().overlay(Theme.line)
                         NavigationLink {
                             BodyDetailsView()
                         } label: {
-                            MenuRow(symbol: "figure.stand", title: "Body details",
-                                    detail: "Age, height & target weight")
+                            MenuRow(symbol: "figure.stand", title: String(localized: "Body details"),
+                                    detail: String(localized: "Age, height & target weight"))
                         }
                         Divider().overlay(Theme.line)
                         NavigationLink {
                             AccessoriesView()
                         } label: {
-                            MenuRow(symbol: "airpodspro", title: "Accessories",
-                                    detail: "AirPods heart rate & Health sources")
+                            MenuRow(symbol: "airpodspro", title: String(localized: "Accessories"),
+                                    detail: String(localized: "AirPods heart rate & Health sources"))
                         }
                     }
                     .softCardStyle()
@@ -227,30 +227,30 @@ struct ProfileView: View {
                     .softCardStyle()
 
                     Button(action: exportData) {
-                        MenuRow(symbol: "square.and.arrow.up", title: "Export my data",
-                                detail: "Save a copy of your NAGISEN history")
+                        MenuRow(symbol: "square.and.arrow.up", title: String(localized: "Export my data"),
+                                detail: String(localized: "Save a copy of your NAGISEN history"))
                     }
                     .buttonStyle(.plain)
                     .softCardStyle()
                     Button { showingImporter = true } label: {
-                        MenuRow(symbol: "square.and.arrow.down", title: "Restore a backup",
-                                detail: "Replace this device's NAGISEN history")
+                        MenuRow(symbol: "square.and.arrow.down", title: String(localized: "Restore a backup"),
+                                detail: String(localized: "Replace this device's NAGISEN history"))
                     }
                     .buttonStyle(.plain)
                     .softCardStyle()
                     Button { showingLoseItImport = true } label: {
                         MenuRow(symbol: "arrow.down.doc",
-                                title: "Import from Lose It!",
+                                title: String(localized: "Import from Lose It!"),
                                 detail: store.legacyStreak.map {
                                     "\($0.count.formatted(.number.grouping(.automatic)))-day streak on file"
-                                } ?? "Bring over food history and your streak")
+                                } ?? String(localized: "Bring over food history and your streak"))
                     }
                     .buttonStyle(.plain)
                     .softCardStyle()
                     if store.latestAutomaticBackup != nil {
                         Button { showingAutomaticRestore = true } label: {
-                            MenuRow(symbol: "clock.arrow.circlepath", title: "Recover recent history",
-                                    detail: "Restore the latest local backup")
+                            MenuRow(symbol: "clock.arrow.circlepath", title: String(localized: "Recover recent history"),
+                                    detail: String(localized: "Restore the latest local backup"))
                         }
                         .buttonStyle(.plain)
                         .softCardStyle()
@@ -281,24 +281,24 @@ struct ProfileView: View {
             .nagisenDialog("Replace your current NAGISEN history?", isPresented: Binding(
                 get: { pendingRestore != nil },
                 set: { if !$0 { pendingRestore = nil } }
-            ), message: "This replaces current food, goals, weight, water, and workout history. Export a copy first if you want to keep it.") {
+            ), message: String(localized: "This replaces current food, goals, weight, water, and workout history. Export a copy first if you want to keep it.")) {
                 let backup = pendingRestore
-                return [NagisenAction(title: "Replace with backup", destructive: true) {
+                return [NagisenAction(title: String(localized: "Replace with backup"), destructive: true) {
                     if let backup, !store.restoreJSON(backup) { restoreError = true }
                 }]
             }
             .nagisenDialog("Restore the latest automatic backup?", isPresented: $showingAutomaticRestore,
-                           message: "Current NAGISEN history will be replaced. Export it first if you want to keep both versions.") {
-                [NagisenAction(title: "Restore recent history", destructive: true) {
+                           message: String(localized: "Current NAGISEN history will be replaced. Export it first if you want to keep both versions.")) {
+                [NagisenAction(title: String(localized: "Restore recent history"), destructive: true) {
                     if !store.restoreLatestAutomaticBackup() { restoreError = true }
                 }]
             }
             .nagisenDialog("Could not restore backup", isPresented: $restoreError,
-                           message: "Choose a NAGISEN JSON backup created by Export my data.", cancelTitle: "OK")
+                           message: String(localized: "Choose a NAGISEN JSON backup created by Export my data."), cancelTitle: "OK")
             .nagisenDialog("Which history should NAGISEN keep?", isPresented: $showingCloudChoice,
-                           message: "Both versions changed. The replaced iPhone history is saved to a local backup first.") {
-                [NagisenAction(title: "Keep this iPhone") { Task { await community.keepThisPhone(store) } },
-                 NagisenAction(title: "Use iCloud copy") { Task { await community.useICloud(store) } }]
+                           message: String(localized: "Both versions changed. The replaced iPhone history is saved to a local backup first.")) {
+                [NagisenAction(title: String(localized: "Keep this iPhone")) { Task { await community.keepThisPhone(store) } },
+                 NagisenAction(title: String(localized: "Use iCloud copy")) { Task { await community.useICloud(store) } }]
             }
             .task { await community.connect(); await community.sync(store) }
         }
@@ -338,8 +338,8 @@ private struct MenuRow: View {
                 .foregroundStyle(Theme.accentText)
                 .frame(width: 28)
             VStack(alignment: .leading, spacing: 4) {
-                Text(title).font(.body.weight(.medium)).foregroundStyle(Theme.ink)
-                Text(detail).font(.caption).foregroundStyle(Theme.muted)
+                Text(ui: title).font(.body.weight(.medium)).foregroundStyle(Theme.ink)
+                Text(ui: detail).font(.caption).foregroundStyle(Theme.muted)
             }
             Spacer()
             Image(systemName: "chevron.right")
@@ -372,10 +372,10 @@ private struct BodyDetailsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 26) {
-                NagisenHeader("Body details", subtitle: "The basics behind your plan.", onBack: { dismiss() },
-                              actionTitle: "Save", actionEnabled: valid, onAction: save)
+                NagisenHeader("Body details", subtitle: String(localized: "The basics behind your plan."), onBack: { dismiss() },
+                              actionTitle: String(localized: "Save"), actionEnabled: valid, onAction: save)
                 NagisenSection("About you") {
-                    NagisenTextRow("Age", placeholder: "Years", text: $age)
+                    NagisenTextRow("Age", placeholder: String(localized: "Years"), text: $age)
                     Divider().overlay(Theme.line)
                     NagisenTextRow("Height", placeholder: "0", unit: "cm", text: $height, keyboard: .decimalPad)
                 }
@@ -419,12 +419,12 @@ struct WeightHistoryView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                NagisenHeader("Weight log", subtitle: "A clear view of your progress.", onBack: { dismiss() },
-                              actionTitle: "Add", onAction: { showingAdd = true })
+                NagisenHeader("Weight log", subtitle: String(localized: "A clear view of your progress."), onBack: { dismiss() },
+                              actionTitle: String(localized: "Add"), onAction: { showingAdd = true })
                 if let latest = sorted.first {
                     VStack(alignment: .leading, spacing: 5) {
                         Text("LATEST WEIGHT")
-                            .font(.caption2.weight(.semibold)).tracking(2)
+                            .font(.caption2.weight(.semibold)).nagisenTracking(2)
                             .foregroundStyle(Theme.muted)
                         Text("\(latest.kilograms.formatted(.number.precision(.fractionLength(1)))) kg")
                             .font(.system(size: 37, weight: .regular, design: .serif))
@@ -488,7 +488,7 @@ struct AddWeightView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 26) {
-                NagisenHeader("Log weight", subtitle: "One entry at a time.", symbol: "xmark", onBack: { dismiss() })
+                NagisenHeader("Log weight", subtitle: String(localized: "One entry at a time."), symbol: "xmark", onBack: { dismiss() })
                 NagisenSection("Weight") {
                     NagisenTextRow("Weight", placeholder: "0.0", unit: "kg", text: $kilograms, keyboard: .decimalPad)
                     Divider().overlay(Theme.line)

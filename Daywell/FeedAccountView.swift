@@ -47,9 +47,9 @@ struct FeedAccountView: View {
 
     private var title: String {
         switch feed.state {
-        case .ready: "Signed in"
-        case .needsUsername: "Choose a username"
-        default: creating ? "Create account" : "Sign in"
+        case .ready: String(localized: "Signed in")
+        case .needsUsername: String(localized: "Choose a username")
+        default: creating ? String(localized: "Create account") : String(localized: "Sign in")
         }
     }
 
@@ -67,7 +67,7 @@ struct FeedAccountView: View {
                       let token = credential.identityToken.flatMap({ String(data: $0, encoding: .utf8) }) else {
                     if case .failure(let error) = result,
                        (error as? ASAuthorizationError)?.code != .canceled {
-                        feed.message = "Sign in with Apple didn't finish. \(error.localizedDescription)"
+                        feed.message = String(localized: "Sign in with Apple didn't finish. \(error.localizedDescription)")
                     }
                     return
                 }
@@ -77,7 +77,7 @@ struct FeedAccountView: View {
             .frame(height: 52)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             Text("or with email")
-                .font(.caption2.weight(.semibold)).tracking(2)
+                .font(.caption2.weight(.semibold)).nagisenTracking(2)
                 .foregroundStyle(Theme.muted)
                 .frame(maxWidth: .infinity)
             #endif
@@ -95,7 +95,7 @@ struct FeedAccountView: View {
             }
             .padding(.horizontal, 16)
             .nagisenGlass(in: RoundedRectangle(cornerRadius: 15), tint: Theme.surface.opacity(0.18))
-            NagisenPrimaryButton(creating ? "Create account" : "Sign in",
+            NagisenPrimaryButton(creating ? String(localized: "Create account") : String(localized: "Sign in"),
                                  enabled: email.contains("@") && password.count >= (creating ? 8 : 1) && !feed.isBusy) {
                 Task {
                     if creating {
@@ -181,7 +181,7 @@ struct NewPasswordView: View {
             .padding(.horizontal, 22).padding(.top, 12)
             .foregroundStyle(Theme.ink)
             .background(NagisenBackdrop())
-            .nagisenSheetBar("New password", onClose: { dismiss() }, actionTitle: "Save",
+            .nagisenSheetBar("New password", onClose: { dismiss() }, actionTitle: String(localized: "Save"),
                              actionEnabled: password.count >= 8, busy: feed.isBusy) {
                 Task { if await feed.changePassword(to: password) { dismiss() } }
             }

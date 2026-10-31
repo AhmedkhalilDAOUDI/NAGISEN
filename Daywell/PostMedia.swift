@@ -11,10 +11,10 @@ enum PostMediaError: LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-        case .unreadable: "That photo or video couldn't be opened."
-        case .videoTooLong(let seconds): "Videos can be up to \(Int(PostMedia.maxVideoSeconds)) seconds. This one is \(seconds)."
-        case .tooLarge: "That file is over 50 MB, even after compressing it."
-        case .exportFailed: "The video couldn't be prepared. Try a different one."
+        case .unreadable: String(localized: "That photo or video couldn't be opened.")
+        case .videoTooLong(let seconds): String(localized: "Videos can be up to \(Int(PostMedia.maxVideoSeconds)) seconds. This one is \(seconds).")
+        case .tooLarge: String(localized: "That file is over 50 MB, even after compressing it.")
+        case .exportFailed: String(localized: "The video couldn't be prepared. Try a different one.")
         }
     }
 }

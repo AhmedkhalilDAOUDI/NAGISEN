@@ -46,7 +46,7 @@ struct LoseItImportPreview {
         if StreakEngine.dayKey(for: earliestDate) == StreakEngine.dayKey(for: latestDate) {
             return earliestDate.formatted(format)
         }
-        return "\(earliestDate.formatted(format)) – \(latestDate.formatted(format))"
+        return String(localized: "\(earliestDate.formatted(format)) – \(latestDate.formatted(format))")
     }
 }
 
@@ -185,7 +185,7 @@ enum LoseItImporter {
             guard let text = decodeText(file.data) else {
                 // Binary files that are not archives are simply not data we understand.
                 if !lower.hasSuffix(".zip") {
-                    skip("Unsupported files", "Not readable as text", count: 1)
+                    skip(String(localized: "Unsupported files"), String(localized: "Not readable as text"), count: 1)
                 }
                 return
             }
@@ -201,7 +201,7 @@ enum LoseItImporter {
 
         private mutating func consumeJSON(_ data: Data, name: String) {
             guard let object = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed]) else {
-                skip("Unreadable files", "JSON could not be parsed", count: 1)
+                skip(String(localized: "Unreadable files"), "JSON could not be parsed", count: 1)
                 return
             }
             if let array = object as? [[String: Any]] {
@@ -209,7 +209,7 @@ enum LoseItImporter {
                 return
             }
             guard let root = object as? [String: Any] else {
-                skip("Unreadable files", "JSON root is not an object", count: 1)
+                skip(String(localized: "Unreadable files"), "JSON root is not an object", count: 1)
                 return
             }
             if let legacy = root["legacyStreak"] as? [String: Any] {
@@ -258,12 +258,12 @@ enum LoseItImporter {
 
             guard let count = int(["count", "days", "streak"]), count > 0,
                   let rawEnd = string(["lastConfirmedDate", "lastConfirmedDayKey", "lastConfirmed", "endDate"]) else {
-                skip("Legacy streak", "Missing count or last confirmed date", count: 1)
+                skip(String(localized: "Legacy streak"), String(localized: "Missing count or last confirmed date"), count: 1)
                 return
             }
             let endDate = LoseItDateParser.parse(rawEnd, calendar: calendar) ?? StreakEngine.date(fromDayKey: rawEnd, calendar: calendar)
             guard let endDate else {
-                skip("Legacy streak", "Last confirmed date could not be read", count: 1)
+                skip(String(localized: "Legacy streak"), String(localized: "Last confirmed date could not be read"), count: 1)
                 return
             }
             let legacy = LegacyStreak(
@@ -275,7 +275,7 @@ enum LoseItImporter {
                 migrationVersion: int(["migrationVersion"]) ?? LegacyStreak.currentMigrationVersion,
                 recordedAt: LoseItDateParser.parse(string(["recordedAt"]) ?? "", calendar: calendar) ?? .now)
             guard legacy.isWellFormed else {
-                skip("Legacy streak", "Values are outside a plausible range", count: 1)
+                skip(String(localized: "Legacy streak"), String(localized: "Values are outside a plausible range"), count: 1)
                 return
             }
             preview.legacy = StreakEngine.merge(preview.legacy, with: legacy) ?? legacy
@@ -298,13 +298,13 @@ enum LoseItImporter {
             switch forcedKind {
             case .weight:
                 guard let date = rowDate(record) else {
-                    skip("Rows without a date", "Weight row had no readable date", count: 1)
+                    skip(String(localized: "Rows without a date"), String(localized: "Weight row had no readable date"), count: 1)
                     return
                 }
                 makeWeight(record, date: date)
             case .dailySummary:
                 guard let date = rowDate(record) else {
-                    skip("Rows without a date", "Summary row had no readable date", count: 1)
+                    skip(String(localized: "Rows without a date"), String(localized: "Summary row had no readable date"), count: 1)
                     return
                 }
                 makeSummary(record, date: date)
@@ -321,7 +321,7 @@ enum LoseItImporter {
         private mutating func consumeDelimited(_ text: String, name: String) {
             let rows = CSVReader.rows(from: text)
             guard rows.count > 1 else {
-                skip("Unreadable files", "No data rows", count: 1)
+                skip(String(localized: "Unreadable files"), String(localized: "No data rows"), count: 1)
                 return
             }
             let header = rows[0]
@@ -343,11 +343,11 @@ enum LoseItImporter {
         private mutating func consume(_ record: RawRecord) {
             let dateText = record.text(LoseItImporter.Alias.date)
             guard let dateText else {
-                skip("Rows without a date", "No date column found on the row", count: 1)
+                skip(String(localized: "Rows without a date"), String(localized: "No date column found on the row"), count: 1)
                 return
             }
             guard let date = LoseItDateParser.parse(dateText, calendar: calendar) else {
-                skip("Rows with an unreadable date", "Could not parse \(dateText)", count: 1)
+                skip(String(localized: "Rows with an unreadable date"), "Could not parse \(dateText)", count: 1)
                 return
             }
             let hasName = record.has(LoseItImporter.Alias.name)
@@ -361,7 +361,7 @@ enum LoseItImporter {
             } else if hasCalories {
                 makeSummary(record, date: date)
             } else {
-                skip("Unrecognized rows", "No food name, weight or calories", count: 1)
+                skip(String(localized: "Unrecognized rows"), String(localized: "No food name, weight or calories"), count: 1)
             }
         }
 
@@ -372,7 +372,7 @@ enum LoseItImporter {
             let energyHeader = record.header(LoseItImporter.Alias.calories) ?? ""
             let calories = Int((energyHeader.contains("kj") ? caloriesRaw / 4.184 : caloriesRaw).rounded())
             guard (0...20_000).contains(calories) else {
-                skip("Food entries", "Calories outside a plausible range", count: 1)
+                skip(String(localized: "Food entries"), String(localized: "Calories outside a plausible range"), count: 1)
                 return
             }
 
@@ -389,7 +389,7 @@ enum LoseItImporter {
                 }
             }
             guard servings.isFinite, servings > 0, servings <= 100 else {
-                skip("Food entries", "Serving count outside a plausible range", count: 1)
+                skip(String(localized: "Food entries"), String(localized: "Serving count outside a plausible range"), count: 1)
                 return
             }
 
@@ -432,7 +432,7 @@ enum LoseItImporter {
                 kilograms *= 0.453_592_37
             }
             guard (20...500).contains(kilograms) else {
-                skip("Weight records", "Outside 20–500 kg after unit conversion", count: 1)
+                skip(String(localized: "Weight records"), String(localized: "Outside 20–500 kg after unit conversion"), count: 1)
                 return
             }
             let duplicate = existingWeights.contains {
@@ -471,12 +471,12 @@ enum LoseItImporter {
                 preview.warnings.append("Could not open archive: \(unreadableFiles.joined(separator: ", ")). Unzip it and choose the CSV files instead.")
             }
             if !preview.dailySummaries.isEmpty {
-                skip("Daily summaries", "Stored as summaries only — NAGISEN never invents food entries from calorie totals",
+                skip(String(localized: "Daily summaries"), String(localized: "Stored as summaries only — NAGISEN never invents food entries from calorie totals"),
                      count: preview.dailySummaries.count)
             }
             preview.skipped = skippedRows
                 .sorted { $0.key < $1.key }
-                .map { LoseItSkippedCategory(category: $0.value.reason.isEmpty ? "Rows" : $0.key.components(separatedBy: "|")[0],
+                .map { LoseItSkippedCategory(category: $0.value.reason.isEmpty ? String(localized: "Rows") : $0.key.components(separatedBy: "|")[0],
                                              reason: $0.value.reason,
                                              rowCount: $0.value.count) }
             return preview

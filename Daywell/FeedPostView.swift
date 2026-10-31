@@ -163,24 +163,24 @@ struct FeedPostView: View {
         }
         .sheet(isPresented: $showingComments) { PostCommentsView(post: post) }
         .sheet(isPresented: $showingLikers) {
-            PeopleListView(title: "Likes") { await feed.likers(of: post) }
+            PeopleListView(title: String(localized: "Likes")) { await feed.likers(of: post) }
         }
         .sheet(item: $viewingMember) { MemberPageView(member: $0) }
         .sheet(isPresented: $editing) { EditPostView(post: post) { post = $0 } }
-        .nagisenDialog("Delete this post?", isPresented: $confirmingDelete, message: "This can't be undone.") {
-            [NagisenAction(title: "Delete post", destructive: true) {
+        .nagisenDialog("Delete this post?", isPresented: $confirmingDelete, message: String(localized: "This can't be undone.")) {
+            [NagisenAction(title: String(localized: "Delete post"), destructive: true) {
                 Task { await feed.delete(post); onRemoved?() }
             }]
         }
         .nagisenDialog("Why are you reporting this post?", isPresented: $reporting,
-                       message: "The post will be hidden from your feed and sent for review.") {
+                       message: String(localized: "The post will be hidden from your feed and sent for review.")) {
             FeedRules.reportReasons.map { reason in
                 NagisenAction(title: reason) { Task { await feed.report(post, reason: reason); onRemoved?() } }
             }
         }
         .nagisenDialog("Block @\(post.username)?", isPresented: $confirmingBlock,
-                       message: "You won’t see their posts, comments or stories anymore. They aren’t told.") {
-            [NagisenAction(title: "Block", destructive: true) { Task { await feed.block(post); onRemoved?() } }]
+                       message: String(localized: "You won’t see their posts, comments or stories anymore. They aren’t told.")) {
+            [NagisenAction(title: String(localized: "Block"), destructive: true) { Task { await feed.block(post); onRemoved?() } }]
         }
     }
 
@@ -197,7 +197,7 @@ struct FeedPostView: View {
             Spacer()
             if post.pinnedAt != nil {
                 Label("Pinned", systemImage: "pin.fill")
-                    .font(.caption2.weight(.semibold)).tracking(1.2).textCase(.uppercase)
+                    .font(.caption2.weight(.semibold)).nagisenTracking(1.2).textCase(.uppercase)
                     .foregroundStyle(Theme.muted)
             }
             Button { showingActions = true } label: {
@@ -207,25 +207,25 @@ struct FeedPostView: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("More for this post")
-            .nagisenActions(isPresented: $showingActions, title: feed.isMine(post) ? "Your post" : "@\(post.username)") {
+            .nagisenActions(isPresented: $showingActions, title: feed.isMine(post) ? String(localized: "Your post") : "@\(post.username)") {
                 var actions: [NagisenAction] = []
                 if feed.isDeveloper {
                     let pinned = post.pinnedAt != nil
-                    actions.append(NagisenAction(title: pinned ? "Unpin" : "Pin to top", symbol: pinned ? "pin.slash" : "pin") {
+                    actions.append(NagisenAction(title: pinned ? String(localized: "Unpin") : String(localized: "Pin to top"), symbol: pinned ? "pin.slash" : "pin") {
                         Task { await feed.setPinned(post, !pinned) }
                     })
                 }
                 if feed.isMine(post) {
-                    return actions + [NagisenAction(title: "Edit post", symbol: "pencil") { editing = true },
-                                      NagisenAction(title: "Delete post", symbol: "trash", destructive: true) { confirmingDelete = true }]
+                    return actions + [NagisenAction(title: String(localized: "Edit post"), symbol: "pencil") { editing = true },
+                                      NagisenAction(title: String(localized: "Delete post"), symbol: "trash", destructive: true) { confirmingDelete = true }]
                 }
                 if feed.isFollowing(post.author) {
-                    actions.append(NagisenAction(title: "Unfollow", symbol: "person.badge.minus") {
+                    actions.append(NagisenAction(title: String(localized: "Unfollow"), symbol: "person.badge.minus") {
                         Task { await feed.unfollow(post.author) }
                     })
                 }
-                actions.append(NagisenAction(title: "Report post", symbol: "flag") { reporting = true })
-                actions.append(NagisenAction(title: "Block", symbol: "hand.raised", destructive: true) { confirmingBlock = true })
+                actions.append(NagisenAction(title: String(localized: "Report post"), symbol: "flag") { reporting = true })
+                actions.append(NagisenAction(title: String(localized: "Block"), symbol: "hand.raised", destructive: true) { confirmingBlock = true })
                 return actions
             }
         }
@@ -390,7 +390,7 @@ struct EditPostView: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .background(NagisenBackdrop())
-            .nagisenSheetBar("Edit post", onClose: { dismiss() }, actionTitle: "Save", actionEnabled: canSave,
+            .nagisenSheetBar("Edit post", onClose: { dismiss() }, actionTitle: String(localized: "Save"), actionEnabled: canSave,
                              busy: feed.isBusy) {
                 Task {
                     if let saved = await feed.edit(post, text: text) { onSaved(saved); dismiss() }

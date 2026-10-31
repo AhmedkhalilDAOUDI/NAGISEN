@@ -263,7 +263,7 @@ final class FeedService: ObservableObject {
                 message = nil
             } catch {
                 // The link was opened on another device, or already used: the email is still confirmed.
-                message = "Your email is confirmed. Sign in with your email and password."
+                message = String(localized: "Your email is confirmed. Sign in with your email and password.")
             }
         }
     }
@@ -330,7 +330,7 @@ final class FeedService: ObservableObject {
             let response = try await client.auth.signUp(email: email.trimmingCharacters(in: .whitespaces),
                                                         password: password, redirectTo: Self.authRedirect)
             if case .user = response {
-                message = "Check your inbox and tap the confirmation link on this iPhone. It opens NAGISEN and signs you in."
+                message = String(localized: "Check your inbox and tap the confirmation link on this iPhone. It opens NAGISEN and signs you in.")
                 return true
             }
             message = nil
@@ -370,7 +370,7 @@ final class FeedService: ObservableObject {
         guard let client, let userID else { return false }
         let name = FeedRules.normalizedUsername(raw)
         guard FeedRules.isValidUsername(name) else {
-            message = "Use 1 to 30 letters, numbers, periods or underscores."
+            message = String(localized: "Use 1 to 30 letters, numbers, periods or underscores.")
             return false
         }
         isBusy = true
@@ -385,9 +385,9 @@ final class FeedService: ObservableObject {
             return true
         } catch let error as PostgrestError where error.code == "23514" {
             // The database's username rule refused it.
-            message = "Use 1 to 30 letters, numbers, periods or underscores."
+            message = String(localized: "Use 1 to 30 letters, numbers, periods or underscores.")
         } catch let error as PostgrestError where error.code == "23505" {
-            message = "That username is taken. Try another."
+            message = String(localized: "That username is taken. Try another.")
         } catch {
             message = Self.describe(error, doing: "save the username")
         }
@@ -431,7 +431,7 @@ final class FeedService: ObservableObject {
             }
             try await client.rpc("delete_my_account").execute()
             try? await client.auth.signOut(scope: .local)
-            message = "Your account and everything you posted have been deleted."
+            message = String(localized: "Your account and everything you posted have been deleted.")
             return true
         } catch {
             message = Self.describe(error, doing: "delete the account")
@@ -458,11 +458,11 @@ final class FeedService: ObservableObject {
         let name = FeedRules.normalizedUsername(raw)
         let newBio = rawBio.trimmingCharacters(in: .whitespacesAndNewlines)
         guard FeedRules.isValidUsername(name) else {
-            message = "Use 1 to 30 letters, numbers, periods or underscores."
+            message = String(localized: "Use 1 to 30 letters, numbers, periods or underscores.")
             return false
         }
         guard newBio.count <= FeedRules.maxBioLength else {
-            message = "Bios can be up to \(FeedRules.maxBioLength) characters."
+            message = String(localized: "Bios can be up to \(FeedRules.maxBioLength) characters.")
             return false
         }
         isBusy = true
@@ -478,9 +478,9 @@ final class FeedService: ObservableObject {
             return true
         } catch let error as PostgrestError where error.code == "23514" {
             // The database's username rule refused it.
-            message = "Use 1 to 30 letters, numbers, periods or underscores."
+            message = String(localized: "Use 1 to 30 letters, numbers, periods or underscores.")
         } catch let error as PostgrestError where error.code == "23505" {
-            message = "That username is taken. Try another."
+            message = String(localized: "That username is taken. Try another.")
         } catch {
             message = Self.describe(error, doing: "save your profile")
         }
@@ -531,7 +531,7 @@ final class FeedService: ObservableObject {
         defer { isBusy = false }
         do {
             _ = try await client.auth.update(user: UserAttributes(email: address), redirectTo: Self.authRedirect)
-            message = "Check your inbox to confirm the change. Your sign-in email stays the same until you do."
+            message = String(localized: "Check your inbox to confirm the change. Your sign-in email stays the same until you do.")
             return true
         } catch {
             message = Self.describe(error, doing: "change your email")
@@ -544,14 +544,14 @@ final class FeedService: ObservableObject {
         guard let client else { return }
         let trimmed = address.trimmingCharacters(in: .whitespaces)
         guard trimmed.contains("@") else {
-            message = "Type your email above first."
+            message = String(localized: "Type your email above first.")
             return
         }
         isBusy = true
         defer { isBusy = false }
         do {
             try await client.auth.resetPasswordForEmail(trimmed, redirectTo: Self.authRedirect)
-            message = "If an account uses \(trimmed), a link to reset the password is on its way."
+            message = String(localized: "If an account uses \(trimmed), a link to reset the password is on its way.")
         } catch {
             message = Self.describe(error, doing: "send the reset link")
         }
@@ -560,14 +560,14 @@ final class FeedService: ObservableObject {
     func changePassword(to password: String) async -> Bool {
         guard let client else { return false }
         guard password.count >= 8 else {
-            message = "Choose a longer password (at least 8 characters)."
+            message = String(localized: "Choose a longer password (at least 8 characters).")
             return false
         }
         isBusy = true
         defer { isBusy = false }
         do {
             _ = try await client.auth.update(user: UserAttributes(password: password))
-            message = "Password changed."
+            message = String(localized: "Password changed.")
             return true
         } catch {
             message = Self.describe(error, doing: "change your password")
@@ -678,7 +678,7 @@ final class FeedService: ObservableObject {
         guard let client, let userID, state == .ready else { return false }
         let body = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard body.count <= FeedRules.maxBodyLength, !body.isEmpty || attachment != nil else {
-            message = "Write something or add a photo or video."
+            message = String(localized: "Write something or add a photo or video.")
             return false
         }
         isBusy = true
@@ -731,7 +731,7 @@ final class FeedService: ObservableObject {
         guard let client, isMine(post) else { return nil }
         let body = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard body.count <= FeedRules.maxBodyLength, !body.isEmpty || post.mediaPath != nil else {
-            message = "A post without a photo or video needs some text."
+            message = String(localized: "A post without a photo or video needs some text.")
             return nil
         }
         isBusy = true
@@ -768,7 +768,7 @@ final class FeedService: ObservableObject {
         struct NewReport: Encodable { let post_id: UUID; let reason: String }
         do {
             try await client.from("reports").insert(NewReport(post_id: post.id, reason: reason)).execute()
-            message = "Thanks. The post is hidden and has been sent for review."
+            message = String(localized: "Thanks. The post is hidden and has been sent for review.")
         } catch {
             message = Self.describe(error, doing: "send the report")
         }
@@ -870,7 +870,7 @@ final class FeedService: ObservableObject {
         do {
             return try await selectPosts(client).eq("id", value: id).single().execute().value
         } catch {
-            message = "That post isn't available anymore."
+            message = String(localized: "That post isn't available anymore.")
             return nil
         }
     }
@@ -898,7 +898,7 @@ final class FeedService: ObservableObject {
         guard let client, let userID, state == .ready else { return nil }
         let body = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !body.isEmpty, body.count <= FeedRules.maxCommentLength else {
-            message = "Comments can be up to \(FeedRules.maxCommentLength) characters."
+            message = String(localized: "Comments can be up to \(FeedRules.maxCommentLength) characters.")
             return nil
         }
         isBusy = true
@@ -939,7 +939,7 @@ final class FeedService: ObservableObject {
         struct NewReport: Encodable { let comment_id: UUID; let reason: String }
         do {
             try await client.from("reports").insert(NewReport(comment_id: comment.id, reason: reason)).execute()
-            message = "Thanks. The comment is hidden and has been sent for review."
+            message = String(localized: "Thanks. The comment is hidden and has been sent for review.")
         } catch {
             message = Self.describe(error, doing: "send the report")
         }
@@ -961,18 +961,18 @@ final class FeedService: ObservableObject {
     static func describe(_ error: any Error, doing action: String) -> String? {
         if error is CancellationError || (error as? URLError)?.code == .cancelled { return nil }
         if let urlError = error as? URLError, urlError.code == .notConnectedToInternet {
-            return "You're offline. Couldn't \(action)."
+            return String(localized: "You're offline. Couldn't \(action).")
         }
         if let auth = error as? AuthError {
             switch auth.errorCode {
-            case .invalidCredentials: return "That email and password don't match."
-            case .emailNotConfirmed: return "Confirm your email first, using the link we sent."
-            case .userAlreadyExists, .emailExists: return "An account with that email already exists. Sign in instead."
-            case .weakPassword: return "Choose a longer password (at least 8 characters)."
-            case .overEmailSendRateLimit: return "Too many emails sent. Try again in a little while."
-            default: return "Couldn't \(action). \(auth.message)"
+            case .invalidCredentials: return String(localized: "That email and password don't match.")
+            case .emailNotConfirmed: return String(localized: "Confirm your email first, using the link we sent.")
+            case .userAlreadyExists, .emailExists: return String(localized: "An account with that email already exists. Sign in instead.")
+            case .weakPassword: return String(localized: "Choose a longer password (at least 8 characters).")
+            case .overEmailSendRateLimit: return String(localized: "Too many emails sent. Try again in a little while.")
+            default: return String(localized: "Couldn't \(action). \(auth.message)")
             }
         }
-        return "Couldn't \(action). \(error.localizedDescription)"
+        return String(localized: "Couldn't \(action). \(error.localizedDescription)")
     }
 }

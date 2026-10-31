@@ -25,18 +25,18 @@ enum BorderTier: Int, CaseIterable, Comparable {
 
     var name: String {
         switch self {
-        case .none: "No border yet"
-        case .washi: "Washi"
-        case .hinoki: "Hinoki"
-        case .copper: "Copper"
-        case .bronze: "Bronze"
-        case .silver: "Silver"
-        case .gold: "Gold"
-        case .sakura: "Sakura"
-        case .indigo: "Indigo"
-        case .jade: "Jade"
-        case .sumi: "Sumi"
-        case .kintsugi: "Kintsugi"
+        case .none: String(localized: "No border yet")
+        case .washi: String(localized: "Washi")
+        case .hinoki: String(localized: "Hinoki")
+        case .copper: String(localized: "Copper")
+        case .bronze: String(localized: "Bronze")
+        case .silver: String(localized: "Silver")
+        case .gold: String(localized: "Gold")
+        case .sakura: String(localized: "Sakura")
+        case .indigo: String(localized: "Indigo")
+        case .jade: String(localized: "Jade")
+        case .sumi: String(localized: "Sumi")
+        case .kintsugi: String(localized: "Kintsugi")
         }
     }
 

@@ -53,7 +53,7 @@ struct MemberPageView: View {
                             .padding(.trailing, 12).padding(.top, 4)
                             .accessibilityLabel("More for @\(member.username)")
                             .nagisenActions(isPresented: $showingActions, title: "@\(member.username)") {
-                                [NagisenAction(title: "Block @\(member.username)", symbol: "hand.raised",
+                                [NagisenAction(title: String(localized: "Block @\(member.username)"), symbol: "hand.raised",
                                                destructive: true) { confirmingBlock = true }]
                             }
                         }
@@ -70,8 +70,8 @@ struct MemberPageView: View {
             }
             .sheet(isPresented: $editing) { NavigationStack { AccountSettingsView(inSheet: true) } }
             .nagisenDialog("Block @\(member.username)?", isPresented: $confirmingBlock,
-                           message: "You won’t see their posts, comments or stories anymore. They aren’t told.") {
-                [NagisenAction(title: "Block", destructive: true) {
+                           message: String(localized: "You won’t see their posts, comments or stories anymore. They aren’t told.")) {
+                [NagisenAction(title: String(localized: "Block"), destructive: true) {
                     Task { if await feed.block(authorID: member.id) { dismiss() } }
                 }]
             }
@@ -100,11 +100,11 @@ struct MemberPageView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(shown.username).font(.subheadline.weight(.semibold)).memberName(shown.special)
                 if let special = shown.special {
-                    Text("\(special.name.uppercased()) · \(special.title.uppercased())")
-                        .font(.caption2.weight(.semibold)).tracking(1.6).foregroundStyle(Theme.accentText)
+                    Text("\(ui(special.name)) · \(ui(special.title))").textCase(.uppercase)
+                        .font(.caption2.weight(.semibold)).nagisenTracking(1.6).foregroundStyle(Theme.accentText)
                 } else if shown.borderTier != .none {
-                    Text("\(shown.borderTier.name.uppercased()) BORDER")
-                        .font(.caption2.weight(.semibold)).tracking(1.6).foregroundStyle(Theme.muted)
+                    Text("\(shown.borderTier.name) BORDER").textCase(.uppercase)
+                        .font(.caption2.weight(.semibold)).nagisenTracking(1.6).foregroundStyle(Theme.muted)
                 }
                 if !shown.bio.isEmpty {
                     Text(shown.bio).font(.subheadline).fixedSize(horizontal: false, vertical: true)
@@ -129,7 +129,7 @@ struct MemberPageView: View {
         Button { action?() } label: {
             VStack(spacing: 2) {
                 Text(value.formatted()).font(.headline)
-                Text(label).font(.caption).foregroundStyle(Theme.muted)
+                Text(ui: label).font(.caption).foregroundStyle(Theme.muted)
             }
             .frame(maxWidth: .infinity)
             .contentShape(Rectangle())

@@ -169,7 +169,7 @@ extension FeedService {
         struct NewReport: Encodable { let story_id: UUID; let reason: String }
         do {
             try await client.from("reports").insert(NewReport(story_id: story.id, reason: reason)).execute()
-            message = "Thanks. The story has been sent for review."
+            message = String(localized: "Thanks. The story has been sent for review.")
         } catch {
             message = Self.describe(error, doing: "send the report")
         }

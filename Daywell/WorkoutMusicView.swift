@@ -75,12 +75,12 @@ private enum ChallengeFactory {
         }
         // Keep an older install usable if its bundled catalog is unavailable.
         if selected.isEmpty {
-            selected = [ChallengeQuest(id: "fallback-walk", category: "cardio", title: "Open Road Ticket",
-                                       detail: "Walk briskly for 20 min.", estimatedMinutes: 20,
+            selected = [ChallengeQuest(id: "fallback-walk", category: "cardio", title: String(localized: "Open Road Ticket"),
+                                       detail: String(localized: "Walk briskly for 20 min."), estimatedMinutes: 20,
                                        symbol: "figure.walk")]
         }
         selected.shuffle()
-        return ChallengePlan(title: "Today's side quests", blocks: selected.map(\.detail),
+        return ChallengePlan(title: String(localized: "Today's side quests"), blocks: selected.map(\.detail),
                              estimatedMinutes: selected.reduce(0) { $0 + $1.estimatedMinutes },
                              symbol: "bolt.heart", quests: selected,
                              difficulty: difficulty.rawValue, wasShuffled: shuffled)
@@ -177,16 +177,16 @@ struct WorkoutMusicView: View {
             guard !plan.activeQuests(for: key).isEmpty else { return nil }
             let earned = finishedDays.contains(key)
             let nameIndex = key.utf8.reduce(0) { ($0 * 31 + Int($1)) % dailyNames.count }
-            return Trophy(id: "daily-\(key)", title: "\(dailyNames[nameIndex]) · \(key.suffix(5))",
-                          subtitle: "Finish the day's pack", symbol: "medal", earned: earned)
+            return Trophy(id: "daily-\(key)", title: "\(ui(dailyNames[nameIndex])) · \(key.suffix(5))",
+                          subtitle: String(localized: "Finish the day's pack"), symbol: "medal", earned: earned)
         }
         return daily + [
-            Trophy(id: "domino", title: "Domino Dealer", subtitle: "Finish a shuffled pack", symbol: "die.face.5", earned: milestones.shuffledPack),
-            Trophy(id: "first", title: store.trophyNames["first"] ?? "First spark", subtitle: "Log a workout", symbol: "figure.walk", earned: milestones.firstWorkout),
-            Trophy(id: "century", title: store.trophyNames["century"] ?? "Sweat legend", subtitle: "Move 100 minutes", symbol: "flame", earned: milestones.hundredMinutes),
-            Trophy(id: "hunter", title: store.trophyNames["hunter"] ?? "Quest goblin", subtitle: "Finish 3 side quests", symbol: "bolt", earned: milestones.threeQuests),
-            Trophy(id: "seven", title: store.trophyNames["seven"] ?? "Seven strong", subtitle: "Log 7 workouts", symbol: "7.circle", earned: milestones.sevenWorkouts),
-            Trophy(id: "long", title: store.trophyNames["long"] ?? "Moon mover", subtitle: "Move 500 minutes", symbol: "crown", earned: milestones.fiveHundredMinutes)
+            Trophy(id: "domino", title: String(localized: "Domino Dealer"), subtitle: String(localized: "Finish a shuffled pack"), symbol: "die.face.5", earned: milestones.shuffledPack),
+            Trophy(id: "first", title: store.trophyNames["first"] ?? String(localized: "First spark"), subtitle: String(localized: "Log a workout"), symbol: "figure.walk", earned: milestones.firstWorkout),
+            Trophy(id: "century", title: store.trophyNames["century"] ?? String(localized: "Sweat legend"), subtitle: String(localized: "Move 100 minutes"), symbol: "flame", earned: milestones.hundredMinutes),
+            Trophy(id: "hunter", title: store.trophyNames["hunter"] ?? String(localized: "Quest goblin"), subtitle: String(localized: "Finish 3 side quests"), symbol: "bolt", earned: milestones.threeQuests),
+            Trophy(id: "seven", title: store.trophyNames["seven"] ?? String(localized: "Seven strong"), subtitle: String(localized: "Log 7 workouts"), symbol: "7.circle", earned: milestones.sevenWorkouts),
+            Trophy(id: "long", title: store.trophyNames["long"] ?? String(localized: "Moon mover"), subtitle: String(localized: "Move 500 minutes"), symbol: "crown", earned: milestones.fiveHundredMinutes)
         ]
     }
 
@@ -207,11 +207,11 @@ struct WorkoutMusicView: View {
             remember(plan.quests ?? [])
         }
         let names: [String: [String]] = [
-            "first": ["First spark", "Tiny thunder", "The starter kit"],
-            "century": ["Sweat legend", "Century samurai", "100-minute hero"],
-            "hunter": ["Quest goblin", "Side quest master", "Challenge collector"],
-            "seven": ["Seven strong", "Lucky seven", "Week warrior"],
-            "long": ["Moon mover", "Halfway to Mars", "The long game"]
+            "first": [String(localized: "First spark"), String(localized: "Tiny thunder"), String(localized: "The starter kit")],
+            "century": [String(localized: "Sweat legend"), String(localized: "Century samurai"), String(localized: "100-minute hero")],
+            "hunter": [String(localized: "Quest goblin"), String(localized: "Side quest master"), String(localized: "Challenge collector")],
+            "seven": [String(localized: "Seven strong"), String(localized: "Lucky seven"), String(localized: "Week warrior")],
+            "long": [String(localized: "Moon mover"), String(localized: "Halfway to Mars"), String(localized: "The long game")]
         ]
         for (id, choices) in names where store.trophyNames[id] == nil {
             store.trophyNames[id] = choices.randomElement()!
@@ -267,7 +267,7 @@ struct WorkoutMusicView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 23) {
-                    NagisenPageHeading(kicker: "NAGISEN MOVE", title: "Keep moving",
+                    NagisenPageHeading(kicker: String(localized: "NAGISEN MOVE"), title: String(localized: "Keep moving"),
                                        subtitle: Date.now.formatted(.dateTime.weekday(.wide).month(.wide).day()))
 
                     NavigationLink {
@@ -280,7 +280,7 @@ struct WorkoutMusicView: View {
                                 .frame(width: 32)
                             VStack(alignment: .leading, spacing: 5) {
                                 Text("PERSONAL RECORDS")
-                                    .font(.caption2.weight(.semibold)).tracking(1.6)
+                                    .font(.caption2.weight(.semibold)).nagisenTracking(1.6)
                                     .foregroundStyle(Theme.muted)
                                 if let featuredRecord {
                                     Text("\(featuredRecord.exercise) · \(featuredRecord.kilograms.formatted(.number.precision(.fractionLength(0...1)))) kg × \(featuredRecord.reps)")
@@ -322,7 +322,7 @@ struct WorkoutMusicView: View {
                     VStack(alignment: .leading, spacing: 15) {
                         HStack {
                             Label("TODAY'S SIDE QUESTS", systemImage: "bolt.heart")
-                                .font(.caption2.weight(.semibold)).tracking(1.5)
+                                .font(.caption2.weight(.semibold)).nagisenTracking(1.5)
                                 .foregroundStyle(Theme.muted)
                             Spacer()
                             if challengeComplete {
@@ -348,11 +348,11 @@ struct WorkoutMusicView: View {
                                         .font(.title3).foregroundStyle(Theme.accentText)
                                         .frame(width: 28)
                                     VStack(alignment: .leading, spacing: 4) {
-                                        Text(quest.category.uppercased())
-                                            .font(.caption2.weight(.semibold)).tracking(1.5)
+                                        Text(ui: quest.category).textCase(.uppercase)
+                                            .font(.caption2.weight(.semibold)).nagisenTracking(1.5)
                                             .foregroundStyle(Theme.muted)
-                                        Text(quest.title).font(.headline)
-                                        Text(quest.detail)
+                                        Text(ui: quest.title).font(.headline)
+                                        Text(ui: quest.detail)
                                             .font(.subheadline).foregroundStyle(Theme.muted)
                                             .fixedSize(horizontal: false, vertical: true)
                                     }
@@ -389,7 +389,7 @@ struct WorkoutMusicView: View {
                     VStack(alignment: .leading, spacing: 15) {
                         HStack {
                             Text("TROPHY SHELF")
-                                .font(.caption2.weight(.semibold)).tracking(2)
+                                .font(.caption2.weight(.semibold)).nagisenTracking(2)
                                 .foregroundStyle(Theme.muted)
                             Spacer()
                             Text("\(trophies.filter(\.earned).count) / \(trophies.count)")
@@ -467,7 +467,7 @@ struct WorkoutMusicView: View {
                         .font(.headline)
                     Picker("Difficulty", selection: $requestedDifficulty) {
                         ForEach(ChallengeFactory.Difficulty.allCases) { difficulty in
-                            Text(difficulty.rawValue).tag(difficulty)
+                            Text(ui: difficulty.rawValue).tag(difficulty)
                         }
                     }
                     .pickerStyle(.segmented)
@@ -504,7 +504,7 @@ struct WorkoutMusicView: View {
         return VStack(alignment: .leading, spacing: 13) {
             HStack {
                 Label("WORKOUT SPLIT", systemImage: "calendar")
-                    .font(.caption2.weight(.semibold)).tracking(1.5)
+                    .font(.caption2.weight(.semibold)).nagisenTracking(1.5)
                     .foregroundStyle(Theme.muted)
                 Spacer()
                 Image(systemName: "chevron.right")
@@ -513,7 +513,7 @@ struct WorkoutMusicView: View {
             }
             if let split, split.days.count == 7 {
                 HStack(alignment: .firstTextBaseline, spacing: 7) {
-                    Text(split.focus(on: .now))
+                    Text(ui: split.focus(on: .now))
                         .font(.system(size: 25, design: .serif))
                         .foregroundStyle(Theme.ink)
                     Text("today")
@@ -526,7 +526,7 @@ struct WorkoutMusicView: View {
                         VStack(spacing: 4) {
                             Text(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][index])
                                 .font(.caption2.weight(isToday ? .bold : .medium))
-                            Text(Self.shortFocus(split.days[index]))
+                            Text(ui: Self.shortFocus(split.days[index]))
                                 .font(.system(size: 10, weight: isToday ? .semibold : .regular))
                                 .lineLimit(2)
                                 .multilineTextAlignment(.center)
@@ -547,7 +547,7 @@ struct WorkoutMusicView: View {
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
         .nagisenGlass(in: RoundedRectangle(cornerRadius: 20), tint: Theme.surface.opacity(0.20))
-        .accessibilityLabel(split == nil ? "Set up workout split" : "Workout split, \(split?.focus(on: .now) ?? "") today")
+        .accessibilityLabel(split == nil ? "Set up workout split" : "Workout split, \(ui(split?.focus(on: .now) ?? "")) today")
     }
 }
 
@@ -587,7 +587,7 @@ private struct TrophyCelebrationView: View {
 
             VStack(spacing: 8) {
                 Text("TROPHY EARNED")
-                    .font(.caption2.weight(.semibold)).tracking(2.5)
+                    .font(.caption2.weight(.semibold)).nagisenTracking(2.5)
                     .foregroundStyle(Theme.muted)
                 Text(trophy.title)
                     .font(.system(size: 34, design: .serif))
@@ -649,16 +649,16 @@ private struct WorkoutSplitEditorView: View {
     @State private var draft = WorkoutSplitTemplate.pushPullLegs.split
     @FocusState private var focusedDay: Int?
 
-    private let dayNames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    private let dayNames = [String(localized: "Monday"), String(localized: "Tuesday"), String(localized: "Wednesday"), String(localized: "Thursday"), String(localized: "Friday"), String(localized: "Saturday"), String(localized: "Sunday")]
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                NagisenHeader("Workout split", subtitle: "A rhythm you can change any time.", onBack: { dismiss() })
+                NagisenHeader("Workout split", subtitle: String(localized: "A rhythm you can change any time."), onBack: { dismiss() })
 
                 VStack(alignment: .leading, spacing: 12) {
                     Text("START WITH A SPLIT")
-                        .font(.caption2.weight(.semibold)).tracking(1.8)
+                        .font(.caption2.weight(.semibold)).nagisenTracking(1.8)
                         .foregroundStyle(Theme.muted)
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 9) {
@@ -679,7 +679,7 @@ private struct WorkoutSplitEditorView: View {
 
                 VStack(alignment: .leading, spacing: 5) {
                     Text("YOUR WEEK")
-                        .font(.caption2.weight(.semibold)).tracking(1.8)
+                        .font(.caption2.weight(.semibold)).nagisenTracking(1.8)
                         .foregroundStyle(Theme.muted)
                         .padding(.bottom, 7)
                     ForEach(0..<7, id: \.self) { index in
@@ -792,7 +792,7 @@ private struct SpotifyMusicCard: View {
                 .frame(width: 32)
             VStack(alignment: .leading, spacing: 3) {
                 Text("MUSIC")
-                    .font(.caption2.weight(.semibold)).tracking(1.6)
+                    .font(.caption2.weight(.semibold)).nagisenTracking(1.6)
                     .foregroundStyle(Theme.muted)
                 Text("See what's playing while you train")
                     .font(.subheadline)
@@ -814,10 +814,10 @@ private struct SpotifyMusicCard: View {
     private var player: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("MUSIC")
-                .font(.caption2.weight(.semibold)).tracking(2.2)
+                .font(.caption2.weight(.semibold)).nagisenTracking(2.2)
                 .foregroundStyle(Theme.muted)
             HStack(spacing: 12) {
-                trackButton("backward.end.fill", label: "Previous Spotify song") {
+                trackButton("backward.end.fill", label: String(localized: "Previous Spotify song")) {
                     spotify.previousTrack()
                 }
                 .frame(maxWidth: .infinity)
@@ -835,7 +835,7 @@ private struct SpotifyMusicCard: View {
                 .frame(width: 112, height: 112)
                 .clipShape(RoundedRectangle(cornerRadius: 17))
                 .overlay(RoundedRectangle(cornerRadius: 17).strokeBorder(Theme.line, lineWidth: 1))
-                trackButton("forward.end.fill", label: "Next Spotify song") {
+                trackButton("forward.end.fill", label: String(localized: "Next Spotify song")) {
                     spotify.nextTrack()
                 }
                 .frame(maxWidth: .infinity)
@@ -898,7 +898,7 @@ private struct PersonalRecordsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                NagisenHeader("Personal records", subtitle: "Your strongest lifts, over time.", onBack: { dismiss() })
+                NagisenHeader("Personal records", subtitle: String(localized: "Your strongest lifts, over time."), onBack: { dismiss() })
                 Button { showingAdd = true } label: {
                     Label("Add a lift", systemImage: "plus")
                         .font(.headline)
@@ -986,7 +986,7 @@ private struct RecordLiftView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                NagisenHeader("Log a lift", subtitle: "Weight and reps are saved on this iPhone.",
+                NagisenHeader("Log a lift", subtitle: String(localized: "Weight and reps are saved on this iPhone."),
                               symbol: "xmark", onBack: { dismiss() })
                 NagisenSection("Exercise") {
                     NagisenPicker("Exercise", selection: $exercise,
@@ -1102,13 +1102,13 @@ private struct AddWorkoutView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 25) {
-                NagisenHeader("Log workout", subtitle: "A session worth remembering.", symbol: "xmark", onBack: { dismiss() })
+                NagisenHeader("Log workout", subtitle: String(localized: "A session worth remembering."), symbol: "xmark", onBack: { dismiss() })
                 VStack(alignment: .leading, spacing: 8) {
                     Image(systemName: challenge?.symbol ?? "figure.run")
                         .font(.system(size: 27)).foregroundStyle(Theme.accentText)
                         .frame(width: 54, height: 54)
                         .background(Theme.accent.opacity(0.11), in: RoundedRectangle(cornerRadius: 13))
-                    Text(challenge?.title ?? "Make it count")
+                    Text(challenge?.title ?? String(localized: "Make it count"))
                         .font(.system(size: 25, design: .serif))
                     Text(challenge == nil ? "Every session adds to your rings and trophies." : "Finish the quest, then save your session to earn the ring.")
                         .font(.subheadline).foregroundStyle(Theme.muted)
@@ -1142,8 +1142,8 @@ private struct AddWorkoutView: View {
                             .font(.caption).foregroundStyle(Theme.muted)
                         ForEach(BodybuildingExerciseCatalog.groups.indices, id: \.self) { index in
                             VStack(alignment: .leading, spacing: 10) {
-                                Text(BodybuildingExerciseCatalog.groups[index].0.uppercased())
-                                    .font(.caption2.weight(.semibold)).tracking(1.5)
+                                Text(ui: BodybuildingExerciseCatalog.groups[index].0).textCase(.uppercase)
+                                    .font(.caption2.weight(.semibold)).nagisenTracking(1.5)
                                     .foregroundStyle(Theme.muted)
                                 ForEach(BodybuildingExerciseCatalog.groups[index].1, id: \.self) { exercise in
                                     Button {
@@ -1223,7 +1223,7 @@ private struct AddWorkoutView: View {
             }
         }
         .safeAreaInset(edge: .bottom) {
-            NagisenPrimaryButton(challenge == nil ? "Save workout" : "Finish quest", enabled: validMinutes != nil) {
+            NagisenPrimaryButton(challenge == nil ? String(localized: "Save workout") : String(localized: "Finish quest"), enabled: validMinutes != nil) {
                 guard let value = validMinutes else { return }
                 let note = detail.trimmingCharacters(in: .whitespacesAndNewlines)
                 let exerciseList = activity == "Bodybuilding" ? selectedBodybuildingExercises.sorted().joined(separator: ", ") : ""

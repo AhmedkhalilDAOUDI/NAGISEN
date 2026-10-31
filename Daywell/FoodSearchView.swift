@@ -45,10 +45,10 @@ struct FoodSearchView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            NagisenHeader("Add food", subtitle: "Find it, then log it.", symbol: "xmark", onBack: { dismiss() })
+            NagisenHeader("Add food", subtitle: String(localized: "Find it, then log it."), symbol: "xmark", onBack: { dismiss() })
                 .padding(.horizontal, 24).padding(.top, 10)
             Picker("Food list", selection: $mode) {
-                ForEach(FoodBrowseMode.allCases) { tab in Text(tab.rawValue).tag(tab) }
+                ForEach(FoodBrowseMode.allCases) { tab in Text(ui: tab.rawValue).tag(tab) }
             }
             .pickerStyle(.segmented)
             .padding(.horizontal, 16)
@@ -298,7 +298,7 @@ struct FoodSearchView: View {
                     } label: {
                         HStack {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(meal.meal.rawValue).foregroundStyle(Theme.ink)
+                                Text(ui: meal.meal.rawValue).foregroundStyle(Theme.ink)
                                 Text("\(meal.date.formatted(date: .abbreviated, time: .omitted)) · \(meal.entries.count) foods")
                                     .font(.caption).foregroundStyle(Theme.muted)
                             }
@@ -379,7 +379,7 @@ struct FoodSearchView: View {
                 }
                 onlineFoods = foods
                 if foods.isEmpty {
-                    searchError = "No online foods with usable nutrition data. Try another term or create a food."
+                    searchError = String(localized: "No online foods with usable nutrition data. Try another term or create a food.")
                 }
             } catch {
                 searchError = error.localizedDescription
@@ -389,10 +389,10 @@ struct FoodSearchView: View {
     }
 
     private func suggestFromPhoto(_ item: PhotosPickerItem) async {
-        photoHint = "Looking at your photo…"
+        photoHint = String(localized: "Looking at your photo…")
         guard let data = try? await item.loadTransferable(type: Data.self),
               let image = UIImage(data: data)?.cgImage else {
-            photoHint = "Couldn’t read that photo. Try searching by name."
+            photoHint = String(localized: "Couldn’t read that photo. Try searching by name.")
             return
         }
         let request = VNClassifyImageRequest()
@@ -402,7 +402,7 @@ struct FoodSearchView: View {
                 $0.confidence >= 0.12 && !$0.identifier.lowercased().contains("non-food")
             }
             guard let candidate else {
-                photoHint = "No clear food suggestion. Search by name or use the barcode."
+                photoHint = String(localized: "No clear food suggestion. Search by name or use the barcode.")
                 return
             }
             let suggestion = candidate.identifier.components(separatedBy: ",").first?
@@ -411,7 +411,7 @@ struct FoodSearchView: View {
             photoHint = "Photo suggests “\(suggestion)”. Check the result and serving before logging."
             searchOnline()
         } catch {
-            photoHint = "No clear food suggestion. Search by name or use the barcode."
+            photoHint = String(localized: "No clear food suggestion. Search by name or use the barcode.")
         }
     }
 }
@@ -432,7 +432,7 @@ private final class FoodVoiceSearch: ObservableObject {
             DispatchQueue.main.async {
                 guard let self else { return }
                 guard authorization == .authorized else {
-                    self.status = "Allow Speech Recognition in iPhone Settings to use voice search."
+                    self.status = String(localized: "Allow Speech Recognition in iPhone Settings to use voice search.")
                     return
                 }
                 self.beginRecording()
@@ -443,7 +443,7 @@ private final class FoodVoiceSearch: ObservableObject {
     private func beginRecording() {
         guard !isRecording, let recognizer, recognizer.isAvailable,
               recognizer.supportsOnDeviceRecognition else {
-            status = "On-device voice search is unavailable. Use the keyboard microphone instead."
+            status = String(localized: "On-device voice search is unavailable. Use the keyboard microphone instead.")
             return
         }
         do {
@@ -472,7 +472,7 @@ private final class FoodVoiceSearch: ObservableObject {
             }
         } catch {
             stop()
-            status = "Couldn’t start voice search. Check microphone access."
+            status = String(localized: "Couldn’t start voice search. Check microphone access.")
         }
     }
 
@@ -515,7 +515,7 @@ struct QuickAddView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                NagisenHeader("Quick add", subtitle: "When you know the numbers.", symbol: "xmark") { dismiss() }
+                NagisenHeader("Quick add", subtitle: String(localized: "When you know the numbers."), symbol: "xmark") { dismiss() }
                 NagisenSection("Entry") {
                     TextField("Name", text: $name).frame(minHeight: 52)
                     Divider()
@@ -526,20 +526,20 @@ struct QuickAddView: View {
                         .frame(minHeight: 52)
                 }
                 NagisenSection("Nutrition") {
-                    NagisenTextRow("Calories", placeholder: "Required", unit: "kcal", text: $calories, keyboard: .decimalPad)
+                    NagisenTextRow("Calories", placeholder: String(localized: "Required"), unit: "kcal", text: $calories, keyboard: .decimalPad)
                     Divider()
-                    NagisenTextRow("Protein", placeholder: "Optional", unit: "g", text: $protein, keyboard: .decimalPad, color: Theme.protein)
+                    NagisenTextRow("Protein", placeholder: String(localized: "Optional"), unit: "g", text: $protein, keyboard: .decimalPad, color: Theme.protein)
                     Divider()
-                    NagisenTextRow("Carbs", placeholder: "Optional", unit: "g", text: $carbs, keyboard: .decimalPad, color: Theme.carbs)
+                    NagisenTextRow("Carbs", placeholder: String(localized: "Optional"), unit: "g", text: $carbs, keyboard: .decimalPad, color: Theme.carbs)
                     Divider()
-                    NagisenTextRow("Fat", placeholder: "Optional", unit: "g", text: $fat, keyboard: .decimalPad, color: Theme.fat)
+                    NagisenTextRow("Fat", placeholder: String(localized: "Optional"), unit: "g", text: $fat, keyboard: .decimalPad, color: Theme.fat)
                 }
                 NagisenPrimaryButton("Add to diary", enabled: canSave) {
                     guard let energy = value(calories) else { return }
                     let food = Food(name: name.trimmingCharacters(in: .whitespacesAndNewlines),
                                     serving: "1 entry", calories: Int(energy.rounded()),
                                     protein: value(protein) ?? 0, carbs: value(carbs) ?? 0,
-                                    fat: value(fat) ?? 0, source: "Your estimate",
+                                    fat: value(fat) ?? 0, source: String(localized: "Your estimate"),
                                     missingMacros: [("protein", protein), ("carbs", carbs), ("fat", fat)]
                                         .compactMap { $0.1.isEmpty ? $0.0 : nil })
                     store.add(food, to: meal, servings: 1, on: date)
@@ -570,7 +570,7 @@ private struct RepeatMealView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                NagisenHeader("Repeat meal", subtitle: "Bring a familiar meal forward.", symbol: "xmark", onBack: { dismiss() })
+                NagisenHeader("Repeat meal", subtitle: String(localized: "Bring a familiar meal forward."), symbol: "xmark", onBack: { dismiss() })
                 NagisenSection("Log to") {
                 NagisenPicker("Meal", selection: $meal, options: Meal.allCases.map { ($0, $0.rawValue) })
                 .frame(minHeight: 54)
@@ -635,7 +635,7 @@ private struct CreateRecipeView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                NagisenHeader("New recipe", subtitle: "Save what you cook, one portion at a time.", symbol: "xmark", onBack: { dismiss() })
+                NagisenHeader("New recipe", subtitle: String(localized: "Save what you cook, one portion at a time."), symbol: "xmark", onBack: { dismiss() })
                 NagisenSection("Recipe") {
                     TextField("Recipe name", text: $name).frame(minHeight: 54)
                     Divider()

@@ -17,7 +17,7 @@ struct CaffeineCard: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Label("CAFFEINE", systemImage: "bolt.fill")
-                    .font(.caption2.weight(.semibold)).tracking(2)
+                    .font(.caption2.weight(.semibold)).nagisenTracking(2)
                     .foregroundStyle(Theme.accentText)
                 Spacer()
                 Button("Details") { showingDetails = true }
@@ -160,7 +160,7 @@ private struct CaffeineDetailView: View {
                         store.addCaffeine(drink, at: drinkTime())
                     } label: {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(drink.name).font(.caption.weight(.semibold))
+                            Text(ui: drink.name).font(.caption.weight(.semibold))
                             Text("\(drink.milligrams) mg").font(.caption2).foregroundStyle(Theme.muted)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -197,7 +197,7 @@ private struct CaffeineDetailView: View {
                         Text(entry.date.formatted(date: .omitted, time: .shortened))
                             .font(.caption.monospacedDigit())
                             .foregroundStyle(Theme.muted)
-                        Text(entry.label).font(.subheadline)
+                        Text(ui: entry.label).font(.subheadline)
                         Spacer()
                         Text("\(entry.milligrams) mg")
                             .font(.caption.monospacedDigit())
@@ -280,7 +280,7 @@ struct CostCard: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Label("SPEND", systemImage: "banknote.fill")
-                    .font(.caption2.weight(.semibold)).tracking(2)
+                    .font(.caption2.weight(.semibold)).nagisenTracking(2)
                     .foregroundStyle(Theme.accentText)
                 Spacer()
                 Button("Prices") { showingDetails = true }
@@ -366,7 +366,7 @@ private struct CostDetailView: View {
             .onDisappear { searchTask?.cancel() }
             .toolbar(.hidden, for: .navigationBar)
             .safeAreaInset(edge: .top, spacing: 0) {
-                NagisenSheetBar(title: "Cost", onClose: { dismiss() })
+                NagisenSheetBar(title: String(localized: "Cost"), onClose: { dismiss() })
                     .overlay(alignment: .trailing) {
                         HStack(spacing: 0) {
                             Button { showingScanner = true } label: {
@@ -642,14 +642,14 @@ private struct PriceRow: View {
     private func subtitle(_ price: FoodPrice?) -> String {
         let detail = price?.purchaseSummary
             ?? (food.gramsPerServing != nil ? "per 100 g" : "per serving · \(food.serving)")
-        return food.brand.isEmpty ? detail : "\(food.brand) · \(detail)"
+        return food.brand.isEmpty ? detail : String(localized: "\(food.brand) · \(detail)")
     }
 
     private func priceText(_ price: FoodPrice?) -> String {
-        guard let price, !price.isEmpty else { return "Set price" }
+        guard let price, !price.isEmpty else { return String(localized: "Set price") }
         if let per100g = price.per100g { return FoodCost.display(per100g) + " / 100 g" }
         if let perServing = price.perServing { return FoodCost.display(perServing) + " / serving" }
-        return "Set price"
+        return String(localized: "Set price")
     }
 }
 
@@ -694,7 +694,7 @@ private struct PriceEditorView: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .background(NagisenBackdrop())
-            .nagisenSheetBar(food.name, onClose: { dismiss() }, actionTitle: "Save", actionEnabled: derived != nil) {
+            .nagisenSheetBar(food.name, onClose: { dismiss() }, actionTitle: String(localized: "Save"), actionEnabled: derived != nil) {
                 if let derived {
                     let price = suggestedPrice
                         ? FoodPrice(per100g: derived.per100g, perServing: derived.perServing)
@@ -878,7 +878,7 @@ private struct PriceEditorView: View {
                 amount = grams.formatted(.number.precision(.fractionLength(0...2)))
                 paid = (observed.value * grams / 100).formatted(.number.precision(.fractionLength(0...2)))
                 suggestedPrice = true
-                note = "Open Prices: exact barcode, \(observed.date), \(FoodCost.display(observed.value)) / 100 g. Check today's shelf price before saving."
+                note = String(localized: "Open Prices: exact barcode, \(observed.date), \(FoodCost.display(observed.value)) / 100 g. Check today's shelf price before saving.")
                 isLooking = false
                 return
             }
@@ -888,7 +888,7 @@ private struct PriceEditorView: View {
                 paid = (retailer.per100g * grams / 100).formatted(.number.precision(.fractionLength(0...2)))
                 suggestedPrice = true
                 priceSourceURL = retailer.sourceURL
-                note = "MyMarket listing: \(retailer.productName), \(FoodCost.display(retailer.per100g)) / 100 g. This is an online shop price, so check your shelf or receipt before saving."
+                note = String(localized: "MyMarket listing: \(retailer.productName), \(FoodCost.display(retailer.per100g)) / 100 g. This is an online shop price, so check your shelf or receipt before saving.")
                 isLooking = false
                 return
             }
@@ -904,7 +904,7 @@ private struct PriceEditorView: View {
                 let range = (suggestion.low != nil && suggestion.high != nil)
                     ? "Estimated \(FoodCost.display(suggestion.low!))–\(FoodCost.display(suggestion.high!)) per \(unit == .grams ? "100 g" : "serving"). " : ""
                 let history = observed.map { " Last barcode record: \($0.date)." } ?? ""
-                note = "DeepSeek estimate, not a verified current price. " + range + (suggestion.note ?? "") + history
+                note = String(localized: "DeepSeek estimate, not a verified current price. ") + range + (suggestion.note ?? "") + history
                 isLooking = false
             } catch {
                 note = (observed.map { "Last barcode record: \($0.date). " } ?? "")

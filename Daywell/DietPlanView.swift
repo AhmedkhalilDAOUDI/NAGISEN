@@ -110,10 +110,10 @@ private enum DietPlanEngine {
         guard picks.count == recipes.count else { return nil }
         let base = picks.flatMap(\.ingredients).reduce(0.0) { total, item in total + item.kcal100 * item.grams / 100 }
         let factor = Double(targetCalories) / max(base, 1)
-        let names = style == .intermittentFasting ? ["First meal", "Second meal", "Dinner"] : ["Breakfast", "Lunch", "Dinner", "Snack"]
+        let names = style == .intermittentFasting ? [String(localized: "First meal"), String(localized: "Second meal"), "Dinner"] : ["Breakfast", "Lunch", "Dinner", String(localized: "Snack")]
         let times: [String?] = style == .intermittentFasting ? ["10:00", "14:00", "19:00"] : Array(repeating: nil, count: 4)
         return PlanDay(meals: picks.enumerated().map { position, recipe in
-            PlanMeal(title: "\(names[position]) · \(recipe.title)", time: times[position],
+            PlanMeal(title: String(localized: "\(names[position]) · \(recipe.title)"), time: times[position],
                      portions: recipe.ingredients.map { $0.scaled(factor) })
         })
     }
@@ -121,79 +121,79 @@ private enum DietPlanEngine {
     private static func menu(for style: DietStyle) -> [[Recipe]] {
         let f = PlanFood.self
         let breakfast = [
-            Recipe(title: "Yogurt, oats & berries", ingredients: [f.yogurt, f.oats, f.berries]),
-            Recipe(title: "Eggs, toast & avocado", ingredients: [f.eggs, f.toast, f.avocado]),
-            Recipe(title: "Banana oat bowl", ingredients: [f.oats, f.banana, f.yogurt])
+            Recipe(title: String(localized: "Yogurt, oats & berries"), ingredients: [f.yogurt, f.oats, f.berries]),
+            Recipe(title: String(localized: "Eggs, toast & avocado"), ingredients: [f.eggs, f.toast, f.avocado]),
+            Recipe(title: String(localized: "Banana oat bowl"), ingredients: [f.oats, f.banana, f.yogurt])
         ]
         let lunch = [
-            Recipe(title: "Chicken rice bowl", ingredients: [f.chicken, f.rice, f.vegetables, f.oliveOil]),
-            Recipe(title: "Tuna quinoa salad", ingredients: [f.tuna, f.quinoa, f.greens, f.oliveOil]),
-            Recipe(title: "Tofu rice bowl", ingredients: [f.tofu, f.rice, f.vegetables, f.oliveOil])
+            Recipe(title: String(localized: "Chicken rice bowl"), ingredients: [f.chicken, f.rice, f.vegetables, f.oliveOil]),
+            Recipe(title: String(localized: "Tuna quinoa salad"), ingredients: [f.tuna, f.quinoa, f.greens, f.oliveOil]),
+            Recipe(title: String(localized: "Tofu rice bowl"), ingredients: [f.tofu, f.rice, f.vegetables, f.oliveOil])
         ]
         let dinner = [
-            Recipe(title: "Salmon & potatoes", ingredients: [f.salmon, f.potatoes, f.vegetables]),
-            Recipe(title: "Chicken & quinoa", ingredients: [f.chicken, f.quinoa, f.vegetables, f.oliveOil]),
-            Recipe(title: "Lentil & tofu plate", ingredients: [f.lentils, f.tofu, f.greens, f.oliveOil])
+            Recipe(title: String(localized: "Salmon & potatoes"), ingredients: [f.salmon, f.potatoes, f.vegetables]),
+            Recipe(title: String(localized: "Chicken & quinoa"), ingredients: [f.chicken, f.quinoa, f.vegetables, f.oliveOil]),
+            Recipe(title: String(localized: "Lentil & tofu plate"), ingredients: [f.lentils, f.tofu, f.greens, f.oliveOil])
         ]
         let snack = [
-            Recipe(title: "Yogurt & almonds", ingredients: [f.yogurt, f.almonds]),
-            Recipe(title: "Banana & peanut butter", ingredients: [f.banana, f.peanutButter]),
-            Recipe(title: "Cottage cheese & berries", ingredients: [f.cottage, f.berries])
+            Recipe(title: String(localized: "Yogurt & almonds"), ingredients: [f.yogurt, f.almonds]),
+            Recipe(title: String(localized: "Banana & peanut butter"), ingredients: [f.banana, f.peanutButter]),
+            Recipe(title: String(localized: "Cottage cheese & berries"), ingredients: [f.cottage, f.berries])
         ]
         switch style {
         case .balanced: return [breakfast, lunch, dinner, snack]
         case .mediterranean:
             return [
-                [Recipe(title: "Yogurt, walnuts & berries", ingredients: [f.yogurt, f.walnuts, f.berries]),
-                 Recipe(title: "Eggs & whole-grain toast", ingredients: [f.eggs, f.toast, f.oliveOil])],
-                [Recipe(title: "Lentil feta salad", ingredients: [f.lentils, f.feta, f.greens, f.olives, f.oliveOil]),
-                 Recipe(title: "Tuna quinoa salad", ingredients: [f.tuna, f.quinoa, f.greens, f.oliveOil])],
-                [Recipe(title: "Salmon, potatoes & greens", ingredients: [f.salmon, f.potatoes, f.greens, f.oliveOil]),
-                 Recipe(title: "Chicken & vegetables", ingredients: [f.chicken, f.quinoa, f.vegetables, f.oliveOil])],
-                [Recipe(title: "Fruit & nuts", ingredients: [f.banana, f.almonds]),
-                 Recipe(title: "Yogurt & berries", ingredients: [f.yogurt, f.berries, f.walnuts])]
+                [Recipe(title: String(localized: "Yogurt, walnuts & berries"), ingredients: [f.yogurt, f.walnuts, f.berries]),
+                 Recipe(title: String(localized: "Eggs & whole-grain toast"), ingredients: [f.eggs, f.toast, f.oliveOil])],
+                [Recipe(title: String(localized: "Lentil feta salad"), ingredients: [f.lentils, f.feta, f.greens, f.olives, f.oliveOil]),
+                 Recipe(title: String(localized: "Tuna quinoa salad"), ingredients: [f.tuna, f.quinoa, f.greens, f.oliveOil])],
+                [Recipe(title: String(localized: "Salmon, potatoes & greens"), ingredients: [f.salmon, f.potatoes, f.greens, f.oliveOil]),
+                 Recipe(title: String(localized: "Chicken & vegetables"), ingredients: [f.chicken, f.quinoa, f.vegetables, f.oliveOil])],
+                [Recipe(title: String(localized: "Fruit & nuts"), ingredients: [f.banana, f.almonds]),
+                 Recipe(title: String(localized: "Yogurt & berries"), ingredients: [f.yogurt, f.berries, f.walnuts])]
             ]
         case .highProtein:
             return [
-                [Recipe(title: "Eggs & Greek yogurt", ingredients: [f.eggs, f.yogurt, f.berries]),
-                 Recipe(title: "Cottage cheese oats", ingredients: [f.cottage, f.oats, f.berries])],
-                [Recipe(title: "Chicken quinoa bowl", ingredients: [f.chicken, f.quinoa, f.vegetables]),
-                 Recipe(title: "Tuna rice bowl", ingredients: [f.tuna, f.rice, f.vegetables])],
-                [Recipe(title: "Salmon & tofu plate", ingredients: [f.salmon, f.tofu, f.vegetables]),
-                 Recipe(title: "Chicken & potatoes", ingredients: [f.chicken, f.potatoes, f.vegetables])],
-                [Recipe(title: "Cottage cheese & almonds", ingredients: [f.cottage, f.almonds]),
-                 Recipe(title: "Greek yogurt & peanut butter", ingredients: [f.yogurt, f.peanutButter])]
+                [Recipe(title: String(localized: "Eggs & Greek yogurt"), ingredients: [f.eggs, f.yogurt, f.berries]),
+                 Recipe(title: String(localized: "Cottage cheese oats"), ingredients: [f.cottage, f.oats, f.berries])],
+                [Recipe(title: String(localized: "Chicken quinoa bowl"), ingredients: [f.chicken, f.quinoa, f.vegetables]),
+                 Recipe(title: String(localized: "Tuna rice bowl"), ingredients: [f.tuna, f.rice, f.vegetables])],
+                [Recipe(title: String(localized: "Salmon & tofu plate"), ingredients: [f.salmon, f.tofu, f.vegetables]),
+                 Recipe(title: String(localized: "Chicken & potatoes"), ingredients: [f.chicken, f.potatoes, f.vegetables])],
+                [Recipe(title: String(localized: "Cottage cheese & almonds"), ingredients: [f.cottage, f.almonds]),
+                 Recipe(title: String(localized: "Greek yogurt & peanut butter"), ingredients: [f.yogurt, f.peanutButter])]
             ]
         case .lowerCarb:
             return [
-                [Recipe(title: "Eggs & avocado", ingredients: [f.eggs, f.avocado, f.greens]),
-                 Recipe(title: "Yogurt & walnuts", ingredients: [f.yogurt, f.walnuts, f.berries])],
-                [Recipe(title: "Chicken salad", ingredients: [f.chicken, f.greens, f.avocado, f.oliveOil]),
-                 Recipe(title: "Tuna feta salad", ingredients: [f.tuna, f.feta, f.greens, f.oliveOil])],
-                [Recipe(title: "Salmon & vegetables", ingredients: [f.salmon, f.vegetables, f.oliveOil]),
-                 Recipe(title: "Tofu & greens", ingredients: [f.tofu, f.vegetables, f.oliveOil])],
-                [Recipe(title: "Cheese & nuts", ingredients: [f.cottage, f.almonds]),
-                 Recipe(title: "Yogurt & peanut butter", ingredients: [f.yogurt, f.peanutButter])]
+                [Recipe(title: String(localized: "Eggs & avocado"), ingredients: [f.eggs, f.avocado, f.greens]),
+                 Recipe(title: String(localized: "Yogurt & walnuts"), ingredients: [f.yogurt, f.walnuts, f.berries])],
+                [Recipe(title: String(localized: "Chicken salad"), ingredients: [f.chicken, f.greens, f.avocado, f.oliveOil]),
+                 Recipe(title: String(localized: "Tuna feta salad"), ingredients: [f.tuna, f.feta, f.greens, f.oliveOil])],
+                [Recipe(title: String(localized: "Salmon & vegetables"), ingredients: [f.salmon, f.vegetables, f.oliveOil]),
+                 Recipe(title: String(localized: "Tofu & greens"), ingredients: [f.tofu, f.vegetables, f.oliveOil])],
+                [Recipe(title: String(localized: "Cheese & nuts"), ingredients: [f.cottage, f.almonds]),
+                 Recipe(title: String(localized: "Yogurt & peanut butter"), ingredients: [f.yogurt, f.peanutButter])]
             ]
         case .keto:
             return [
-                [Recipe(title: "Eggs, avocado & olive oil", ingredients: [f.eggs, f.avocado, f.oliveOil]),
-                 Recipe(title: "Eggs & feta", ingredients: [f.eggs, f.feta, f.oliveOil])],
-                [Recipe(title: "Chicken avocado salad", ingredients: [f.chicken, f.avocado, f.greens, f.oliveOil]),
-                 Recipe(title: "Tuna olive salad", ingredients: [f.tuna, f.olives, f.greens, f.oliveOil])],
-                [Recipe(title: "Salmon & greens", ingredients: [f.salmon, f.greens, f.oliveOil, f.avocado]),
-                 Recipe(title: "Chicken, feta & greens", ingredients: [f.chicken, f.feta, f.greens, f.oliveOil])],
-                [Recipe(title: "Walnuts & olives", ingredients: [f.walnuts, f.olives]),
-                 Recipe(title: "Almonds & feta", ingredients: [f.almonds, f.feta])]
+                [Recipe(title: String(localized: "Eggs, avocado & olive oil"), ingredients: [f.eggs, f.avocado, f.oliveOil]),
+                 Recipe(title: String(localized: "Eggs & feta"), ingredients: [f.eggs, f.feta, f.oliveOil])],
+                [Recipe(title: String(localized: "Chicken avocado salad"), ingredients: [f.chicken, f.avocado, f.greens, f.oliveOil]),
+                 Recipe(title: String(localized: "Tuna olive salad"), ingredients: [f.tuna, f.olives, f.greens, f.oliveOil])],
+                [Recipe(title: String(localized: "Salmon & greens"), ingredients: [f.salmon, f.greens, f.oliveOil, f.avocado]),
+                 Recipe(title: String(localized: "Chicken, feta & greens"), ingredients: [f.chicken, f.feta, f.greens, f.oliveOil])],
+                [Recipe(title: String(localized: "Walnuts & olives"), ingredients: [f.walnuts, f.olives]),
+                 Recipe(title: String(localized: "Almonds & feta"), ingredients: [f.almonds, f.feta])]
             ]
         case .intermittentFasting:
             return [
-                [Recipe(title: "Eggs, toast & yogurt", ingredients: [f.eggs, f.toast, f.yogurt, f.berries]),
-                 Recipe(title: "Oat & yogurt bowl", ingredients: [f.oats, f.yogurt, f.banana, f.almonds])],
-                [Recipe(title: "Chicken rice bowl", ingredients: [f.chicken, f.rice, f.vegetables, f.oliveOil]),
-                 Recipe(title: "Tuna quinoa plate", ingredients: [f.tuna, f.quinoa, f.vegetables, f.oliveOil])],
-                [Recipe(title: "Salmon & potatoes", ingredients: [f.salmon, f.potatoes, f.vegetables, f.yogurt]),
-                 Recipe(title: "Tofu lentil plate", ingredients: [f.tofu, f.lentils, f.greens, f.oliveOil])]
+                [Recipe(title: String(localized: "Eggs, toast & yogurt"), ingredients: [f.eggs, f.toast, f.yogurt, f.berries]),
+                 Recipe(title: String(localized: "Oat & yogurt bowl"), ingredients: [f.oats, f.yogurt, f.banana, f.almonds])],
+                [Recipe(title: String(localized: "Chicken rice bowl"), ingredients: [f.chicken, f.rice, f.vegetables, f.oliveOil]),
+                 Recipe(title: String(localized: "Tuna quinoa plate"), ingredients: [f.tuna, f.quinoa, f.vegetables, f.oliveOil])],
+                [Recipe(title: String(localized: "Salmon & potatoes"), ingredients: [f.salmon, f.potatoes, f.vegetables, f.yogurt]),
+                 Recipe(title: String(localized: "Tofu lentil plate"), ingredients: [f.tofu, f.lentils, f.greens, f.oliveOil])]
             ]
         }
     }
@@ -240,17 +240,17 @@ struct DietPlanView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                NagisenHeader("Food plan", subtitle: "A week of ideas shaped by your goal.", onBack: { dismiss() })
+                NagisenHeader("Food plan", subtitle: String(localized: "A week of ideas shaped by your goal."), onBack: { dismiss() })
 
                 VStack(alignment: .leading, spacing: 14) {
                     Text("CHOOSE YOUR STYLE")
-                        .font(.caption2.weight(.semibold)).tracking(2).foregroundStyle(Theme.muted)
+                        .font(.caption2.weight(.semibold)).nagisenTracking(2).foregroundStyle(Theme.muted)
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 9) {
                         ForEach(DietStyle.allCases) { style in
                             Button {
                                 store.dietPreferences.style = style
                             } label: {
-                                Text(style.rawValue)
+                                Text(ui: style.rawValue)
                                     .font(.subheadline.weight(.medium))
                                     .lineLimit(2)
                                     .minimumScaleFactor(0.8)
@@ -278,7 +278,7 @@ struct DietPlanView: View {
 
                 VStack(alignment: .leading, spacing: 15) {
                     Text("CALCULATE YOUR TARGET")
-                        .font(.caption2.weight(.semibold)).tracking(2).foregroundStyle(Theme.muted)
+                        .font(.caption2.weight(.semibold)).nagisenTracking(2).foregroundStyle(Theme.muted)
                     HStack {
                         Text("Current weight")
                         Spacer()
@@ -296,11 +296,11 @@ struct DietPlanView: View {
                     .frame(minHeight: 46)
                     Divider()
                     NagisenPicker("Calorie equation", selection: $store.dietPreferences.equation,
-                                  options: [(nil, "Choose")] + EnergyEquation.allCases.map { (Optional($0), $0.rawValue) })
+                                  options: [(nil, String(localized: "Choose"))] + EnergyEquation.allCases.map { (Optional($0), $0.rawValue) })
                     .frame(minHeight: 48)
                     Divider()
                     NagisenPicker("Activity", selection: $store.dietPreferences.activity,
-                                  options: [(nil, "Choose")] + DietActivity.allCases.map { (Optional($0), $0.rawValue) })
+                                  options: [(nil, String(localized: "Choose"))] + DietActivity.allCases.map { (Optional($0), $0.rawValue) })
                     .frame(minHeight: 48)
                     Divider()
                     NagisenPicker("Goal", selection: $store.dietPreferences.direction,
@@ -322,7 +322,7 @@ struct DietPlanView: View {
                     .softCardStyle()
                     VStack(alignment: .leading, spacing: 13) {
                         Text("DAILY PLAN")
-                            .font(.caption2.weight(.semibold)).tracking(2).foregroundStyle(Theme.muted)
+                            .font(.caption2.weight(.semibold)).nagisenTracking(2).foregroundStyle(Theme.muted)
                         HStack(alignment: .firstTextBaseline) {
                             Text("\(target.formatted())")
                                 .font(.system(size: 42, design: .serif))
@@ -332,9 +332,9 @@ struct DietPlanView: View {
                         Text("Today’s portions: \(day.calories.formatted()) kcal")
                             .font(.subheadline)
                         HStack {
-                            macro("PROTEIN", value: day.protein, color: Theme.protein)
-                            macro("CARBS", value: day.carbs, color: Theme.carbs)
-                            macro("FAT", value: day.fat, color: Theme.fat)
+                            macro(String(localized: "PROTEIN"), value: day.protein, color: Theme.protein)
+                            macro(String(localized: "CARBS"), value: day.carbs, color: Theme.carbs)
+                            macro(String(localized: "FAT"), value: day.fat, color: Theme.fat)
                         }
                         Button("Use these as my daily goals") {
                             store.goals = NutritionGoals(calories: target, protein: day.protein,
@@ -420,7 +420,7 @@ struct DietPlanView: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 5) {
                 Circle().fill(color).frame(width: 6, height: 6)
-                Text(label).font(.caption2.weight(.semibold)).tracking(1)
+                Text(ui: label).font(.caption2.weight(.semibold)).nagisenTracking(1)
             }
             .foregroundStyle(color)
             Text("\(value)g").font(.system(size: 21, design: .serif)).foregroundStyle(color)
@@ -452,7 +452,7 @@ private struct GroceryListView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                NagisenHeader("Shopping list", subtitle: "Seven days, gathered together.", symbol: "xmark", onBack: { dismiss() })
+                NagisenHeader("Shopping list", subtitle: String(localized: "Seven days, gathered together."), symbol: "xmark", onBack: { dismiss() })
                 ShareLink(item: shareText) {
                     Label("Share list", systemImage: "square.and.arrow.up")
                         .font(.subheadline.weight(.semibold))

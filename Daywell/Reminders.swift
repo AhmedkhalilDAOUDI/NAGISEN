@@ -68,7 +68,7 @@ enum Reminders {
                 content.title = "NAGISEN"
                 content.body = streak > 0
                     ? "Your \(streak)-day streak is waiting. Check off today when you're done logging."
-                    : "Log your day and check it off to start a streak."
+                    : String(localized: "Log your day and check it off to start a streak.")
                 content.sound = .default
                 let parts = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: date)
                 center.add(UNNotificationRequest(identifier: streakIDs[index], content: content,

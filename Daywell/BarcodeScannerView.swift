@@ -18,7 +18,7 @@ struct BarcodeScannerView: View {
 
     var body: some View {
         VStack(spacing: 18) {
-            NagisenHeader("Scan barcode", subtitle: "Find food from its label.", symbol: "xmark", onBack: { dismiss() })
+            NagisenHeader("Scan barcode", subtitle: String(localized: "Find food from its label."), symbol: "xmark", onBack: { dismiss() })
             Text("Place the barcode inside the frame")
                 .font(.subheadline).foregroundStyle(Theme.muted)
             Group {
@@ -61,7 +61,7 @@ struct BarcodeScannerView: View {
                 Text(errorMessage).font(.footnote).foregroundStyle(Theme.accentText)
                     .multilineTextAlignment(.center)
             }
-            NagisenPrimaryButton(forPricing ? "Find product" : "Look up food",
+            NagisenPrimaryButton(forPricing ? String(localized: "Find product") : String(localized: "Look up food"),
                                  enabled: !isLoading && !barcode.isEmpty) { lookup() }
             Text(forPricing
                  ? "The barcode identifies the product. Check the shelf or receipt before saving a price."

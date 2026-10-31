@@ -42,12 +42,12 @@ struct StoriesBar: View {
         ZStack(alignment: .bottomTrailing) {
             if let myIndex {
                 Button { opening = StoryStart(index: myIndex) } label: {
-                    circle(me, unseen: feed.storyGroups[myIndex].hasUnseen(feed.seenStories), label: "Your story")
+                    circle(me, unseen: feed.storyGroups[myIndex].hasUnseen(feed.seenStories), label: String(localized: "Your story"))
                 }
                 .buttonStyle(.plain)
             } else {
                 PhotosPicker(selection: $picked, matching: .any(of: [.images, .videos])) {
-                    circle(me, unseen: false, label: "Your story")
+                    circle(me, unseen: false, label: String(localized: "Your story"))
                 }
             }
             PhotosPicker(selection: $picked, matching: .any(of: [.images, .videos])) {
@@ -170,7 +170,7 @@ struct StoryViewer: View {
         .onAppear { if let group { storyIndex = group.startIndex(feed.seenStories) } }
         .task(id: story?.id) { await play() }
         .sheet(isPresented: $showingViewers, onDismiss: { paused = false }) {
-            if let story { PeopleListView(title: "Seen by") { await feed.viewers(of: story) } }
+            if let story { PeopleListView(title: String(localized: "Seen by")) { await feed.viewers(of: story) } }
         }
         .nagisenDialog("Why are you reporting this story?", isPresented: $reporting) {
             FeedRules.reportReasons.map { reason in
@@ -178,7 +178,7 @@ struct StoryViewer: View {
             }
         }
         .nagisenDialog("Delete this story?", isPresented: $confirmingDelete) {
-            [NagisenAction(title: "Delete story", destructive: true) {
+            [NagisenAction(title: String(localized: "Delete story"), destructive: true) {
                 if let story { Task { await feed.deleteStory(story); dismiss() } }
             }]
         }
@@ -216,13 +216,13 @@ struct StoryViewer: View {
                 Image(systemName: "ellipsis").frame(width: 44, height: 44)
             }
             .accessibilityLabel("More for this story")
-            .nagisenActions(isPresented: $showingActions, title: isMine ? "Your story" : "Story") {
+            .nagisenActions(isPresented: $showingActions, title: isMine ? "Your story" : String(localized: "Story")) {
                 if isMine {
-                    return [NagisenAction(title: "Delete story", symbol: "trash", destructive: true) { confirmingDelete = true }]
+                    return [NagisenAction(title: String(localized: "Delete story"), symbol: "trash", destructive: true) { confirmingDelete = true }]
                 }
                 guard let story else { return [] }
-                return [NagisenAction(title: "Report story", symbol: "flag") { reporting = true },
-                        NagisenAction(title: "Block @\(story.author.username)", symbol: "hand.raised", destructive: true) {
+                return [NagisenAction(title: String(localized: "Report story"), symbol: "flag") { reporting = true },
+                        NagisenAction(title: String(localized: "Block @\(story.author.username)"), symbol: "hand.raised", destructive: true) {
                             Task { await feed.block(authorID: story.authorID); await feed.loadStories(); dismiss() }
                         }]
             }

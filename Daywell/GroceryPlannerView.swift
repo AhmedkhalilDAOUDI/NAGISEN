@@ -226,11 +226,11 @@ struct GroceryPlannerView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 if showBackButton {
-                    NagisenHeader("Kitchen", subtitle: "Meals made with what you actually bought.", onBack: { dismiss() })
+                    NagisenHeader("Kitchen", subtitle: String(localized: "Meals made with what you actually bought."), onBack: { dismiss() })
                         .padding(.horizontal, 20)
                 } else {
-                    NagisenPageHeading(kicker: "NAGISEN LAB", title: "Kitchen",
-                                       subtitle: "Your kitchen. Your plan.")
+                    NagisenPageHeading(kicker: String(localized: "NAGISEN LAB"), title: String(localized: "Kitchen"),
+                                       subtitle: String(localized: "Your kitchen. Your plan."))
                         .padding(.horizontal, 20)
                 }
                 finderPanel
@@ -269,7 +269,7 @@ struct GroceryPlannerView: View {
             Task {
                 guard let data = try? await item.loadTransferable(type: Data.self),
                       let image = UIImage(data: data) else {
-                    photoStatus = "Couldn’t read this photo. Try another one or search by name."
+                    photoStatus = String(localized: "Couldn’t read this photo. Try another one or search by name.")
                     return
                 }
                 await recognizeProduct(in: image)
@@ -281,7 +281,7 @@ struct GroceryPlannerView: View {
             isSearchingOnline = false
             let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
             guard query.count >= 2 else { return }
-            onlineStatus = "Searching the internet…"
+            onlineStatus = String(localized: "Searching the internet…")
             isSearchingOnline = true
             try? await Task.sleep(for: .milliseconds(350))
             guard !Task.isCancelled else { return }
@@ -326,8 +326,8 @@ struct GroceryPlannerView: View {
             }
         }
         .nagisenDialog("Replace this plan?", isPresented: $showingRegenerate,
-                       message: "The current plan will be replaced. Foods you already logged stay in your diary.") {
-            [NagisenAction(title: "Generate new plan") { generate() }]
+                       message: String(localized: "The current plan will be replaced. Foods you already logged stay in your diary.")) {
+            [NagisenAction(title: String(localized: "Generate new plan")) { generate() }]
         }
     }
 
@@ -360,13 +360,13 @@ struct GroceryPlannerView: View {
             .background(Theme.paper.opacity(0.75), in: RoundedRectangle(cornerRadius: 14))
 
             HStack(alignment: .top, spacing: 4) {
-                Button { showingScanner = true } label: { labToolLabel("Barcode", symbol: "barcode.viewfinder") }
+                Button { showingScanner = true } label: { labToolLabel(String(localized: "Barcode"), symbol: "barcode.viewfinder") }
                 Button { showingCamera = true } label: { labToolLabel("Camera", symbol: "camera") }
                     .disabled(!UIImagePickerController.isSourceTypeAvailable(.camera))
                 PhotosPicker(selection: $photoItem, matching: .images) {
-                    labToolLabel("Photo", symbol: "photo")
+                    labToolLabel(String(localized: "Photo"), symbol: "photo")
                 }
-                Button { showingCreate = true } label: { labToolLabel("Manual", symbol: "square.and.pencil") }
+                Button { showingCreate = true } label: { labToolLabel(String(localized: "Manual"), symbol: "square.and.pencil") }
             }
             .buttonStyle(.plain)
 
@@ -378,7 +378,7 @@ struct GroceryPlannerView: View {
                 Rectangle().fill(Theme.line).frame(height: 1)
                 HStack {
                     Text("MOROCCO CATALOG")
-                        .font(.caption2.weight(.semibold)).tracking(1.8).foregroundStyle(Theme.muted)
+                        .font(.caption2.weight(.semibold)).nagisenTracking(1.8).foregroundStyle(Theme.muted)
                     Spacer()
                     Text("\(MoroccanFoodCatalog.foods.count.formatted()) products")
                         .font(.caption2).foregroundStyle(Theme.muted)
@@ -389,7 +389,7 @@ struct GroceryPlannerView: View {
                 } else {
                     ForEach(moroccanMatches.prefix(10)) { food in
                         Button { select(food) } label: {
-                            labResultRow(food, detail: "\(food.brand.isEmpty ? "Morocco catalog" : food.brand) · \(food.calories) kcal / \(food.serving)")
+                            labResultRow(food, detail: String(localized: "\(food.brand.isEmpty ? "Morocco catalog" : food.brand) · \(food.calories) kcal / \(food.serving)"))
                         }
                         .buttonStyle(.plain)
                     }
@@ -413,13 +413,13 @@ struct GroceryPlannerView: View {
                 }
                 if !onlineFoods.isEmpty {
                     Text("ONLINE MATCHES")
-                        .font(.caption2.weight(.semibold)).tracking(1.8).foregroundStyle(Theme.muted)
+                        .font(.caption2.weight(.semibold)).nagisenTracking(1.8).foregroundStyle(Theme.muted)
                     ForEach(onlineFoods.prefix(10)) { food in
                         Button {
                             if (food.missingMacros ?? []).isEmpty { select(food) }
                             else { correctingFood = food }
                         } label: {
-                            labResultRow(food, detail: "\(food.brand.isEmpty ? "Open Food Facts" : food.brand) · \(food.serving)")
+                            labResultRow(food, detail: String(localized: "\(food.brand.isEmpty ? "Open Food Facts" : food.brand) · \(food.serving)"))
                         }
                         .buttonStyle(.plain)
                     }
@@ -429,7 +429,7 @@ struct GroceryPlannerView: View {
                 Rectangle().fill(Theme.line).frame(height: 1)
                 HStack {
                     Text(search.isEmpty ? "QUICK PICKS" : "ON THIS IPHONE")
-                        .font(.caption2.weight(.semibold)).tracking(1.8).foregroundStyle(Theme.muted)
+                        .font(.caption2.weight(.semibold)).nagisenTracking(1.8).foregroundStyle(Theme.muted)
                     Spacer()
                     if search.isEmpty {
                         Button(editingPicks ? "Done" : "Edit") {
@@ -460,7 +460,7 @@ struct GroceryPlannerView: View {
                             .transition(.move(edge: .leading).combined(with: .opacity))
                         }
                         Button { select(food) } label: {
-                            labResultRow(food, detail: "\(food.serving) · \(food.calories) kcal")
+                            labResultRow(food, detail: String(localized: "\(food.serving) · \(food.calories) kcal"))
                         }
                         .buttonStyle(.plain)
                         .disabled(editingPicks && search.isEmpty)
@@ -488,7 +488,7 @@ struct GroceryPlannerView: View {
                 .font(.system(size: 23, weight: .light))
                 .foregroundStyle(Theme.accentText)
                 .frame(height: 26)
-            Text(title).font(.caption.weight(.medium)).foregroundStyle(Theme.ink)
+            Text(ui: title).font(.caption.weight(.medium)).foregroundStyle(Theme.ink)
         }
         .frame(maxWidth: .infinity, minHeight: 60)
         .contentShape(Rectangle())
@@ -500,7 +500,7 @@ struct GroceryPlannerView: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(food.name).font(.subheadline.weight(.medium)).foregroundStyle(Theme.ink)
                     .lineLimit(2)
-                Text(detail).font(.caption).foregroundStyle(Theme.muted)
+                Text(ui: detail).font(.caption).foregroundStyle(Theme.muted)
                     .lineLimit(1)
             }
             Spacer(minLength: 4)
@@ -526,8 +526,8 @@ struct GroceryPlannerView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack(spacing: 8) {
                             Circle().fill(macro.color).frame(width: 8, height: 8)
-                            Text(macro.rawValue.uppercased())
-                                .font(.caption2.weight(.semibold)).tracking(1.8)
+                            Text(ui: macro.rawValue).textCase(.uppercase)
+                                .font(.caption2.weight(.semibold)).nagisenTracking(1.8)
                                 .foregroundStyle(macro.color)
                             Spacer()
                             Text("\(items.count)")
@@ -634,7 +634,7 @@ struct GroceryPlannerView: View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 5) {
                 Text("YOUR PLAN")
-                    .font(.caption2.weight(.semibold)).tracking(2).foregroundStyle(Theme.muted)
+                    .font(.caption2.weight(.semibold)).nagisenTracking(2).foregroundStyle(Theme.muted)
                 Text("\(plan.days.count) days from your groceries")
                     .font(.system(size: 27, design: .serif))
                 Text("Calories and macros are estimates from the foods you entered. If groceries are short, the plan will show the gap instead of adding ingredients.")
@@ -684,7 +684,7 @@ struct GroceryPlannerView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack {
                         Label("ALREADY EATEN", systemImage: "checkmark.circle")
-                            .font(.caption2.weight(.semibold)).tracking(1.5)
+                            .font(.caption2.weight(.semibold)).nagisenTracking(1.5)
                             .foregroundStyle(Theme.muted)
                         Spacer()
                         Text("\(eatenCalories) kcal")
@@ -710,8 +710,8 @@ struct GroceryPlannerView: View {
                 let alreadyLogged = store.entries.contains { $0.planMealID == meal.id }
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text(meal.meal.rawValue.uppercased())
-                            .font(.caption2.weight(.semibold)).tracking(1.5).foregroundStyle(Theme.muted)
+                        Text(ui: meal.meal.rawValue).textCase(.uppercase)
+                            .font(.caption2.weight(.semibold)).nagisenTracking(1.5).foregroundStyle(Theme.muted)
                         Spacer()
                         Text("\(meal.calories) kcal")
                             .font(.caption.weight(.semibold))
@@ -747,7 +747,7 @@ struct GroceryPlannerView: View {
             }
             if !left.isEmpty {
                 Text("LEFT AFTER THE PLAN")
-                    .font(.caption2.weight(.semibold)).tracking(1.5).foregroundStyle(Theme.muted)
+                    .font(.caption2.weight(.semibold)).nagisenTracking(1.5).foregroundStyle(Theme.muted)
                 Text(left.joined(separator: " · "))
                     .font(.caption).foregroundStyle(Theme.muted)
             }
@@ -766,13 +766,13 @@ struct GroceryPlannerView: View {
         let name = food.name.lowercased()
         if name.range(of: #"\beggs?\b"#, options: .regularExpression) != nil {
             let count = servings.formatted(.number.precision(.fractionLength(0...1)))
-            return "\(food.name): \(count) \(abs(servings - 1) < 0.05 ? "egg" : "eggs")"
+            return String(localized: "\(food.name): \(count) \(abs(servings - 1) < 0.05 ? "egg" : "eggs")")
         }
         guard let gramsPerServing = food.gramsPerServing else {
-            return "\(food.name): gram weight unavailable"
+            return String(localized: "\(food.name): gram weight unavailable")
         }
         let grams = (servings * gramsPerServing).formatted(.number.precision(.fractionLength(0...1)))
-        return "\(food.name): \(grams) g"
+        return String(localized: "\(food.name): \(grams) g")
     }
 
     private func quantitySheet(_ food: Food) -> some View {
@@ -829,15 +829,15 @@ struct GroceryPlannerView: View {
         let query = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard query.count >= 2 else { return }
         isSearchingOnline = true
-        onlineStatus = "Searching the internet…"
+        onlineStatus = String(localized: "Searching the internet…")
         do {
             let results = try await OpenFoodFactsService().search(query)
             guard !Task.isCancelled, search.trimmingCharacters(in: .whitespacesAndNewlines) == query else { return }
             onlineFoods = results
-            onlineStatus = results.isEmpty ? "No online matches. Try a brand or add it manually." : nil
+            onlineStatus = results.isEmpty ? String(localized: "No online matches. Try a brand or add it manually.") : nil
         } catch {
             guard !Task.isCancelled, search.trimmingCharacters(in: .whitespacesAndNewlines) == query else { return }
-            onlineStatus = "Internet search is unavailable. Try again or add it manually."
+            onlineStatus = String(localized: "Internet search is unavailable. Try again or add it manually.")
         }
         isSearchingOnline = false
     }
@@ -850,17 +850,17 @@ struct GroceryPlannerView: View {
 
     private func stockDescription(_ item: GroceryStock) -> String {
         let servings = item.servings.formatted(.number.precision(.fractionLength(0...2)))
-        guard let grams = item.food.gramsPerServing else { return "\(servings) × \(item.food.serving)" }
+        guard let grams = item.food.gramsPerServing else { return String(localized: "\(servings) × \(item.food.serving)") }
         let totalGrams = (item.servings * grams).formatted(.number.precision(.fractionLength(0...1)))
-        return "\(totalGrams) g · \(servings) servings"
+        return String(localized: "\(totalGrams) g · \(servings) servings")
     }
 
     private func recognizeProduct(in image: UIImage) async {
         guard let data = image.jpegData(compressionQuality: 0.82) else {
-            photoStatus = "Couldn’t read this photo. Try another one or search by name."
+            photoStatus = String(localized: "Couldn’t read this photo. Try another one or search by name.")
             return
         }
-        photoStatus = "Reading the package on this iPhone…"
+        photoStatus = String(localized: "Reading the package on this iPhone…")
         let result = await Task.detached(priority: .userInitiated) { () -> ProductPhotoResult in
             let barcode = VNDetectBarcodesRequest()
             let text = VNRecognizeTextRequest()
@@ -903,7 +903,7 @@ struct GroceryPlannerView: View {
         }
         guard let query = result.query?.trimmingCharacters(in: .whitespacesAndNewlines),
               query.count >= 2 else {
-            photoStatus = "No clear product match. Try the barcode or search by name."
+            photoStatus = String(localized: "No clear product match. Try the barcode or search by name.")
             return
         }
         search = query

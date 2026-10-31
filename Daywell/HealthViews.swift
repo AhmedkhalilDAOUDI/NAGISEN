@@ -25,7 +25,7 @@ private final class LiveAccessoryWorkout: NSObject, ObservableObject, HKWorkoutS
         healthStore.requestAuthorization(toShare: [.workoutType()], read: read) { [weak self] allowed, error in
             DispatchQueue.main.async {
                 guard let self else { return }
-                guard allowed else { self.error = error?.localizedDescription ?? "Allow workout access in Apple Health to start."; return }
+                guard allowed else { self.error = error?.localizedDescription ?? String(localized: "Allow workout access in Apple Health to start."); return }
                 self.begin(activity)
             }
         }
@@ -59,7 +59,7 @@ private final class LiveAccessoryWorkout: NSObject, ObservableObject, HKWorkoutS
                         self?.isPreparing = false
                         self?.isRunning = success
                         if !success {
-                            self?.error = error?.localizedDescription ?? "The workout could not start."
+                            self?.error = error?.localizedDescription ?? String(localized: "The workout could not start.")
                             session.end()
                             self?.session = nil
                             self?.builder = nil
@@ -89,7 +89,7 @@ private final class LiveAccessoryWorkout: NSObject, ObservableObject, HKWorkoutS
         guard toState == .stopped, let builder else { return }
         builder.endCollection(withEnd: date) { [weak self] success, error in
             guard success else {
-                DispatchQueue.main.async { self?.error = error?.localizedDescription ?? "Could not finish the workout." }
+                DispatchQueue.main.async { self?.error = error?.localizedDescription ?? String(localized: "Could not finish the workout.") }
                 return
             }
             builder.finishWorkout { [weak self] _, error in
@@ -149,7 +149,7 @@ private struct LiveAccessoryWorkoutView: View {
             if workout.isRunning || workout.isPreparing {
                 HStack {
                     VStack(alignment: .leading, spacing: 5) {
-                        Text(workout.isPreparing ? "Preparing sensors…" : workout.activityName)
+                        Text(workout.isPreparing ? String(localized: "Preparing sensors…") : workout.activityName)
                             .font(.headline)
                         Text(workout.heartRate.map { "\($0) bpm" } ??
                              freshHealthReading.map { "\($0.beatsPerMinute) bpm" } ?? "Waiting for heart rate")
@@ -213,9 +213,9 @@ struct AccessoriesView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                NagisenHeader("Accessories", subtitle: "Your activity, from the devices you use.", symbol: "chevron.left") { dismiss() }
+                NagisenHeader("Accessories", subtitle: String(localized: "Your activity, from the devices you use."), symbol: "chevron.left") { dismiss() }
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("HEART RATE").font(.caption.weight(.semibold)).tracking(2).foregroundStyle(Theme.muted)
+                    Text("HEART RATE").font(.caption.weight(.semibold)).nagisenTracking(2).foregroundStyle(Theme.muted)
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
                         Text(latest.map { "\($0.beatsPerMinute)" } ?? "—")
                             .font(.system(size: 60, weight: .light, design: .rounded))
@@ -328,7 +328,7 @@ struct AccessoriesView: View {
 
     private func importAvailable() {
         let count = store.importHealth(workouts: health.workouts, weights: health.weightSamples)
-        importStatus = count.workouts + count.weights == 0 ? "Everything available is already in your log." :
+        importStatus = count.workouts + count.weights == 0 ? String(localized: "Everything available is already in your log.") :
             "Added \(count.workouts) workout(s) and \(count.weights) weigh-in(s)."
     }
 }
@@ -364,20 +364,20 @@ struct HealthView: View {
                     .cardStyle()
                 } else {
                     Text("TODAY'S ACTIVITY")
-                        .font(.caption.weight(.bold)).tracking(2).foregroundStyle(Theme.muted)
+                        .font(.caption.weight(.bold)).nagisenTracking(2).foregroundStyle(Theme.muted)
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                        metric("Steps", value: health.steps.map { $0.formatted() }, unit: "steps", symbol: "figure.walk")
-                        metric("Move", value: health.activeCalories.map { $0.formatted() }, unit: "kcal", symbol: "flame")
+                        metric(String(localized: "Steps"), value: health.steps.map { $0.formatted() }, unit: "steps", symbol: "figure.walk")
+                        metric(String(localized: "Move"), value: health.activeCalories.map { $0.formatted() }, unit: "kcal", symbol: "flame")
                         metric("Exercise", value: health.exerciseMinutes.map { $0.formatted() }, unit: "min", symbol: "figure.run")
-                        metric("Distance", value: health.distanceKilometers.map { String(format: "%.1f", $0) }, unit: "km", symbol: "point.topleft.down.to.point.bottomright.curvepath")
-                        metric("Flights", value: health.flightsClimbed.map { $0.formatted() }, unit: "flights", symbol: "figure.stairs")
-                        metric("Stand", value: health.standHours.map { $0.formatted() }, unit: "hours", symbol: "figure.stand")
-                        metric("Heart rate", value: health.heartRate.map { $0.formatted() }, unit: "bpm · latest", symbol: "heart")
-                        metric("Resting pulse", value: health.restingHeartRate.map { $0.formatted() }, unit: "bpm · latest", symbol: "waveform.path.ecg")
-                        metric("Body weight", value: health.weightKilograms.map { String(format: "%.1f", $0) }, unit: "kg · latest", symbol: "scalemass")
+                        metric(String(localized: "Distance"), value: health.distanceKilometers.map { String(format: "%.1f", $0) }, unit: "km", symbol: "point.topleft.down.to.point.bottomright.curvepath")
+                        metric(String(localized: "Flights"), value: health.flightsClimbed.map { $0.formatted() }, unit: "flights", symbol: "figure.stairs")
+                        metric(String(localized: "Stand"), value: health.standHours.map { $0.formatted() }, unit: "hours", symbol: "figure.stand")
+                        metric(String(localized: "Heart rate"), value: health.heartRate.map { $0.formatted() }, unit: "bpm · latest", symbol: "heart")
+                        metric(String(localized: "Resting pulse"), value: health.restingHeartRate.map { $0.formatted() }, unit: "bpm · latest", symbol: "waveform.path.ecg")
+                        metric(String(localized: "Body weight"), value: health.weightKilograms.map { String(format: "%.1f", $0) }, unit: "kg · latest", symbol: "scalemass")
                     }
                     Text("RECENT WORKOUTS")
-                        .font(.caption.weight(.bold)).tracking(2).foregroundStyle(Theme.muted)
+                        .font(.caption.weight(.bold)).nagisenTracking(2).foregroundStyle(Theme.muted)
                     if health.workouts.isEmpty {
                         Text("No workouts available yet. Check the types you allowed in Apple Health.")
                             .font(.subheadline).foregroundStyle(Theme.muted)

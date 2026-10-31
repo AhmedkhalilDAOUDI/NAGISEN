@@ -63,7 +63,7 @@ final class HealthManager: ObservableObject {
 
     func requestAccess() {
         guard isAvailable else {
-            errorMessage = "Apple Health is unavailable on this device."
+            errorMessage = String(localized: "Apple Health is unavailable on this device.")
             return
         }
         healthStore.requestAuthorization(toShare: [], read: readTypes) { [weak self] completed, error in
@@ -74,7 +74,7 @@ final class HealthManager: ObservableObject {
                     UserDefaults.standard.set(true, forKey: "daywell.health.requested")
                     self.refresh()
                 } else {
-                    self.errorMessage = error?.localizedDescription ?? "Apple Health access was not completed."
+                    self.errorMessage = error?.localizedDescription ?? String(localized: "Apple Health access was not completed.")
                 }
             }
         }
@@ -164,8 +164,8 @@ final class HealthManager: ObservableObject {
 
     private func queryAccessorySources() {
         let types: [(HKSampleType, String)] = [
-            (HKObjectType.quantityType(forIdentifier: .heartRate)!, "Heart rate"),
-            (HKObjectType.quantityType(forIdentifier: .stepCount)!, "Steps"),
+            (HKObjectType.quantityType(forIdentifier: .heartRate)!, String(localized: "Heart rate")),
+            (HKObjectType.quantityType(forIdentifier: .stepCount)!, String(localized: "Steps")),
             (HKObjectType.quantityType(forIdentifier: .bodyMass)!, "Weight"),
             (.workoutType(), "Workouts")
         ]

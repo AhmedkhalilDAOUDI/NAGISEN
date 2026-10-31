@@ -33,17 +33,17 @@ enum PriceLookupError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .missingKey: return "Add your DeepSeek key in Coach first."
-        case .http(400), .http(422): return "DeepSeek rejected the price request. Try again after updating the app."
-        case .http(401): return "DeepSeek rejected your API key. Check it in Coach settings."
-        case .http(402): return "Your DeepSeek account has no API credit. Add credit or enter the shelf price."
-        case .http(429): return "DeepSeek's request limit was reached. Try again in a moment."
-        case .http(500), .http(503): return "DeepSeek is unavailable right now. Try again later."
-        case .http(let code): return "DeepSeek returned error \(code). Try again later."
-        case .noEstimate: return "DeepSeek couldn't make a useful estimate for this product. Enter the shelf or receipt price."
-        case .emptyAnswer: return "DeepSeek returned an empty answer. Try again."
-        case .unreadableAnswer: return "DeepSeek returned an unreadable price. Try again."
-        case .unitMismatch: return "DeepSeek didn't give a price in the right unit. Enter the shelf price."
+        case .missingKey: return String(localized: "Add your DeepSeek key in Coach first.")
+        case .http(400), .http(422): return String(localized: "DeepSeek rejected the price request. Try again after updating the app.")
+        case .http(401): return String(localized: "DeepSeek rejected your API key. Check it in Coach settings.")
+        case .http(402): return String(localized: "Your DeepSeek account has no API credit. Add credit or enter the shelf price.")
+        case .http(429): return String(localized: "DeepSeek's request limit was reached. Try again in a moment.")
+        case .http(500), .http(503): return String(localized: "DeepSeek is unavailable right now. Try again later.")
+        case .http(let code): return String(localized: "DeepSeek returned error \(code). Try again later.")
+        case .noEstimate: return String(localized: "DeepSeek couldn't make a useful estimate for this product. Enter the shelf or receipt price.")
+        case .emptyAnswer: return String(localized: "DeepSeek returned an empty answer. Try again.")
+        case .unreadableAnswer: return String(localized: "DeepSeek returned an unreadable price. Try again.")
+        case .unitMismatch: return String(localized: "DeepSeek didn't give a price in the right unit. Enter the shelf price.")
         }
     }
 }
@@ -66,7 +66,7 @@ enum DeepSeekPrice {
             .filter { !$0.isEmpty }.joined(separator: " · ")
         let reference = observed.map {
             "A real Open Prices record for this exact barcode was \(FoodCost.display($0.value)) per 100 g on \($0.date). It may be outdated."
-        } ?? "No verified Moroccan price record is available for this product."
+        } ?? String(localized: "No verified Moroccan price record is available for this product.")
         let prompt = """
         Estimate the current Moroccan retail price of this product: \(identity).
         Barcode: \(food.barcode ?? "unknown"). Unit requested: MAD per \(unit).
@@ -78,7 +78,7 @@ enum DeepSeekPrice {
         then divide by ten for a 100 g price. Do not return null merely because produce has no \
         brand or verified barcode price. Give a cautious estimate and plausible range. Use null \
         only when the food itself cannot be identified. Say clearly that this is unverified. Return JSON only.
-        Example JSON: {"per100g": 12.5, "perServing": null, "low": 9, "high": 16, "note": "Unverified estimate."}
+        Example JSON: {"per100g": 12.5, "perServing": null, "low": 9, "high": 16, "note": String(localized: "Unverified estimate.")}
         """
 
         var request = URLRequest(url: URL(string: "https://api.deepseek.com/chat/completions")!)

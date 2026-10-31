@@ -22,7 +22,7 @@ struct AccountSettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                NagisenHeader("Account", subtitle: "How members see you.",
+                NagisenHeader("Account", subtitle: String(localized: "How members see you."),
                               symbol: inSheet ? "xmark" : "chevron.left", onBack: { dismiss() })
                 if feed.state != .ready {
                     Text("Sign in from Feed to manage your account.")
@@ -73,15 +73,15 @@ struct AccountSettingsView: View {
             }
         }
         .nagisenDialog("Delete your NAGISEN account?", isPresented: $confirmingDelete,
-                       message: "Your username, picture, every post, comment and photo or video you shared are removed for good. Your nutrition and workout history on this iPhone is not affected.") {
-            [NagisenAction(title: "Delete account and posts", destructive: true) {
+                       message: String(localized: "Your username, picture, every post, comment and photo or video you shared are removed for good. Your nutrition and workout history on this iPhone is not affected.")) {
+            [NagisenAction(title: String(localized: "Delete account and posts"), destructive: true) {
                 Task { if await feed.deleteAccount() { dismiss() } }
             }]
         }
     }
 
     private var picture: some View {
-        let pickerTitle = feed.avatarPath == nil ? "Add a photo" : "Change photo"
+        let pickerTitle = feed.avatarPath == nil ? String(localized: "Add a photo") : String(localized: "Change photo")
         return HStack(spacing: 18) {
             AvatarView(url: feed.avatarURL(feed.avatarPath), username: feed.username ?? "",
                        tier: feed.borderTier, special: feed.specialBorder, size: 84)
@@ -132,12 +132,12 @@ struct AccountSettingsView: View {
     private var notifications: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("NOTIFICATIONS")
-                .font(.caption2.weight(.semibold)).tracking(2).foregroundStyle(Theme.muted)
+                .font(.caption2.weight(.semibold)).nagisenTracking(2).foregroundStyle(Theme.muted)
             Toggle("Likes, comments and follows", isOn: Binding(get: { pushEnabled }, set: { on in
                 Task {
                     if on {
                         pushEnabled = await FeedPush.enable()
-                        if !pushEnabled { feed.message = "Allow NAGISEN notifications in iPhone Settings first." }
+                        if !pushEnabled { feed.message = String(localized: "Allow NAGISEN notifications in iPhone Settings first.") }
                     } else {
                         pushEnabled = false
                         UserDefaults.standard.set(false, forKey: FeedPush.enabledKey)
@@ -158,7 +158,7 @@ struct AccountSettingsView: View {
     private var signIn: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("SIGN-IN")
-                .font(.caption2.weight(.semibold)).tracking(2).foregroundStyle(Theme.muted)
+                .font(.caption2.weight(.semibold)).nagisenTracking(2).foregroundStyle(Theme.muted)
             if let email = feed.email {
                 Text(email).font(.subheadline)
             }
@@ -201,7 +201,7 @@ struct PathView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                NagisenHeader("Path", subtitle: "Borders you earn by showing up.", onBack: { dismiss() })
+                NagisenHeader("Path", subtitle: String(localized: "Borders you earn by showing up."), onBack: { dismiss() })
                 VStack(spacing: 14) {
                     AvatarView(url: feed.avatarURL(feed.avatarPath), username: feed.username ?? "N",
                                tier: progress.tier, size: 112)
@@ -224,19 +224,19 @@ struct PathView: View {
                 .softCardStyle()
 
                 VStack(spacing: 0) {
-                    row("Days checked", count: progress.checkedDays, each: PathProgress.pointsPerCheckedDay)
+                    row(String(localized: "Days checked"), count: progress.checkedDays, each: PathProgress.pointsPerCheckedDay)
                     Divider().overlay(Theme.line)
-                    row("Calorie goal hit", count: progress.goalDays, each: PathProgress.pointsPerGoalDay)
+                    row(String(localized: "Calorie goal hit"), count: progress.goalDays, each: PathProgress.pointsPerGoalDay)
                     Divider().overlay(Theme.line)
                     row("7-day streaks", count: progress.weekStreaks, each: PathProgress.pointsPerWeekStreak)
                     Divider().overlay(Theme.line)
                     row("30-day streaks", count: progress.monthStreaks, each: PathProgress.pointsPerMonthStreak)
                     Divider().overlay(Theme.line)
-                    row("Daily packs finished", count: progress.finishedPacks, each: PathProgress.pointsPerPack)
+                    row(String(localized: "Daily packs finished"), count: progress.finishedPacks, each: PathProgress.pointsPerPack)
                     Divider().overlay(Theme.line)
-                    row("Personal records beaten", count: progress.personalRecords, each: PathProgress.pointsPerRecord)
+                    row(String(localized: "Personal records beaten"), count: progress.personalRecords, each: PathProgress.pointsPerRecord)
                     Divider().overlay(Theme.line)
-                    row("Milestone trophies", count: progress.milestones, each: PathProgress.pointsPerMilestone)
+                    row(String(localized: "Milestone trophies"), count: progress.milestones, each: PathProgress.pointsPerMilestone)
                 }
                 .softCardStyle()
 
@@ -269,7 +269,7 @@ struct PathView: View {
 
     private func row(_ title: String, count: Int, each: Int) -> some View {
         HStack {
-            Text(title)
+            Text(ui: title)
             Spacer()
             Text("\(count) × \(each)").foregroundStyle(Theme.muted)
             Text("\(count * each)").font(.body.weight(.semibold)).frame(minWidth: 34, alignment: .trailing)

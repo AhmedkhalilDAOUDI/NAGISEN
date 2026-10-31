@@ -35,6 +35,27 @@ private extension Meal {
     }
 }
 
+extension Text {
+    /// Interface text passed around as a String (titles given to NAGISEN's own components, enum
+    /// names): looked up in the String Catalog, shown as it is when there's no translation. Never use
+    /// it for what members write, since the lookup also reads Markdown.
+    init(ui string: String) { self.init(LocalizedStringKey(string)) }
+}
+
+/// Letter spacing for small capitals; none in right-to-left layouts, where Arabic letters must join.
+private struct NagisenTracking: ViewModifier {
+    let amount: CGFloat
+    @Environment(\.layoutDirection) private var direction
+    func body(content: Content) -> some View { content.tracking(direction == .rightToLeft ? 0 : amount) }
+}
+
+extension View {
+    func nagisenTracking(_ amount: CGFloat) -> some View { modifier(NagisenTracking(amount: amount)) }
+}
+
+/// The translated form of interface text held in a String, for building other strings with it.
+func ui(_ string: String) -> String { String(localized: String.LocalizationValue(string)) }
+
 struct NagisenBackdrop: View {
     var body: some View {
         Theme.paper.ignoresSafeArea().allowsHitTesting(false)
@@ -283,10 +304,10 @@ private enum MainSection: String, CaseIterable, Identifiable {
     }
     var name: String {
         switch self {
-        case .dashboard: "Dashboard"
-        case .grocery: "Lab"
-        case .workouts: "Workouts"
-        case .feed: "Feed"
+        case .dashboard: String(localized: "Dashboard")
+        case .grocery: String(localized: "Lab")
+        case .workouts: String(localized: "Workouts")
+        case .feed: String(localized: "Feed")
         }
     }
     var symbol: String {
@@ -321,7 +342,7 @@ private struct HomeView: View {
                             HStack(spacing: 8) {
                                 Circle().fill(Theme.red).frame(width: 10, height: 10)
                                 Text("NAGISEN")
-                                    .font(.caption.weight(.semibold)).tracking(3)
+                                    .font(.caption.weight(.semibold)).nagisenTracking(3)
                             }
                             HStack(spacing: 4) {
                                 Button { shiftDate(-1) } label: {
@@ -334,8 +355,9 @@ private struct HomeView: View {
                                 .accessibilityLabel("Previous day")
                                 Button { showingCalendar = true } label: {
                                     HStack(spacing: 7) {
-                                        Text(Calendar.current.isDateInToday(date) ? "Today" : date.formatted(.dateTime.month(.abbreviated).day()))
+                                        Text(Calendar.current.isDateInToday(date) ? String(localized: "Today") : date.formatted(.dateTime.month(.abbreviated).day()))
                                             .font(.system(size: 38, weight: .regular, design: .serif))
+                                            .lineLimit(1).minimumScaleFactor(0.7)
                                         Image(systemName: "chevron.down").font(.caption.weight(.semibold))
                                     }
                                 }
@@ -391,7 +413,7 @@ private struct HomeView: View {
                                                 .minimumScaleFactor(0.75)
                                             Text("STEPS")
                                                 .font(.system(size: 10, weight: .medium))
-                                                .tracking(2)
+                                                .nagisenTracking(2)
                                                 .foregroundStyle(Theme.muted)
                                         }
                                     } else {
@@ -437,7 +459,7 @@ private struct HomeView: View {
                         Text("Meals").font(.system(size: 25, design: .serif))
                         Spacer()
                         Text(date.formatted(.dateTime.month(.abbreviated).day()).uppercased())
-                            .font(.caption2.weight(.semibold)).tracking(2).foregroundStyle(Theme.muted)
+                            .font(.caption2.weight(.semibold)).nagisenTracking(2).foregroundStyle(Theme.muted)
                     }
                     .padding(.horizontal, 18)
                     ForEach(Meal.allCases) { meal in
@@ -498,12 +520,12 @@ struct DailyGuidanceCard: View {
                 !eatenNames.contains($0.name.lowercased())
             }
             if let food = candidates.first {
-                result.append(Cue(title: "A familiar protein pick",
-                                  detail: "\(food.name) gives about \(Int(food.protein.rounded())) g protein for \(food.calories) kcal per serving.",
+                result.append(Cue(title: String(localized: "A familiar protein pick"),
+                                  detail: String(localized: "\(food.name) gives about \(Int(food.protein.rounded())) g protein for \(food.calories) kcal per serving."),
                                   symbol: "fork.knife"))
             } else {
-                result.append(Cue(title: "Room for protein",
-                                  detail: "About \(proteinLeft) g remains toward your protein goal today.",
+                result.append(Cue(title: String(localized: "Room for protein"),
+                                  detail: String(localized: "About \(proteinLeft) g remains toward your protein goal today."),
                                   symbol: "circle.dotted"))
             }
         }
@@ -512,19 +534,19 @@ struct DailyGuidanceCard: View {
         let weekStart = calendar.date(byAdding: .day, value: -6, to: calendar.startOfDay(for: today)) ?? today
         let trainedDays = Set(store.workouts.filter { $0.date >= weekStart }.map { store.dayKey($0.date) }).count
         if trainedDays >= 2 {
-            result.append(Cue(title: "Your training rhythm",
-                              detail: "You logged workouts on \(trainedDays) of the last 7 days. Keep the streak yours.",
+            result.append(Cue(title: String(localized: "Your training rhythm"),
+                              detail: String(localized: "You logged workouts on \(trainedDays) of the last 7 days. Keep the streak yours."),
                               symbol: "figure.run"))
         } else if let steps = health.steps, steps > 0 {
-            result.append(Cue(title: "Movement is adding up",
-                              detail: "\(steps.formatted()) steps so far today, from Apple Health.",
+            result.append(Cue(title: String(localized: "Movement is adding up"),
+                              detail: String(localized: "\(steps.formatted()) steps so far today, from Apple Health."),
                               symbol: "figure.walk"))
         }
 
         if UserDefaults.standard.object(forKey: OnboardingPlan.tracksCreatineKey) as? Bool ?? true,
            !store.creatineTaken(on: today) && calendar.component(.hour, from: today) >= 18 {
-            result.append(Cue(title: "Evening check-in",
-                              detail: "Your 5 g creatine switch is still off for today. Mark it when taken.",
+            result.append(Cue(title: String(localized: "Evening check-in"),
+                              detail: String(localized: "Your 5 g creatine switch is still off for today. Mark it when taken."),
                               symbol: "checkmark.circle"))
         }
 
@@ -532,12 +554,12 @@ struct DailyGuidanceCard: View {
             let pastDays = Set(store.entries.filter { $0.date < calendar.startOfDay(for: today) }
                 .map { store.dayKey($0.date) }).count
             if pastDays > 0 && totals.calories == 0 {
-                result.append(Cue(title: "Start with what you know",
-                                  detail: "Your recent foods are ready on Dashboard for a quick first entry today.",
+                result.append(Cue(title: String(localized: "Start with what you know"),
+                                  detail: String(localized: "Your recent foods are ready on Dashboard for a quick first entry today."),
                                   symbol: "clock.arrow.circlepath"))
             } else {
-                result.append(Cue(title: "Your day, in focus",
-                                  detail: "Log a meal or workout and NAGISEN will spot useful patterns here.",
+                result.append(Cue(title: String(localized: "Your day, in focus"),
+                                  detail: String(localized: "Log a meal or workout and NAGISEN will spot useful patterns here."),
                                   symbol: "sparkle.magnifyingglass"))
             }
         }
@@ -548,7 +570,7 @@ struct DailyGuidanceCard: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Text("TODAY'S INSIGHTS")
-                    .font(.caption2.weight(.semibold)).tracking(2)
+                    .font(.caption2.weight(.semibold)).nagisenTracking(2)
                     .foregroundStyle(Theme.muted)
                 Spacer()
                 Image(systemName: "sparkles").foregroundStyle(Theme.accentText)
@@ -560,8 +582,8 @@ struct DailyGuidanceCard: View {
                         .foregroundStyle(Theme.accentText)
                         .frame(width: 22)
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(cue.title).font(.subheadline.weight(.semibold))
-                        Text(cue.detail).font(.caption).foregroundStyle(Theme.muted)
+                        Text(ui: cue.title).font(.subheadline.weight(.semibold))
+                        Text(ui: cue.detail).font(.caption).foregroundStyle(Theme.muted)
                     }
                 }
             }
@@ -601,7 +623,7 @@ private struct CalendarLogView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    NagisenHeader("Calendar & logs", subtitle: "Your days, in view.", symbol: "xmark", onBack: { dismiss() })
+                    NagisenHeader("Calendar & logs", subtitle: String(localized: "Your days, in view."), symbol: "xmark", onBack: { dismiss() })
                     VStack(spacing: 17) {
                         HStack {
                             Button { shiftMonth(-1) } label: { Image(systemName: "chevron.left") }
@@ -616,7 +638,7 @@ private struct CalendarLogView: View {
                         }
                         HStack {
                             ForEach(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], id: \.self) { day in
-                                Text(day).font(.caption2.weight(.medium)).foregroundStyle(Theme.muted)
+                                Text(ui: day).font(.caption2.weight(.medium)).foregroundStyle(Theme.muted)
                                     .frame(maxWidth: .infinity)
                             }
                         }
@@ -659,7 +681,7 @@ private struct CalendarLogView: View {
                             let items = entries.filter { $0.meal == meal }
                             if !items.isEmpty {
                                 VStack(alignment: .leading, spacing: 10) {
-                                    Text(meal.rawValue).font(.system(size: 18, design: .serif))
+                                    Text(ui: meal.rawValue).font(.system(size: 18, design: .serif))
                                     ForEach(items) { item in
                                         HStack {
                                             VStack(alignment: .leading, spacing: 3) {
@@ -681,7 +703,7 @@ private struct CalendarLogView: View {
                             Text("Workouts").font(.system(size: 18, design: .serif))
                             ForEach(workouts) { workout in
                                 HStack {
-                                    Text(workout.activity)
+                                    Text(ui: workout.activity)
                                     Spacer()
                                     Text("\(workout.minutes) min").foregroundStyle(Theme.muted)
                                 }
@@ -771,7 +793,7 @@ private struct CalorieCard: View {
         let balanceColor = CalorieBalanceStyle.color(eaten, goal: goal)
         VStack(alignment: .leading, spacing: 18) {
             Text("DAILY BALANCE")
-                .font(.caption2.weight(.semibold)).tracking(2.2)
+                .font(.caption2.weight(.semibold)).nagisenTracking(2.2)
                 .foregroundStyle(Theme.muted)
             HStack(spacing: 14) {
                 VStack(alignment: .leading, spacing: 1) {
@@ -802,7 +824,7 @@ private struct CalorieCard: View {
                                 .font(.system(size: 13, weight: .bold, design: .rounded))
                                 .minimumScaleFactor(0.65).lineLimit(1)
                             Text("OVER")
-                                .font(.system(size: 7, weight: .bold)).tracking(1)
+                                .font(.system(size: 7, weight: .bold)).nagisenTracking(1)
                         }
                         .foregroundStyle(Theme.ink)
                         .padding(.horizontal, 19)
@@ -889,7 +911,7 @@ private struct MacroCard: View {
         let totals = store.totals(on: date)
         VStack(alignment: .leading, spacing: 17) {
             Text("NUTRITION")
-                .font(.caption2.weight(.semibold)).tracking(2.2)
+                .font(.caption2.weight(.semibold)).nagisenTracking(2.2)
                 .foregroundStyle(Theme.muted)
             // Side by side normally; stacked at accessibility text sizes so the columns never collide.
             let layout = typeSize.isAccessibilitySize
@@ -946,7 +968,7 @@ private struct WaterCard: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Label("WATER", systemImage: "drop.fill")
-                    .font(.caption2.weight(.semibold)).tracking(2)
+                    .font(.caption2.weight(.semibold)).nagisenTracking(2)
                     .foregroundStyle(Theme.accentText)
                 Spacer()
                 Button("Edit") { showingDetails = true }
@@ -1075,7 +1097,7 @@ private struct WaterDetailView: View {
         .toolbar(.hidden, for: .navigationBar)
         .onAppear { goal = String(store.waterGoalML) }
         .nagisenDialog("Notifications are off", isPresented: $reminderError,
-                       message: "Allow NAGISEN notifications in iPhone Settings to use water check-ins.", cancelTitle: "OK")
+                       message: String(localized: "Allow NAGISEN notifications in iPhone Settings to use water check-ins."), cancelTitle: "OK")
     }
 }
 
@@ -1114,7 +1136,7 @@ enum WaterReminders {
         for hour in hours {
             let content = UNMutableNotificationContent()
             content.title = "NAGISEN water check-in"
-            content.body = "Take a moment to log any water you have had."
+            content.body = String(localized: "Take a moment to log any water you have had.")
             content.sound = .default
             let trigger = UNCalendarNotificationTrigger(dateMatching: DateComponents(hour: hour, minute: 0), repeats: true)
             let request = UNNotificationRequest(identifier: "nagisen.water.\(hour)", content: content, trigger: trigger)
@@ -1134,7 +1156,7 @@ private struct MacroRow: View {
         VStack(alignment: .leading, spacing: 7) {
             HStack(spacing: 5) {
                 Circle().fill(color).frame(width: 6, height: 6)
-                Text(name.uppercased()).font(.caption2.weight(.semibold)).tracking(1)
+                Text(ui: name).textCase(.uppercase).font(.caption2.weight(.semibold)).nagisenTracking(1)
             }
             .foregroundStyle(color)
             Text("\(Int(amount.rounded()))g")
@@ -1172,7 +1194,7 @@ private struct MealCard: View {
                     .frame(width: 43, height: 43)
                     .background(meal.highlight.opacity(0.14), in: RoundedRectangle(cornerRadius: 13))
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(meal.rawValue).font(.system(size: 22, design: .serif))
+                    Text(ui: meal.rawValue).font(.system(size: 22, design: .serif))
                     Text(items.isEmpty ? "Ready when you are" : "\(items.count) \(items.count == 1 ? "food" : "foods") logged")
                         .font(.caption).foregroundStyle(Theme.muted)
                 }
@@ -1229,7 +1251,7 @@ private struct MealCard: View {
             Button(action: onAdd) {
                 HStack {
                     Image(systemName: "plus.circle.fill").font(.title3)
-                    Text("Add to \(meal.rawValue)").font(.subheadline.weight(.semibold))
+                    Text("Add to \(ui(meal.rawValue))").font(.subheadline.weight(.semibold))
                     Spacer()
                     Image(systemName: "arrow.up.right").font(.caption.weight(.semibold))
                 }
@@ -1243,8 +1265,8 @@ private struct MealCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .nagisenGlass(in: RoundedRectangle(cornerRadius: 21), tint: meal.highlight.opacity(0.08))
         .nagisenDialog("Clear \(meal.rawValue)?", isPresented: $showingDeleteMeal,
-                       message: "This removes every food logged for \(meal.rawValue) on this day.") {
-            [NagisenAction(title: "Delete whole meal", destructive: true) { store.deleteMeal(meal, on: date) }]
+                       message: String(localized: "This removes every food logged for \(meal.rawValue) on this day.")) {
+            [NagisenAction(title: String(localized: "Delete whole meal"), destructive: true) { store.deleteMeal(meal, on: date) }]
         }
     }
 
@@ -1281,7 +1303,7 @@ private struct DiaryView: View {
                 VStack(alignment: .leading, spacing: 23) {
                     VStack(alignment: .leading, spacing: 9) {
                         Text("YOUR DIARY")
-                            .font(.caption2.weight(.semibold)).tracking(2).foregroundStyle(Theme.accentText)
+                            .font(.caption2.weight(.semibold)).nagisenTracking(2).foregroundStyle(Theme.accentText)
                         Text("A day, one bite at a time")
                             .font(.system(size: 30, design: .serif))
                     }
@@ -1291,7 +1313,7 @@ private struct DiaryView: View {
                         Spacer()
                         Button { showingCalendar = true } label: {
                             VStack(spacing: 3) {
-                                Text(Calendar.current.isDateInToday(date) ? "Today" : date.formatted(.dateTime.month(.abbreviated).day()))
+                                Text(Calendar.current.isDateInToday(date) ? String(localized: "Today") : date.formatted(.dateTime.month(.abbreviated).day()))
                                     .font(.system(size: 22, design: .serif))
                                 Text(date.formatted(.dateTime.weekday(.wide).year()))
                                     .font(.caption).foregroundStyle(Theme.muted)
@@ -1308,13 +1330,13 @@ private struct DiaryView: View {
                     VStack(alignment: .leading, spacing: 16) {
                         HStack(alignment: .firstTextBaseline) {
                             VStack(alignment: .leading, spacing: 3) {
-                                Text("EATEN").font(.caption2.weight(.semibold)).tracking(1.4).foregroundStyle(Theme.muted)
+                                Text("EATEN").font(.caption2.weight(.semibold)).nagisenTracking(1.4).foregroundStyle(Theme.muted)
                                 Text("\(totals.calories)").font(.system(size: 37, design: .serif))
                             }
                             Spacer()
                             VStack(alignment: .trailing, spacing: 3) {
                                 Text(overage > 0 ? "OVER GOAL" : "REMAINING")
-                                    .font(.caption2.weight(.semibold)).tracking(1.4).foregroundStyle(Theme.muted)
+                                    .font(.caption2.weight(.semibold)).nagisenTracking(1.4).foregroundStyle(Theme.muted)
                                 Text(abs(remaining).formatted())
                                     .font(.system(size: 37, design: .serif)).foregroundStyle(balanceColor)
                             }
@@ -1343,14 +1365,14 @@ private struct DiaryView: View {
 
                     VStack(alignment: .leading, spacing: 13) {
                         Text("QUICK ADD")
-                            .font(.caption2.weight(.semibold)).tracking(2).foregroundStyle(Theme.muted)
+                            .font(.caption2.weight(.semibold)).nagisenTracking(2).foregroundStyle(Theme.muted)
                         HStack(spacing: 8) {
                             ForEach(Meal.allCases) { meal in
                                 Button { onAdd(date, meal) } label: {
                                     VStack(spacing: 7) {
                                         Image(systemName: meal.symbol).font(.title3)
                                             .frame(height: 25)
-                                        Text(meal.rawValue).font(.caption2.weight(.medium)).lineLimit(1)
+                                        Text(ui: meal.rawValue).font(.caption2.weight(.medium)).lineLimit(1)
                                     }
                                     .frame(maxWidth: .infinity).frame(height: 66)
                                     .background(Theme.red.opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
@@ -1392,8 +1414,8 @@ private struct DiaryView: View {
             #endif
             .sheet(isPresented: $showingQuickAdd) { NavigationStack { QuickAddView(date: date) } }
             .nagisenDialog("Copy yesterday's food?", isPresented: $showingCopyConfirmation,
-                           message: "This adds yesterday's foods to the selected day. You can edit or remove entries afterwards.") {
-                [NagisenAction(title: "Add \(store.entries(on: previousDay).count) foods") {
+                           message: String(localized: "This adds yesterday's foods to the selected day. You can edit or remove entries afterwards.")) {
+                [NagisenAction(title: String(localized: "Add \(store.entries(on: previousDay).count) foods")) {
                     store.copyDay(from: previousDay, to: date)
                 }]
             }
@@ -1530,11 +1552,11 @@ struct NagisenHeader: View {
             }
             .buttonStyle(.plain)
             VStack(alignment: .leading, spacing: 5) {
-                Text(title)
+                Text(ui: title)
                     .font(.system(size: 32, weight: .regular, design: .serif))
                     .foregroundStyle(Theme.ink)
                 if let subtitle {
-                    Text(subtitle).font(.subheadline).foregroundStyle(Theme.muted)
+                    Text(ui: subtitle).font(.subheadline).foregroundStyle(Theme.muted)
                 }
             }
         }
@@ -1560,8 +1582,8 @@ struct NagisenActionSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(title.uppercased())
-                .font(.caption2.weight(.semibold)).tracking(2.2)
+            Text(ui: title).textCase(.uppercase)
+                .font(.caption2.weight(.semibold)).nagisenTracking(2.2)
                 .foregroundStyle(Theme.muted)
                 .lineLimit(1)
                 .padding(.bottom, 8)
@@ -1600,7 +1622,7 @@ struct NagisenActionSheet: View {
                         .frame(width: 32, height: 32)
                         .overlay(Circle().strokeBorder(tint.opacity(0.3), lineWidth: 0.5))
                 }
-                Text(action.title).font(.body).lineLimit(2)
+                Text(ui: action.title).font(.body).lineLimit(2)
                 Spacer(minLength: 8)
                 if action.selected {
                     Image(systemName: "checkmark").font(.footnote.weight(.semibold)).foregroundStyle(Theme.accentText)
@@ -1677,11 +1699,11 @@ private struct NagisenDialogModifier: ViewModifier {
                 .onTapGesture { close() }
             VStack(spacing: 0) {
                 VStack(spacing: 8) {
-                    Text(title)
+                    Text(ui: title)
                         .font(.system(size: 21, weight: .regular, design: .serif))
                         .foregroundStyle(Theme.ink)
                     if let message {
-                        Text(message).font(.footnote).foregroundStyle(Theme.muted)
+                        Text(ui: message).font(.footnote).foregroundStyle(Theme.muted)
                     }
                 }
                 .multilineTextAlignment(.center)
@@ -1713,7 +1735,7 @@ private struct NagisenDialogModifier: ViewModifier {
 
     private func button(_ title: String, color: Color, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(title).font(.body).foregroundStyle(color)
+            Text(ui: title).font(.body).foregroundStyle(color)
                 .frame(maxWidth: .infinity, minHeight: 52)
                 .contentShape(Rectangle())
         }
@@ -1761,9 +1783,9 @@ struct NagisenPicker<Value: Hashable>: View {
     var body: some View {
         Button { choosing = true } label: {
             HStack(spacing: 8) {
-                Text(title).foregroundStyle(Theme.ink)
+                Text(ui: title).foregroundStyle(Theme.ink)
                 Spacer(minLength: 8)
-                Text(options.first { $0.value == selection }?.label ?? "")
+                Text(ui: options.first { $0.value == selection }?.label ?? "")
                     .foregroundStyle(Theme.accentText)
                     .lineLimit(1)
                 Image(systemName: "chevron.up.chevron.down")
@@ -1809,7 +1831,7 @@ struct NagisenSheetBar: View {
 
     var body: some View {
         ZStack {
-            Text(title)
+            Text(ui: title)
                 .font(.system(size: 18, weight: .regular, design: .serif))
                 .lineLimit(1)
                 .padding(.horizontal, 96)
@@ -1829,8 +1851,8 @@ struct NagisenSheetBar: View {
                         ProgressView().frame(width: 44, height: 44)
                     } else {
                         Button(action: onAction) {
-                            Text(actionTitle)
-                                .font(.footnote.weight(.semibold)).tracking(0.4)
+                            Text(ui: actionTitle)
+                                .font(.footnote.weight(.semibold)).nagisenTracking(0.4)
                                 .foregroundStyle(actionEnabled ? Color.white : Theme.muted)
                                 .padding(.horizontal, 16).frame(height: 32)
                                 .background(actionEnabled ? Theme.accent : Color.clear, in: Capsule())
@@ -1861,16 +1883,16 @@ struct NagisenPageHeading: View {
             HStack(spacing: 8) {
                 // One brand color for every section, matching the dot beside NAGISEN on Dashboard.
                 Circle().fill(Theme.red).frame(width: 9, height: 9)
-                Text(kicker.uppercased())
-                    .font(.caption2.weight(.semibold)).tracking(2.5)
+                Text(ui: kicker).textCase(.uppercase)
+                    .font(.caption2.weight(.semibold)).nagisenTracking(2.5)
                     .foregroundStyle(Theme.muted)
             }
-            Text(title)
+            Text(ui: title)
                 .font(.system(size: 34, weight: .regular, design: .serif))
                 .foregroundStyle(Theme.ink)
                 .minimumScaleFactor(0.8)
                 .lineLimit(1)
-            Text(subtitle)
+            Text(ui: subtitle)
                 .font(.subheadline).foregroundStyle(Theme.muted)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1891,8 +1913,8 @@ struct NagisenSection<Content: View>: View {
     var body: some View {
         if edgeToEdge {
             VStack(alignment: .leading, spacing: 12) {
-                Text(title.uppercased())
-                    .font(.caption2.weight(.semibold)).tracking(2.2)
+                Text(ui: title).textCase(.uppercase)
+                    .font(.caption2.weight(.semibold)).nagisenTracking(2.2)
                     .foregroundStyle(Theme.muted)
                 VStack(alignment: .leading, spacing: 0) { content }
             }
@@ -1902,8 +1924,8 @@ struct NagisenSection<Content: View>: View {
             .background(Theme.surface.opacity(0.52))
         } else {
             VStack(alignment: .leading, spacing: 12) {
-                Text(title.uppercased())
-                    .font(.caption2.weight(.semibold)).tracking(2.2)
+                Text(ui: title).textCase(.uppercase)
+                    .font(.caption2.weight(.semibold)).nagisenTracking(2.2)
                     .foregroundStyle(Theme.muted)
                     .padding(.leading, 2)
                 VStack(alignment: .leading, spacing: 0) { content }
@@ -1936,9 +1958,9 @@ struct NagisenTextRow: View {
     var body: some View {
         HStack(spacing: 10) {
             if let color { Circle().fill(color).frame(width: 7, height: 7) }
-            Text(title).foregroundStyle(color ?? Theme.ink)
+            Text(ui: title).foregroundStyle(color ?? Theme.ink)
             Spacer()
-            TextField(placeholder, text: $text)
+            TextField(LocalizedStringKey(placeholder), text: $text)
                 .keyboardType(keyboard)
                 .multilineTextAlignment(.trailing)
                 .foregroundStyle(Theme.ink)
@@ -1963,7 +1985,7 @@ struct NagisenPrimaryButton: View {
 
     var body: some View {
         Button(action: action) {
-            Text(title)
+            Text(ui: title)
                 .font(.subheadline.weight(.semibold))
                 .frame(maxWidth: .infinity)
                 .frame(height: 52)

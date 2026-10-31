@@ -43,7 +43,7 @@ struct LoseItImportView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                NagisenHeader("Import from Lose It!", subtitle: "Bring your history over, keep your streak.",
+                NagisenHeader("Import from Lose It!", subtitle: String(localized: "Bring your history over, keep your streak."),
                               symbol: "xmark", onBack: { dismiss() })
 
                 legacyCard
@@ -111,7 +111,7 @@ struct LoseItImportView: View {
             handleFileResult(result)
         }
         .nagisenDialog("Import this data?", isPresented: $showingConfirmation, message: confirmationMessage) {
-            [NagisenAction(title: "Import", destructive: true) { commit() }]
+            [NagisenAction(title: String(localized: "Import"), destructive: true) { commit() }]
         }
         .nagisenDialog("Lose It! import", isPresented: Binding(get: { outcome != nil }, set: { if !$0 { finishImport() } }),
                        message: outcome?.message, cancelTitle: "OK")
@@ -183,14 +183,14 @@ struct LoseItImportView: View {
         guard let plan = preview, !plan.isEmpty else { return nil }
         return AnyView(
             VStack(alignment: .leading, spacing: 10) {
-                summaryRow("Food entries", plan.entries.count.formatted())
+                summaryRow(String(localized: "Food entries"), plan.entries.count.formatted())
                 summaryRow("Weigh-ins", plan.weights.count.formatted())
                 if !plan.dailySummaries.isEmpty {
-                    summaryRow("Daily summaries", "\(plan.dailySummaries.count.formatted()) kept for reference")
+                    summaryRow(String(localized: "Daily summaries"), "\(plan.dailySummaries.count.formatted()) kept for reference")
                 }
-                if let range = plan.dateRangeText { summaryRow("Date range", range) }
+                if let range = plan.dateRangeText { summaryRow(String(localized: "Date range"), range) }
                 if plan.duplicateEntries > 0 {
-                    summaryRow("Already present", "\(plan.duplicateEntries.formatted()) skipped")
+                    summaryRow(String(localized: "Already present"), "\(plan.duplicateEntries.formatted()) skipped")
                 }
                 ForEach(plan.skipped) { skip in
                     VStack(alignment: .leading, spacing: 2) {
@@ -212,7 +212,7 @@ struct LoseItImportView: View {
 
     private func summaryRow(_ title: String, _ value: String) -> some View {
         HStack(alignment: .firstTextBaseline) {
-            Text(title).font(.subheadline).foregroundStyle(Theme.ink)
+            Text(ui: title).font(.subheadline).foregroundStyle(Theme.ink)
             Spacer()
             Text(value).font(.subheadline.weight(.medium)).foregroundStyle(Theme.muted)
         }
@@ -244,17 +244,17 @@ struct LoseItImportView: View {
     private var confirmationMessage: String {
         guard let plan = combinedPreview else { return "" }
         var parts: [String] = []
-        if !plan.entries.isEmpty { parts.append("\(plan.entries.count) food entries") }
-        if !plan.weights.isEmpty { parts.append("\(plan.weights.count) weigh-ins") }
-        if let legacy = plan.legacy { parts.append("a \(legacy.count.formatted())-day legacy streak") }
-        return "Adds " + parts.joined(separator: ", ") + ". Your current diary and settings stay intact."
+        if !plan.entries.isEmpty { parts.append(String(localized: "\(plan.entries.count) food entries")) }
+        if !plan.weights.isEmpty { parts.append(String(localized: "\(plan.weights.count) weigh-ins")) }
+        if let legacy = plan.legacy { parts.append(String(localized: "a \(legacy.count.formatted())-day legacy streak")) }
+        return String(localized: "Adds \(parts.joined(separator: ", ")). Your current diary and settings stay intact.")
     }
 
     private func handleFileResult(_ result: Result<[URL], Error>) {
         parseError = nil
         switch result {
         case .failure:
-            parseError = "The file could not be opened."
+            parseError = String(localized: "The file could not be opened.")
         case .success(let urls):
             var files: [LoseItSourceFile] = []
             for url in urls {
@@ -280,7 +280,7 @@ struct LoseItImportView: View {
                 includeLegacy = true
             }
             if plan.isEmpty {
-                parseError = "No food entries, weigh-ins or streak were found in that file."
+                parseError = String(localized: "No food entries, weigh-ins or streak were found in that file.")
             }
         }
     }

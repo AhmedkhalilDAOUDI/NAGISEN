@@ -5,8 +5,8 @@ import Foundation
 @MainActor
 final class CommunityCloud: ObservableObject {
     @Published private(set) var accountReady = false
-    @Published private(set) var accountMessage = "Checking iCloud…"
-    @Published private(set) var syncMessage = "Your history has not synced yet."
+    @Published private(set) var accountMessage = String(localized: "Checking iCloud…")
+    @Published private(set) var syncMessage = String(localized: "Your history has not synced yet.")
     @Published private(set) var isBusy = false
     @Published private(set) var hasConflict = false
 
@@ -32,14 +32,14 @@ final class CommunityCloud: ObservableObject {
             container.accountStatus { status, _ in continuation.resume(returning: status) }
         }
         accountReady = status == .available
-        accountMessage = accountReady ? "Connected with your Apple Account" :
-            "Sign in to iCloud in iPhone Settings to sync."
+        accountMessage = accountReady ? String(localized: "Connected with your Apple Account") :
+            String(localized: "Sign in to iCloud in iPhone Settings to sync.")
         guard accountReady else { currentUserID = nil; return }
         let userRecord = try? await container.userRecordID()
         currentUserID = userRecord?.recordName
         if currentUserID == nil {
             accountReady = false
-            accountMessage = "Couldn’t identify this iCloud account. Try again in a moment."
+            accountMessage = String(localized: "Couldn’t identify this iCloud account. Try again in a moment.")
         }
         #endif
     }
@@ -59,7 +59,7 @@ final class CommunityCloud: ObservableObject {
             if localDigest == remoteDigest {
                 UserDefaults.standard.set(localDigest, forKey: lastSyncedKey)
                 hasConflict = false
-                syncMessage = "Up to date in iCloud"
+                syncMessage = String(localized: "Up to date in iCloud")
                 return
             }
             let last = UserDefaults.standard.string(forKey: lastSyncedKey)
@@ -72,10 +72,10 @@ final class CommunityCloud: ObservableObject {
                 }
                 UserDefaults.standard.set(remoteDigest, forKey: lastSyncedKey)
                 hasConflict = false
-                syncMessage = "Restored from iCloud"
+                syncMessage = String(localized: "Restored from iCloud")
             } else {
                 hasConflict = true
-                syncMessage = "This iPhone and iCloud both have changes. Choose which copy to keep in Your space."
+                syncMessage = String(localized: "This iPhone and iCloud both have changes. Choose which copy to keep in Your space.")
             }
         } catch {
             syncMessage = "iCloud sync unavailable: \(error.localizedDescription)"
@@ -100,12 +100,12 @@ final class CommunityCloud: ObservableObject {
         do {
             guard let remote = try await fetchBackup(), store.backupNow(),
                   store.restoreJSON(remote.data) else {
-                syncMessage = "Couldn’t restore the iCloud copy. Your iPhone data is unchanged."
+                syncMessage = String(localized: "Couldn’t restore the iCloud copy. Your iPhone data is unchanged.")
                 return
             }
             UserDefaults.standard.set(digest(remote.data), forKey: lastSyncedKey)
             hasConflict = false
-            syncMessage = "Restored from iCloud"
+            syncMessage = String(localized: "Restored from iCloud")
         } catch {
             syncMessage = "Couldn’t restore from iCloud: \(error.localizedDescription)"
         }
@@ -128,7 +128,7 @@ final class CommunityCloud: ObservableObject {
         _ = try await container.privateCloudDatabase.save(record)
         UserDefaults.standard.set(digest(data), forKey: lastSyncedKey)
         hasConflict = false
-        syncMessage = "Saved to iCloud"
+        syncMessage = String(localized: "Saved to iCloud")
     }
 
     private func digest(_ data: Data) -> String {

@@ -54,7 +54,7 @@ struct ReceiptPriceView: View {
                 .padding(.vertical, 16)
             }
             .background(NagisenBackdrop())
-            .nagisenSheetBar("Receipt prices", onClose: { dismiss() }, actionTitle: "Save",
+            .nagisenSheetBar("Receipt prices", onClose: { dismiss() }, actionTitle: String(localized: "Save"),
                              actionEnabled: !rows.filter { $0.include && $0.food != nil && $0.price != nil }.isEmpty,
                              onAction: save)
             .sheet(isPresented: $showingCamera) {
@@ -144,7 +144,7 @@ struct ReceiptPriceView: View {
                     HStack(spacing: 8) {
                         Button { choosingFoodFor = row.id } label: {
                             HStack(spacing: 4) {
-                                Text(row.food?.name ?? "Choose food")
+                                Text(row.food?.name ?? String(localized: "Choose food"))
                                     .font(.caption.weight(.semibold))
                                     .lineLimit(1)
                                 Image(systemName: "chevron.up.chevron.down")
@@ -158,14 +158,14 @@ struct ReceiptPriceView: View {
                         .buttonStyle(.plain)
                         .nagisenActions(isPresented: Binding(get: { choosingFoodFor == row.id },
                                                              set: { if !$0 { choosingFoodFor = nil } }),
-                                        title: "Which food is this?") {
+                                        title: String(localized: "Which food is this?")) {
                             let line = row.line
                             return candidates(for: line).map { candidate in
                                 NagisenAction(title: candidate.name, selected: row.food?.id == candidate.id) {
                                     row.food = candidate
                                     row.price = ReceiptMatcher.price(for: line, food: candidate)
                                 }
-                            } + [NagisenAction(title: "Not a food I track", selected: row.food == nil) {
+                            } + [NagisenAction(title: String(localized: "Not a food I track"), selected: row.food == nil) {
                                 row.food = nil
                                 row.price = nil
                             }]
@@ -188,10 +188,10 @@ struct ReceiptPriceView: View {
     }
 
     private func priceText(_ row: DraftRow) -> String {
-        guard let price = row.price, !price.isEmpty else { return "no price yet" }
+        guard let price = row.price, !price.isEmpty else { return String(localized: "no price yet") }
         if let per100g = price.per100g { return FoodCost.display(per100g) + " / 100 g" }
         if let perServing = price.perServing { return FoodCost.display(perServing) + " / serving" }
-        return "no price yet"
+        return String(localized: "no price yet")
     }
 
     /// Foods worth matching against: what has actually been eaten recently, plus anything custom.
@@ -226,7 +226,7 @@ struct ReceiptPriceView: View {
         status = nil
         guard let data = image.jpegData(compressionQuality: 0.9) else {
             isReading = false
-            status = "That photo could not be read."
+            status = String(localized: "That photo could not be read.")
             return
         }
         Task {
@@ -260,11 +260,11 @@ struct ReceiptPriceView: View {
             }
             isReading = false
             if parsed.isEmpty {
-                status = "No priced rows were found. Try a flatter photo with the whole receipt in frame."
+                status = String(localized: "No priced rows were found. Try a flatter photo with the whole receipt in frame.")
             } else if rows.filter(\.include).isEmpty {
-                status = "Read \(parsed.count) rows, but none matched a food you log. Choose the food for each row below."
+                status = String(localized: "Read \(parsed.count) rows, but none matched a food you log. Choose the food for each row below.")
             } else {
-                status = "Read \(parsed.count) rows. Check the matches before saving."
+                status = String(localized: "Read \(parsed.count) rows. Check the matches before saving.")
             }
         }
     }

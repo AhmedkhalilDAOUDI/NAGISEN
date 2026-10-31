@@ -123,10 +123,10 @@ final class DeepSeekChat: ObservableObject {
         case invalidResponse, http(Int)
         var errorDescription: String? {
             switch self {
-            case .invalidResponse: "DeepSeek returned an unreadable response. Try again."
-            case .http(401): "The API key was rejected. Check it in Chat settings."
-            case .http(429): "DeepSeek is busy or the account limit was reached. Try again later."
-            case .http(let code): "DeepSeek returned error \(code). Try again."
+            case .invalidResponse: String(localized: "DeepSeek returned an unreadable response. Try again.")
+            case .http(401): String(localized: "The API key was rejected. Check it in Chat settings.")
+            case .http(429): String(localized: "DeepSeek is busy or the account limit was reached. Try again later.")
+            case .http(let code): String(localized: "DeepSeek returned error \(code). Try again.")
             }
         }
     }
@@ -154,16 +154,16 @@ struct DeepSeekChatView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 HStack(alignment: .top, spacing: 8) {
-                    NagisenPageHeading(kicker: "NAGISEN AI", title: "Your coach",
-                                       subtitle: "A space to think things through.")
+                    NagisenPageHeading(kicker: String(localized: "NAGISEN AI"), title: String(localized: "Your coach"),
+                                       subtitle: String(localized: "A space to think things through."))
                     if !chat.messages.isEmpty {
-                        headerButton("square.and.pencil", label: "New chat") {
+                        headerButton("square.and.pencil", label: String(localized: "New chat")) {
                             chat.clearHistory(); composerFocused = false
                         }
                     }
-                    headerButton("slider.horizontal.3", label: "Chat settings") { showingSettings = true }
+                    headerButton("slider.horizontal.3", label: String(localized: "Chat settings")) { showingSettings = true }
                     if let onClose {
-                        headerButton("xmark", label: "Close") { composerFocused = false; onClose() }
+                        headerButton("xmark", label: String(localized: "Close")) { composerFocused = false; onClose() }
                     }
                 }
                 .padding(.horizontal, 20).padding(.top, 18).padding(.bottom, 4)
@@ -246,21 +246,21 @@ struct DeepSeekChatView: View {
             .padding(.top, 18)
 
             if !hasKey {
-                quietCard(symbol: "key", title: "Connect DeepSeek",
-                          detail: "Add your API key once. It stays in this iPhone's Keychain.") {
+                quietCard(symbol: "key", title: String(localized: "Connect DeepSeek"),
+                          detail: String(localized: "Add your API key once. It stays in this iPhone's Keychain.")) {
                     showingSettings = true
                 }
             }
             if useContext {
-                suggestion("sun.horizon", "Review my day so far", hint: "One observation, one next step",
+                suggestion("sun.horizon", String(localized: "Review my day so far"), hint: String(localized: "One observation, one next step"),
                            prompt: "Review my food and activity so far today. Give me one useful observation and one practical next step. Be clear about missing logs.")
-                suggestion("figure.run", "Plan my next workout", hint: "Built from your recent sessions",
+                suggestion("figure.run", String(localized: "Plan my next workout"), hint: String(localized: "Built from your recent sessions"),
                            prompt: "Based on my recent workouts and activity, suggest a fun hybrid workout for my next session, with an easier option too.")
-                suggestion("fork.knife", "Help me hit my goals", hint: "A practical next meal or snack",
+                suggestion("fork.knife", String(localized: "Help me hit my goals"), hint: "A practical next meal or snack",
                            prompt: "Using my logged nutrition and daily goals, suggest a practical next meal or snack. Do not assume I ate nothing when the diary is empty.")
             } else if hasKey {
-                quietCard(symbol: "sparkles", title: "Let your coach see today",
-                          detail: "Each message would include a short summary of today's food, goals, workouts and steps, sent to DeepSeek.") {
+                quietCard(symbol: "sparkles", title: String(localized: "Let your coach see today"),
+                          detail: String(localized: "Each message would include a short summary of today's food, goals, workouts and steps, sent to DeepSeek.")) {
                     useContext = true
                 }
             }
@@ -280,8 +280,8 @@ struct DeepSeekChatView: View {
                     .foregroundStyle(Theme.accentText)
                     .frame(width: 28)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(title).font(.body.weight(.medium)).foregroundStyle(Theme.ink)
-                    Text(detail).font(.caption).foregroundStyle(Theme.muted)
+                    Text(ui: title).font(.body.weight(.medium)).foregroundStyle(Theme.ink)
+                    Text(ui: detail).font(.caption).foregroundStyle(Theme.muted)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 8)
@@ -313,7 +313,7 @@ struct DeepSeekChatView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
                 Circle().fill(Theme.red).frame(width: 6, height: 6)
-                Text("NAGISEN").font(.caption2.weight(.semibold)).tracking(2)
+                Text("NAGISEN").font(.caption2.weight(.semibold)).nagisenTracking(2)
             }
             .foregroundStyle(Theme.muted)
             Text(Self.rendered(message.content))
@@ -380,7 +380,7 @@ struct DeepSeekChatView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 25) {
-                    NagisenHeader("Chat settings", subtitle: "Make this space yours.", symbol: "xmark", onBack: { showingSettings = false })
+                    NagisenHeader("Chat settings", subtitle: String(localized: "Make this space yours."), symbol: "xmark", onBack: { showingSettings = false })
                     NagisenSection("DeepSeek connection") {
                     SecureField(chat.hasKey ? "Replace API key" : "Paste API key", text: $keyInput)
                         .textInputAutocapitalization(.never)

@@ -103,10 +103,10 @@ struct FoodPrice: Codable, Equatable {
             let amount = grams >= 1000
                 ? "\((grams / 1000).formatted(.number.precision(.fractionLength(0...2)))) kg"
                 : "\(grams.formatted(.number.precision(.fractionLength(0...0)))) g"
-            return "\(amount) for \(paid.formatted(.number.precision(.fractionLength(0...2)))) \(UserRegion.currency)"
+            return String(localized: "\(amount) for \(paid.formatted(.number.precision(.fractionLength(0...2)))) \(UserRegion.currency)")
         }
         if let servings = boughtServings {
-            return "\(servings.formatted(.number.precision(.fractionLength(0...2)))) servings for \(paid.formatted(.number.precision(.fractionLength(0...2)))) \(UserRegion.currency)"
+            return String(localized: "\(servings.formatted(.number.precision(.fractionLength(0...2)))) servings for \(paid.formatted(.number.precision(.fractionLength(0...2)))) \(UserRegion.currency)")
         }
         return nil
     }

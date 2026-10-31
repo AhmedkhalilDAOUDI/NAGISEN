@@ -1,0 +1,96 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "NSCameraUsageDescription": {
+      "comment": "Info.plist",
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scannez des codes-barres ou photographiez des emballages pour trouver les informations nutritionnelles."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "امسح الباركود أو صوّر عبوات الطعام للعثور على المعلومات الغذائية."
+          }
+        }
+      }
+    },
+    "NSMicrophoneUsageDescription": {
+      "comment": "Info.plist",
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utilisez votre voix pour rechercher un aliment sur cet iPhone."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "استخدم صوتك للبحث عن الطعام على هذا الآيفون."
+          }
+        }
+      }
+    },
+    "NSSpeechRecognitionUsageDescription": {
+      "comment": "Info.plist",
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transformez le nom d'un aliment prononcé en recherche sur cet iPhone."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "حوّل اسم الطعام المنطوق إلى بحث على هذا الآيفون."
+          }
+        }
+      }
+    },
+    "NSHealthShareUsageDescription": {
+      "comment": "Info.plist",
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NAGISEN lit vos pas, votre activité, votre fréquence cardiaque, votre poids et vos séances pour montrer vos progrès. Vos données Santé restent sur cet iPhone, sauf le nombre de pas du jour si vous activez Utiliser mes données NAGISEN pour le coach."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يقرأ NAGISEN خطواتك ونشاطك ونبض قلبك ووزنك وتمارينك لعرض تقدمك. تبقى بيانات صحتك على هذا الآيفون، باستثناء عدد خطوات اليوم عند تفعيل استخدام بياناتي في NAGISEN للمدرب."
+          }
+        }
+      }
+    },
+    "NSHealthUpdateUsageDescription": {
+      "comment": "Info.plist",
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NAGISEN enregistre dans Apple Santé les séances lancées dans Accessoires, pour garder ensemble fréquence cardiaque et activité."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يحفظ NAGISEN في صحتي التمارين التي تبدأها في الملحقات، لتبقى جلسة النبض والنشاط معًا."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

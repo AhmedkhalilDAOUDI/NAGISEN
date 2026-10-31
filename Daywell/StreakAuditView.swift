@@ -77,7 +77,7 @@ struct StreakAuditView: View {
     }
 
     private func statusText(_ audit: StreakAudit) -> String {
-        if audit.isClean { return "No gaps · the count is consistent every day" }
+        if audit.isClean { return String(localized: "No gaps · the count is consistent every day") }
         var parts: [String] = []
         if !audit.gaps.isEmpty { parts.append("\(audit.gaps.count) unfinished day(s)") }
         if !audit.driftDays.isEmpty { parts.append("\(audit.driftDays.count) day(s) disagree with the diary") }

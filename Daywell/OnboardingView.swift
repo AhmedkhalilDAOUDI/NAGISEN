@@ -138,13 +138,13 @@ struct OnboardingView: View {
         switch step {
         case 0: welcome
         case 1:
-            question("Your body", "Which calorie equation fits you?",
-                     "Used only to estimate how much energy you burn.")
+            question(String(localized: "Your body"), String(localized: "Which calorie equation fits you?"),
+                     String(localized: "Used only to estimate how much energy you burn."))
             choices([(EnergyEquation.female, "Female", nil as String?), (.male, "Male", nil)],
                     selection: $plan.equation)
         case 2:
-            question("About you", "Age, height and weight",
-                     "Your starting point. Weight goes into your progress as today's entry.")
+            question("About you", String(localized: "Age, height and weight"),
+                     String(localized: "Your starting point. Weight goes into your progress as today's entry."))
             VStack(spacing: 0) {
                 numberRow("Age", unit: "years", text: $plan.age, valid: plan.ageValue != nil, decimal: false)
                 Divider().overlay(Theme.ink.opacity(0.08))
@@ -155,18 +155,18 @@ struct OnboardingView: View {
             .padding(.horizontal, 18)
             .nagisenPanel()
         case 3:
-            question("Your goal", "What are you working toward?", nil)
-            choices([(DietDirection.lose, "Cut", "Lose fat, about 300 kcal under maintenance" as String?),
-                     (.maintain, "Maintain", "Hold your weight where it is"),
-                     (.gain, "Bulk", "Build, about 250 kcal over maintenance")],
+            question(String(localized: "Your goal"), String(localized: "What are you working toward?"), nil)
+            choices([(DietDirection.lose, String(localized: "Cut"), String(localized: "Lose fat, about 300 kcal under maintenance") as String?),
+                     (.maintain, String(localized: "Maintain"), String(localized: "Hold your weight where it is")),
+                     (.gain, String(localized: "Bulk"), String(localized: "Build, about 250 kcal over maintenance"))],
                     selection: $plan.direction)
         case 4:
-            question("Training", "How often do you train?", "Sets the activity level in your calorie estimate.")
-            choices([(1, "Rarely", "0 to 1 day a week" as String?), (3, "Sometimes", "2 to 3 days a week"),
-                     (5, "Often", "4 to 5 days a week"), (7, "Almost daily", "6 to 7 days a week")],
+            question(String(localized: "Training"), String(localized: "How often do you train?"), String(localized: "Sets the activity level in your calorie estimate."))
+            choices([(1, String(localized: "Rarely"), "0 to 1 day a week" as String?), (3, String(localized: "Sometimes"), "2 to 3 days a week"),
+                     (5, String(localized: "Often"), "4 to 5 days a week"), (7, String(localized: "Almost daily"), "6 to 7 days a week")],
                     selection: $plan.trainingDays)
         case 5:
-            question("Where you live", "Your country", "Prices you enter are shown in its currency.")
+            question(String(localized: "Where you live"), String(localized: "Your country"), String(localized: "Prices you enter are shown in its currency."))
             NagisenPicker("Country", selection: $plan.country, options: Self.countries)
                 .frame(minHeight: 56)
                 .padding(.horizontal, 18)
@@ -174,9 +174,9 @@ struct OnboardingView: View {
             Text("Currency: \(UserRegion.currency(for: plan.country))")
                 .font(.caption).foregroundStyle(Theme.muted)
         case 6:
-            question("Supplements", "Do you take creatine daily?",
-                     "Adds a daily switch on your Dashboard to mark it taken.")
-            choices([(true, "Yes", nil as String?), (false, "No", nil)], selection: $plan.takesCreatine)
+            question(String(localized: "Supplements"), String(localized: "Do you take creatine daily?"),
+                     String(localized: "Adds a daily switch on your Dashboard to mark it taken."))
+            choices([(true, String(localized: "Yes"), nil as String?), (false, String(localized: "No"), nil)], selection: $plan.takesCreatine)
         default: summary
         }
     }
@@ -185,7 +185,7 @@ struct OnboardingView: View {
         VStack(alignment: .leading, spacing: 22) {
             LogoMark().frame(width: 72, height: 72)
             Text("NAGISEN")
-                .font(.caption.weight(.semibold)).tracking(6)
+                .font(.caption.weight(.semibold)).nagisenTracking(6)
                 .foregroundStyle(Theme.muted)
             Text("Let's make it yours.")
                 .font(.system(size: 38, weight: .regular, design: .serif))
@@ -198,7 +198,7 @@ struct OnboardingView: View {
 
     @ViewBuilder
     private var summary: some View {
-        question("Your targets", "Here's where you start", "You can change any of this later in Goals.")
+        question(String(localized: "Your targets"), String(localized: "Here's where you start"), String(localized: "You can change any of this later in Goals."))
         if let goals = plan.goals {
             VStack(alignment: .leading, spacing: 20) {
                 VStack(alignment: .leading, spacing: 2) {
@@ -254,14 +254,14 @@ struct OnboardingView: View {
 
     private func question(_ kicker: String, _ title: String, _ detail: String?) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(kicker.uppercased())
-                .font(.caption2.weight(.semibold)).tracking(2.4)
+            Text(ui: kicker).textCase(.uppercase)
+                .font(.caption2.weight(.semibold)).nagisenTracking(2.4)
                 .foregroundStyle(Theme.muted)
-            Text(title)
+            Text(ui: title)
                 .font(.system(size: 32, weight: .regular, design: .serif))
                 .fixedSize(horizontal: false, vertical: true)
             if let detail {
-                Text(detail).font(.subheadline).foregroundStyle(Theme.muted)
+                Text(ui: detail).font(.subheadline).foregroundStyle(Theme.muted)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -275,9 +275,9 @@ struct OnboardingView: View {
                 Button { withAnimation(.smooth(duration: 0.2)) { selection.wrappedValue = value } } label: {
                     HStack(spacing: 16) {
                         VStack(alignment: .leading, spacing: 3) {
-                            Text(title).font(.system(size: 19, design: .serif))
+                            Text(ui: title).font(.system(size: 19, design: .serif))
                             if let detail {
-                                Text(detail).font(.caption).foregroundStyle(Theme.muted)
+                                Text(ui: detail).font(.caption).foregroundStyle(Theme.muted)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                         }
@@ -304,7 +304,7 @@ struct OnboardingView: View {
 
     private func numberRow(_ title: String, unit: String, text: Binding<String>, valid: Bool, decimal: Bool) -> some View {
         HStack(spacing: 10) {
-            Text(title).foregroundStyle(Theme.muted)
+            Text(ui: title).foregroundStyle(Theme.muted)
             Spacer()
             TextField("0", text: text)
                 .keyboardType(decimal ? .decimalPad : .numberPad)
@@ -320,7 +320,7 @@ struct OnboardingView: View {
 
     private func macro(_ name: String, _ grams: Int, _ color: Color) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(name.uppercased()).font(.caption2.weight(.semibold)).tracking(1.6).foregroundStyle(color)
+            Text(ui: name).textCase(.uppercase).font(.caption2.weight(.semibold)).nagisenTracking(1.6).foregroundStyle(color)
             Text("\(grams) g").font(.system(size: 22, design: .serif))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -330,8 +330,8 @@ struct OnboardingView: View {
 
     private var buttonTitle: String {
         switch step {
-        case 0: "Begin"
-        case questions + 1: "Start NAGISEN"
+        case 0: String(localized: "Begin")
+        case questions + 1: String(localized: "Start NAGISEN")
         default: "Continue"
         }
     }

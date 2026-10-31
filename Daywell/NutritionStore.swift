@@ -64,10 +64,10 @@ struct DiaryEntry: Identifiable, Codable {
     var sodium: Double? { food.sodium.map { $0 * servings } }
     var portionDescription: String {
         if let loggedQuantity, let loggedUnit {
-            if loggedUnit == "serving" { return "\(loggedQuantity.formatted()) × \(food.serving)" }
-            return "\(loggedQuantity.formatted()) \(loggedUnit)"
+            if loggedUnit == "serving" { return String(localized: "\(loggedQuantity.formatted()) × \(food.serving)") }
+            return String(localized: "\(loggedQuantity.formatted()) \(loggedUnit)")
         }
-        return "\(servings.formatted()) × \(food.serving)"
+        return String(localized: "\(servings.formatted()) × \(food.serving)")
     }
 }
 
@@ -600,7 +600,7 @@ final class NutritionStore: ObservableObject {
         if let applied = goalAdjustments.first?.date, now.timeIntervalSince(applied) < 7 * 86_400 {
             return WeeklyReview(loggedDays: 0, weightEntries: 0, trendChangeKg: nil,
                                 averageCalories: nil, estimatedExpenditure: nil, suggestedCalories: nil,
-                                reason: "Your last adjustment was applied this week. Keep logging and check again next week.")
+                                reason: String(localized: "Your last adjustment was applied this week. Keep logging and check again next week."))
         }
         let calendar = Calendar.current
         let days = (0..<14).compactMap { calendar.date(byAdding: .day, value: -$0, to: now) }
@@ -619,7 +619,7 @@ final class NutritionStore: ObservableObject {
             return WeeklyReview(loggedDays: logged.count, weightEntries: weightsInWindow.count,
                                 trendChangeKg: nil, averageCalories: nil, estimatedExpenditure: nil,
                                 suggestedCalories: nil,
-                                reason: "Log at least two foods on five days in each of the last two weeks, and add four weigh-ins spanning at least a week. Partial days can distort an estimate.")
+                                reason: String(localized: "Log at least two foods on five days in each of the last two weeks, and add four weigh-ins spanning at least a week. Partial days can distort an estimate."))
         }
         let slopes = weightsInWindow.enumerated().flatMap { i, earlier in
             weightsInWindow.dropFirst(i + 1).compactMap { later -> Double? in
@@ -631,7 +631,7 @@ final class NutritionStore: ObservableObject {
         guard !slopes.isEmpty else {
             return WeeklyReview(loggedDays: logged.count, weightEntries: weightsInWindow.count,
                                 trendChangeKg: nil, averageCalories: nil, estimatedExpenditure: nil,
-                                suggestedCalories: nil, reason: "Add weigh-ins on more separate days to estimate a trend.")
+                                suggestedCalories: nil, reason: String(localized: "Add weigh-ins on more separate days to estimate a trend."))
         }
         let dailyChange = slopes[slopes.count / 2]
         let weeklyChange = dailyChange * 7
@@ -640,7 +640,7 @@ final class NutritionStore: ObservableObject {
         guard (1200...6000).contains(expenditure) else {
             return WeeklyReview(loggedDays: logged.count, weightEntries: weightsInWindow.count,
                                 trendChangeKg: weeklyChange, averageCalories: average, estimatedExpenditure: nil,
-                                suggestedCalories: nil, reason: "The intake and weight trend do not support a reliable energy estimate yet. Check for partial food days or unusual weigh-ins.")
+                                suggestedCalories: nil, reason: String(localized: "The intake and weight trend do not support a reliable energy estimate yet. Check for partial food days or unusual weigh-ins."))
         }
         let direction: DietDirection
         if dietPreferences.direction == .automatic {
@@ -658,7 +658,7 @@ final class NutritionStore: ObservableObject {
         let difference = rawTarget - Double(goals.calories)
         let step = abs(difference) < 75 ? 0 : (difference > 0 ? 100 : -100)
         let next = min(5000, max(1200, goals.calories + step))
-        let reason = step == 0 ? "Your logged intake and weight trend support keeping your current target." :
+        let reason = step == 0 ? String(localized: "Your logged intake and weight trend support keeping your current target.") :
             "Your weight trend is \(weeklyChange.formatted(.number.precision(.fractionLength(2)))) kg per week. This small change moves your target toward the estimated energy need for your goal."
         return WeeklyReview(loggedDays: logged.count, weightEntries: weightsInWindow.count,
                             trendChangeKg: weeklyChange, averageCalories: average,
@@ -1048,15 +1048,15 @@ final class NutritionStore: ObservableObject {
             switch self {
             case let .imported(entries, weights, legacyApplied):
                 var parts: [String] = []
-                if entries > 0 { parts.append("\(entries) food \(entries == 1 ? "entry" : "entries")") }
-                if weights > 0 { parts.append("\(weights) weigh-in\(weights == 1 ? "" : "s")") }
-                if legacyApplied { parts.append("your legacy streak") }
-                if parts.isEmpty { return "Nothing new to import." }
-                return "Imported " + parts.joined(separator: ", ") + "."
+                if entries > 0 { parts.append(String(localized: "\(entries) food entries")) }
+                if weights > 0 { parts.append(String(localized: "\(weights) weigh-ins")) }
+                if legacyApplied { parts.append(String(localized: "your legacy streak")) }
+                if parts.isEmpty { return String(localized: "Nothing new to import.") }
+                return String(localized: "Imported \(parts.joined(separator: ", ")).")
             case .nothingNew:
-                return "Everything in this file is already in NAGISEN."
+                return String(localized: "Everything in this file is already in NAGISEN.")
             case .backupFailed:
-                return "NAGISEN could not write a safety backup, so nothing was imported."
+                return String(localized: "NAGISEN could not write a safety backup, so nothing was imported.")
             }
         }
     }

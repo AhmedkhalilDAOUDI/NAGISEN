@@ -88,8 +88,8 @@ struct SocialFeedView: View {
             Text("Feed").font(.system(size: 30, design: .serif))
             Spacer()
             if feed.state == .ready {
-                iconButton("plus.square", label: "New post") { showingComposer = true }
-                iconButton("bell", label: feed.hasNewActivity ? "Activity, new" : "Activity") { showingActivity = true }
+                iconButton("plus.square", label: String(localized: "New post")) { showingComposer = true }
+                iconButton("bell", label: feed.hasNewActivity ? String(localized: "Activity, new") : "Activity") { showingActivity = true }
                     .overlay(alignment: .topTrailing) {
                         if feed.hasNewActivity {
                             Circle().fill(Theme.red).frame(width: 8, height: 8).offset(x: -10, y: 10)
@@ -121,7 +121,7 @@ struct SocialFeedView: View {
             ForEach(FeedService.FeedMode.allCases, id: \.self) { mode in
                 Button { feed.mode = mode } label: {
                     VStack(spacing: 8) {
-                        Text(mode.rawValue)
+                        Text(ui: mode.rawValue)
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(feed.mode == mode ? Theme.ink : Theme.muted)
                         Rectangle().fill(feed.mode == mode ? Theme.ink : Theme.line)
@@ -167,7 +167,7 @@ struct SocialFeedView: View {
                 Text(feed.state == .signedOut ? "Create an account to share workouts, meals and small wins with NAGISEN members."
                                               : "Choose a username to finish setting up your account.")
                     .font(.subheadline)
-                NagisenPrimaryButton(feed.state == .signedOut ? "Sign in or create an account" : "Choose a username") {
+                NagisenPrimaryButton(feed.state == .signedOut ? String(localized: "Sign in or create an account") : "Choose a username") {
                     showingAccount = true
                 }
             }
@@ -182,7 +182,7 @@ struct SocialFeedView: View {
         if !drafts.isEmpty {
             VStack(alignment: .leading, spacing: 12) {
                 Text("YOUR PRIVATE DRAFTS")
-                    .font(.caption2.weight(.semibold)).tracking(2)
+                    .font(.caption2.weight(.semibold)).nagisenTracking(2)
                     .foregroundStyle(Theme.muted)
                 ForEach(drafts) { draft in
                     VStack(alignment: .leading, spacing: 12) {
@@ -211,7 +211,7 @@ struct SocialFeedView: View {
             .padding(.top, 12)
             .background(NagisenBackdrop())
             .foregroundStyle(Theme.ink)
-            .nagisenSheetBar(rulesAccepted ? "New post" : "Community rules",
+            .nagisenSheetBar(rulesAccepted ? "New post" : String(localized: "Community rules"),
                              onClose: { showingComposer = false },
                              actionTitle: rulesAccepted ? "Share" : nil, actionEnabled: canPost,
                              busy: feed.isBusy, onAction: rulesAccepted ? publish : nil)
