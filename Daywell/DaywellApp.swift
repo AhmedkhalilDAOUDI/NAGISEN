@@ -6,6 +6,7 @@ struct DaywellApp: App {
     @StateObject private var spotify = SpotifyManager()
     @StateObject private var health = HealthManager()
     @StateObject private var community = CommunityCloud()
+    @StateObject private var feed = FeedService()
     @State private var syncTask: Task<Void, Never>?
     @AppStorage("nagisen.health.autoImport") private var autoImportHealth = false
     @Environment(\.scenePhase) private var scenePhase
@@ -17,6 +18,7 @@ struct DaywellApp: App {
                 .environmentObject(spotify)
                 .environmentObject(health)
                 .environmentObject(community)
+                .environmentObject(feed)
                 .onOpenURL { spotify.handle(url: $0) }
                 .onReceive(health.$workouts) { _ in
                     if autoImportHealth { _ = store.importHealth(workouts: health.workouts, weights: health.weightSamples) }
