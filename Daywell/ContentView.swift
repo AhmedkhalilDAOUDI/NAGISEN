@@ -801,7 +801,7 @@ private struct CalorieCard: View {
                 let streak = store.streakSnapshot(asOf: date)
                 HStack(alignment: .firstTextBaseline) {
                     Text("\(streak.activeStreak.formatted(.number.grouping(.automatic)))-day streak")
-                        .font(.system(size: 20, weight: .semibold))
+                        .font(.title3.weight(.semibold))
                         .foregroundStyle(Theme.ink)
                     Spacer()
                     Button("Verify") { showingStreakAudit = true }
@@ -837,6 +837,7 @@ private struct CalorieCard: View {
 
 private struct MacroCard: View {
     @EnvironmentObject private var store: NutritionStore
+    @Environment(\.dynamicTypeSize) private var typeSize
     let date: Date
 
     var body: some View {
@@ -845,7 +846,11 @@ private struct MacroCard: View {
             Text("NUTRITION")
                 .font(.caption2.weight(.semibold)).tracking(2.2)
                 .foregroundStyle(Theme.muted)
-            HStack(alignment: .top, spacing: 16) {
+            // Side by side normally; stacked at accessibility text sizes so the columns never collide.
+            let layout = typeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 20))
+                : AnyLayout(HStackLayout(alignment: .top, spacing: 16))
+            layout {
                 MacroRow(name: "Protein", amount: totals.protein, goal: store.goals(on: date).protein, color: Theme.protein)
                 MacroRow(name: "Carbs", amount: totals.carbs, goal: store.goals(on: date).carbs, color: Theme.carbs)
                 MacroRow(name: "Fat", amount: totals.fat, goal: store.goals(on: date).fat, color: Theme.fat)
@@ -869,7 +874,7 @@ private struct CreatineCard: View {
                 .font(.title2)
                 .foregroundStyle(Theme.accentText)
             VStack(alignment: .leading, spacing: 4) {
-                Text("5g creatine").font(.system(size: 18, design: .serif))
+                Text("5g creatine").font(.system(.body, design: .serif))
                 Text(taken ? "Taken on this day" : "Not taken on this day")
                     .font(.caption).foregroundStyle(Theme.muted)
             }
@@ -1091,7 +1096,7 @@ private struct MacroRow: View {
             }
             .foregroundStyle(color)
             Text("\(Int(amount.rounded()))g")
-                .font(.system(size: 23, weight: .regular, design: .serif))
+                .font(.system(.title2, design: .serif))
                 .foregroundStyle(color)
             Text("\(percentage)% of \(goal)g").font(.caption).foregroundStyle(Theme.muted)
             GeometryReader { geometry in
