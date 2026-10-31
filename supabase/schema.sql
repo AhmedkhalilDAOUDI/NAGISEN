@@ -5,7 +5,7 @@
 -- Profiles: one per account, holds the public username.
 create table if not exists public.profiles (
     id uuid primary key references auth.users (id) on delete cascade,
-    username text not null unique check (username ~ '^[a-z0-9_]{3,20}$'),
+    username text not null unique check (username ~ '^[A-Za-z0-9_]{3,20}$'),
     created_at timestamptz not null default now()
 );
 
@@ -43,6 +43,11 @@ $$;
 drop trigger if exists protect_special_border on public.profiles;
 create trigger protect_special_border before insert or update on public.profiles
     for each row execute function public.protect_special_border();
+
+-- Usernames may use capitals; uniqueness ignores case, so "Khalil" and "khalil" can't both exist.
+alter table public.profiles drop constraint if exists profiles_username_check;
+alter table public.profiles add constraint profiles_username_check check (username ~ '^[A-Za-z0-9_]{3,20}$');
+create unique index if not exists profiles_username_lower_idx on public.profiles (lower(username));
 
 -- Posts: text, one photo or video, or both.
 create table if not exists public.posts (

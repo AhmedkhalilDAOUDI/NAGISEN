@@ -176,14 +176,14 @@ enum FeedRules {
     static let maxBioLength = 150
     static let reportReasons = ["Spam", "Harassment or hate", "Sexual or violent content", "Something else"]
 
-    /// Lowercase letters, digits and underscores, 3 to 20 characters, as the database enforces.
+    /// Letters, digits and underscores, 3 to 20 characters, as the database enforces.
     static func isValidUsername(_ name: String) -> Bool {
         (3...20).contains(name.count) &&
-            name.unicodeScalars.allSatisfy { CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyz0123456789_").contains($0) }
+            name.unicodeScalars.allSatisfy { CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_").contains($0) }
     }
 
     static func normalizedUsername(_ name: String) -> String {
-        name.trimmingCharacters(in: .whitespaces).lowercased()
+        name.trimmingCharacters(in: .whitespaces)
     }
 
     /// The member's storage folder. Lowercase, because the storage policy compares it with
@@ -204,18 +204,18 @@ final class FeedService: ObservableObject {
     @Published private(set) var borderTier: BorderTier = .none
     @Published private(set) var specialBorder: SpecialBorder?
     @Published private(set) var email: String?
-    @Published internal(set) var posts: [FeedPost] = []
+    @Published var posts: [FeedPost] = []
     @Published private(set) var canLoadMore = false
     @Published private(set) var blockedCount = 0
-    @Published internal(set) var isBusy = false
+    @Published var isBusy = false
     @Published private(set) var activity: [FeedActivity] = []
     @Published private(set) var hasNewActivity = false
     @Published var message: String?
     /// Who you follow, kept here so Follow buttons and the Following feed agree everywhere.
-    @Published internal(set) var following: Set<UUID> = []
+    @Published var following: Set<UUID> = []
     @Published var mode: FeedMode = .following
-    @Published internal(set) var storyGroups: [StoryGroup] = []
-    @Published internal(set) var seenStories: Set<UUID> = []
+    @Published var storyGroups: [StoryGroup] = []
+    @Published var seenStories: Set<UUID> = []
 
     enum FeedMode: String, CaseIterable { case following = "Following", explore = "Explore" }
 
@@ -223,7 +223,7 @@ final class FeedService: ObservableObject {
     let client: SupabaseClient?
     let pageSize = 20
     let bucket = "post-media"
-    internal(set) var userID: UUID?
+    var userID: UUID?
 
     init(bundle: Bundle = .main) {
         client = Self.makeClient(bundle)
@@ -363,7 +363,7 @@ final class FeedService: ObservableObject {
         guard let client, let userID else { return false }
         let name = FeedRules.normalizedUsername(raw)
         guard FeedRules.isValidUsername(name) else {
-            message = "Use 3 to 20 lowercase letters, numbers or underscores."
+            message = "Use 3 to 20 letters, numbers or underscores."
             return false
         }
         isBusy = true
@@ -432,7 +432,7 @@ final class FeedService: ObservableObject {
         let name = FeedRules.normalizedUsername(raw)
         let newBio = rawBio.trimmingCharacters(in: .whitespacesAndNewlines)
         guard FeedRules.isValidUsername(name) else {
-            message = "Use 3 to 20 lowercase letters, numbers or underscores."
+            message = "Use 3 to 20 letters, numbers or underscores."
             return false
         }
         guard newBio.count <= FeedRules.maxBioLength else {
