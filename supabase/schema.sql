@@ -9,6 +9,13 @@ create table if not exists public.profiles (
     created_at timestamptz not null default now()
 );
 
+-- Profile picture, bio and earned border (0 none … 5 jade), added after the first release.
+alter table public.profiles add column if not exists avatar_path text;
+alter table public.profiles add column if not exists bio text not null default ''
+    check (char_length(bio) <= 150);
+alter table public.profiles add column if not exists border_tier smallint not null default 0
+    check (border_tier between 0 and 5);
+
 -- Posts: text, one photo or video, or both.
 create table if not exists public.posts (
     id uuid primary key default gen_random_uuid(),
