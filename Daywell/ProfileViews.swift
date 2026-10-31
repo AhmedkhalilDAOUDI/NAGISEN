@@ -49,7 +49,7 @@ struct ProfileView: View {
             } label: {
                 HStack(spacing: 16) {
                     AvatarView(url: feed.avatarURL(feed.avatarPath), username: feed.username ?? "",
-                               tier: feed.borderTier, size: 58)
+                               tier: feed.borderTier, special: feed.specialBorder, size: 58)
                     VStack(alignment: .leading, spacing: 4) {
                         Text("@\(feed.username ?? "")").font(.system(size: 21, design: .serif))
                         Text(feed.bio.isEmpty ? "Add a photo and a line about you" : feed.bio)

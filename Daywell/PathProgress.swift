@@ -52,6 +52,16 @@ enum BorderTier: Int, CaseIterable, Comparable {
     }
 }
 
+/// A one-off border granted by hand in the database, never earned. The app can't set it:
+/// the `protect_special_border` trigger in supabase/schema.sql rejects changes from members.
+enum SpecialBorder: String {
+    /// 臙脂: the traditional Japanese burgundy of lacquer and seal ink. The developer's own.
+    case enji
+
+    var name: String { "Enji" }
+    var title: String { "Developer" }
+}
+
 /// Points toward the next border, counted from what NAGISEN already records.
 /// Worked out on the phone and saved to the member's profile, so it can be faked by someone
 /// determined to; it is a personal motivator, not a verified ranking.

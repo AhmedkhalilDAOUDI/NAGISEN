@@ -112,7 +112,7 @@ struct PostCommentsView: View {
                 Button { viewingMember = comment.author } label: {
                     HStack(spacing: 8) {
                         AvatarView(url: feed.avatarURL(comment.author.avatarPath), username: comment.username,
-                                   tier: comment.author.borderTier, size: 26)
+                                   tier: comment.author.borderTier, special: comment.author.special, size: 26)
                         Text("@\(comment.username)").font(.caption.weight(.semibold))
                     }
                 }

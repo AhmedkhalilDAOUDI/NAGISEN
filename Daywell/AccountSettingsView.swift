@@ -81,7 +81,7 @@ struct AccountSettingsView: View {
         let pickerTitle = feed.avatarPath == nil ? "Add a photo" : "Change photo"
         return HStack(spacing: 18) {
             AvatarView(url: feed.avatarURL(feed.avatarPath), username: feed.username ?? "",
-                       tier: feed.borderTier, size: 84)
+                       tier: feed.borderTier, special: feed.specialBorder, size: 84)
             VStack(alignment: .leading, spacing: 10) {
                 PhotosPicker(selection: $pickedPhoto, matching: .images) {
                     Text(pickerTitle)
@@ -182,6 +182,10 @@ struct PathView: View {
                         .font(.system(size: 25, design: .serif))
                     Text("\(progress.points) points")
                         .font(.subheadline).foregroundStyle(Theme.muted)
+                    if let special = feed.specialBorder {
+                        Text("Members see your \(special.name) border instead.")
+                            .font(.caption).foregroundStyle(Theme.accentText)
+                    }
                     if let next = progress.tier.next, let needed = progress.pointsToNext {
                         ProgressView(value: progress.fractionToNext)
                             .tint(Theme.accent)

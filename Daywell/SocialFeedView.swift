@@ -194,7 +194,7 @@ struct SocialFeedView: View {
                 Button { viewingMember = post.author } label: {
                     HStack(spacing: 10) {
                         AvatarView(url: feed.avatarURL(post.author.avatarPath), username: post.username,
-                                   tier: post.author.borderTier, size: 34)
+                                   tier: post.author.borderTier, special: post.author.special, size: 34)
                         Text("@\(post.username)").font(.subheadline.weight(.semibold))
                     }
                 }
