@@ -81,7 +81,7 @@ struct ProfileView: View {
                     Spacer()
                     Text(progress.tier.name).font(.caption.weight(.semibold)).foregroundStyle(Theme.accentText)
                 }
-                ProgressView(value: progress.fractionToNext).tint(Theme.accent)
+                ProgressView(value: progress.fractionToNext).tint(Theme.red)
                 Text(progress.pointsToNext.map { "\(progress.points) points · \($0) to \(progress.tier.next?.name ?? "")" }
                      ?? "\(progress.points) points · every border earned")
                     .font(.caption).foregroundStyle(Theme.muted)
@@ -118,7 +118,7 @@ struct ProfileView: View {
                     .font(.caption).foregroundStyle(Theme.accentText)
             }
         }
-        .tint(Theme.accent)
+        .tint(Theme.red)
         .softCardStyle()
         .onChange(of: streakHour) { _, _ in Reminders.reconcile(store: store) }
         .onChange(of: streakMinute) { _, _ in Reminders.reconcile(store: store) }

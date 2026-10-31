@@ -101,7 +101,7 @@ struct StreakAuditView: View {
                     if row.drift {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .font(.caption)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Theme.red)
                     }
 
                     Text("Day \(row.dayNumber.formatted(.number.grouping(.automatic)))")

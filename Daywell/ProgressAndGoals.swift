@@ -83,7 +83,7 @@ struct ProgressViewScreen: View {
                             .accessibilityLabel("Log weight")
                         }
                     }
-                    .accentCardStyle(Theme.slate)
+                    .accentCardStyle(Theme.muted)
                     DailyGuidanceCard()
                     Button { showingReview = true } label: {
                         HStack(spacing: 14) {
@@ -116,7 +116,7 @@ struct ProgressViewScreen: View {
                                         VStack {
                                             Spacer(minLength: 0)
                                             RoundedRectangle(cornerRadius: 3)
-                                                .fill(eaten > store.goals(on: day).calories ? Theme.red : Theme.protein)
+                                                .fill(eaten > store.goals(on: day).calories ? Theme.red : Theme.muted.opacity(0.55))
                                                 .frame(height: max(4, geometry.size.height * min(CGFloat(eaten) / CGFloat(max(store.goals(on: day).calories, 1)), 1)))
                                         }
                                     }

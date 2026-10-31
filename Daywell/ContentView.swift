@@ -16,17 +16,14 @@ enum Theme {
     static let ink = adaptive(0x2F322C, 0xF0E8DB)
     static let muted = adaptive(0x716F69, 0xB8B0A7)
     static let line = adaptive(0xE2D9CC, 0x555258)
-    static let red = adaptive(0x8B2B49, 0x74243A)
+    static let red = adaptive(0x8B2B49, 0xC85E7C)
     static let accent = adaptive(0x8B2B49, 0x8B2B49)
-    // Burgundy everywhere in light mode; in dark mode wine stays on filled controls and warm copper
-    // carries readable accent text.
-    static let accentText = adaptive(0x8B2B49, 0xE4AA82)
-    static let moss = adaptive(0x777174, 0xAAA3A8)
-    static let workout = adaptive(0x8B2B49, 0xB86677)
-    static let gold = adaptive(0xB98654, 0xD6A875)
-    /// Destructive actions: a muted rose instead of the system's alarm red.
-    static let danger = adaptive(0xA3364F, 0xD27885)
-    static let slate = adaptive(0x6E858B, 0xA9BFC5)
+    // The palette is grey, black and burgundy (macros keep their own colors). `accent` fills controls
+    // under white text; `red` draws lines and icons and `accentText` writes words, both lifted in dark
+    // mode so they stay readable on the dark paper (3:1 and 6:1).
+    static let accentText = adaptive(0x8B2B49, 0xDC90A2)
+        /// Destructive actions: a muted rose instead of the system's alarm red.
+    static let danger = adaptive(0xA3364F, 0xD88498)
     static let protein = adaptive(0x377F77, 0x80C9BC)
     static let carbs = adaptive(0xB57726, 0xE1B76E)
     static let fat = adaptive(0x7E6394, 0xBCA2D1)
@@ -34,12 +31,7 @@ enum Theme {
 
 private extension Meal {
     var highlight: Color {
-        switch self {
-        case .breakfast: Theme.gold
-        case .lunch: Theme.accent
-        case .dinner: Theme.fat
-        case .snacks: Theme.slate
-        }
+        Theme.red
     }
 }
 
@@ -58,20 +50,11 @@ private enum CalorieBalanceStyle {
 
     static func color(_ eaten: Int, goal: Int) -> Color {
         let fraction = Double(overage(eaten, goal: goal)) / Double(max(goal, 1))
-        if fraction <= 0 { return Theme.red }
-        if fraction < 0.10 { return Theme.gold }
-        if fraction < 0.25 {
-            return Color(uiColor: UIColor { traits in
-                traits.userInterfaceStyle == .dark
-                    ? UIColor(red: 0.84, green: 0.36, blue: 0.39, alpha: 1)
-                    : UIColor(red: 0.72, green: 0.35, blue: 0.17, alpha: 1)
-            })
-        }
-        return Color(uiColor: UIColor { traits in
-            traits.userInterfaceStyle == .dark
-                ? UIColor(red: 0.96, green: 0.42, blue: 0.39, alpha: 1)
-                : UIColor(red: 0.70, green: 0.23, blue: 0.19, alpha: 1)
-        })
+        // Under the goal the ring is grey; over it, burgundy that deepens the further it goes.
+        if fraction <= 0 { return Theme.muted }
+        if fraction < 0.10 { return Theme.accentText }
+        if fraction < 0.25 { return Theme.danger }
+        return Theme.red
     }
 }
 
@@ -767,7 +750,7 @@ private struct CalendarDayCell: View {
         }
         .frame(maxWidth: .infinity)
         .frame(height: 65)
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(selected ? Theme.accent : .clear, lineWidth: 1.5))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(selected ? Theme.red : .clear, lineWidth: 1.5))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(day.formatted(date: .abbreviated, time: .omitted)), \(eaten) calories\(overage > 0 ? ", \(overage) calories over goal" : (finished ? ", finished logging" : (hasLogs ? ", food logged" : "")))")
     }
@@ -1058,7 +1041,7 @@ private struct WaterDetailView: View {
                         }
                     }
                 ))
-                .tint(Theme.accent)
+                .tint(Theme.red)
                 .frame(minHeight: 54)
                 Text("When enabled, NAGISEN sends a check-in every two hours from 9 a.m. to 9 p.m. Turn this off at any time.")
                     .font(.footnote).foregroundStyle(Theme.muted).padding(.bottom, 14)

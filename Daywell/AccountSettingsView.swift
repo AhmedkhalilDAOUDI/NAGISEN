@@ -184,7 +184,7 @@ struct PathView: View {
                     }
                     if let next = progress.tier.next, let needed = progress.pointsToNext {
                         ProgressView(value: progress.fractionToNext)
-                            .tint(Theme.accent)
+                            .tint(Theme.red)
                         Text("\(needed) more to \(next.name)")
                             .font(.caption).foregroundStyle(Theme.muted)
                     }

@@ -163,7 +163,7 @@ struct FoodSearchView: View {
                     .multilineTextAlignment(.leading)
                     .padding(.horizontal, 17)
                     .padding(.vertical, 13)
-                    .nagisenGlass(in: Capsule(), tint: Theme.protein.opacity(0.22))
+                    .nagisenGlass(in: Capsule(), tint: Theme.accent.opacity(0.22))
                     .shadow(color: .black.opacity(0.15), radius: 12, y: 5)
                     .padding(.horizontal, 22)
                     .padding(.bottom, 20)
