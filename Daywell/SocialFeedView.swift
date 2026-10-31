@@ -13,6 +13,12 @@ struct SocialFeedView: View {
     @State private var showingComposer = false
     @State private var text = ""
     @State private var deletingPost: CommunityPost?
+    @State private var reportingPost: CommunityPost?
+    @State private var blockingPost: CommunityPost?
+    @AppStorage("nagisen.community.rulesAccepted") private var rulesAccepted = false
+
+    private static let reportReasons = ["Spam", "Harassment or hate", "Sexual or violent content",
+                                        "Something else"]
 
     private var drafts: [FeedDraft] {
         (try? JSONDecoder().decode([FeedDraft].self, from: savedDrafts)) ?? []
@@ -51,6 +57,17 @@ struct SocialFeedView: View {
                                   displayName.trimmingCharacters(in: .whitespaces).isEmpty)
                         Text("Posts are public to NAGISEN members. Your food and workout history stays in your private iCloud backup.")
                             .font(.caption).foregroundStyle(Theme.muted)
+                        if !community.blockedAuthors.isEmpty {
+                            HStack {
+                                Text(community.blockedAuthors.count == 1 ? "1 person blocked" :
+                                        "\(community.blockedAuthors.count) people blocked")
+                                Spacer()
+                                Button("Unblock all") { Task { await community.unblockEveryone() } }
+                                    .foregroundStyle(Theme.accentText)
+                            }
+                            .font(.caption)
+                            .foregroundStyle(Theme.muted)
+                        }
                     }
                     .accentCardStyle(Theme.protein)
 
@@ -87,6 +104,20 @@ struct SocialFeedView: View {
                                         Button(role: .destructive) { deletingPost = post } label: {
                                             Label("Delete", systemImage: "trash")
                                         }
+                                    } else if community.accountReady {
+                                        Spacer()
+                                        Menu {
+                                            Button("Report post", systemImage: "flag") { reportingPost = post }
+                                            if post.authorID != nil {
+                                                Button("Block \(post.authorName)", systemImage: "hand.raised",
+                                                       role: .destructive) { blockingPost = post }
+                                            }
+                                        } label: {
+                                            Image(systemName: "ellipsis")
+                                                .frame(width: 32, height: 24)
+                                                .contentShape(Rectangle())
+                                        }
+                                        .accessibilityLabel("More for this post")
                                     }
                                 }
                                 .font(.caption.weight(.medium))
@@ -139,49 +170,105 @@ struct SocialFeedView: View {
                     Task { await community.delete(post) }
                 }
             }
+            .confirmationDialog("Why are you reporting this post?", isPresented: Binding(
+                get: { reportingPost != nil }, set: { if !$0 { reportingPost = nil } }
+            ), titleVisibility: .visible) {
+                ForEach(Self.reportReasons, id: \.self) { reason in
+                    Button(reason) {
+                        guard let post = reportingPost else { return }
+                        reportingPost = nil
+                        Task { await community.report(post, reason: reason) }
+                    }
+                }
+            } message: {
+                Text("The post will be hidden from your feed and sent for review.")
+            }
+            .confirmationDialog("Block \(blockingPost?.authorName ?? "this person")?", isPresented: Binding(
+                get: { blockingPost != nil }, set: { if !$0 { blockingPost = nil } }
+            ), titleVisibility: .visible) {
+                Button("Block", role: .destructive) {
+                    guard let post = blockingPost else { return }
+                    blockingPost = nil
+                    community.block(post)
+                }
+            } message: {
+                Text("You won’t see their posts on this iPhone. They aren’t told.")
+            }
+        }
+    }
+
+    private var communityRules: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Before your first post")
+                .font(.system(size: 25, design: .serif))
+            Text("Feed is shared with every NAGISEN member. There is no tolerance for abusive, hateful, sexual, violent or spam content. Posts that break these rules are removed, and people who post them can be blocked from the community.")
+                .font(.subheadline)
+                .fixedSize(horizontal: false, vertical: true)
+            Text("You can report any post or block anyone from the menu on their post.")
+                .font(.caption).foregroundStyle(Theme.muted)
+            Button { rulesAccepted = true } label: {
+                Text("I agree")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(16)
+                    .background(Theme.accent, in: RoundedRectangle(cornerRadius: 13))
+            }
+            .buttonStyle(.plain)
+            Spacer()
         }
     }
 
     private var composer: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: 14) {
-                Text("What did you do today?")
-                    .font(.system(size: 25, design: .serif))
-                TextEditor(text: $text)
-                    .scrollContentBackground(.hidden)
-                    .padding(8)
-                    .frame(minHeight: 170, maxHeight: 250)
-                    .nagisenGlass(in: RoundedRectangle(cornerRadius: 15), tint: Theme.surface.opacity(0.18))
-                Text("\(text.count)/1,000 · Visible to everyone in Feed.")
-                    .font(.caption).foregroundStyle(Theme.muted)
-                Button("Save private draft") { saveDraft() }
-                    .font(.subheadline).foregroundStyle(Theme.accentText)
-                Spacer()
+            Group {
+                if rulesAccepted { composerForm } else { communityRules }
             }
             .padding(20)
             .background(NagisenBackdrop())
-            .navigationTitle("New post")
+            .navigationTitle(rulesAccepted ? "New post" : "Community rules")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { showingComposer = false }
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Post") {
-                        Task {
-                            if await community.publish(text, as: displayName) {
-                                let posted = text.trimmingCharacters(in: .whitespacesAndNewlines)
-                                savedDrafts = (try? JSONEncoder().encode(drafts.filter { $0.text != posted })) ?? savedDrafts
-                                text = ""
-                                showingComposer = false
-                            }
-                        }
-                    }
-                    .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                              text.count > 1000 || community.isBusy)
+                if rulesAccepted {
+                    ToolbarItem(placement: .confirmationAction) { postButton }
                 }
             }
         }
+    }
+
+    private var composerForm: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("What did you do today?")
+                .font(.system(size: 25, design: .serif))
+            TextEditor(text: $text)
+                .scrollContentBackground(.hidden)
+                .padding(8)
+                .frame(minHeight: 170, maxHeight: 250)
+                .nagisenGlass(in: RoundedRectangle(cornerRadius: 15), tint: Theme.surface.opacity(0.18))
+            Text("\(text.count)/1,000 · Visible to everyone in Feed.")
+                .font(.caption).foregroundStyle(Theme.muted)
+            Button("Save private draft") { saveDraft() }
+                .font(.subheadline).foregroundStyle(Theme.accentText)
+            Spacer()
+        }
+    }
+
+    private var postButton: some View {
+        Button("Post") {
+            Task {
+                if await community.publish(text, as: displayName) {
+                    let posted = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                    savedDrafts = (try? JSONEncoder().encode(drafts.filter { $0.text != posted })) ?? savedDrafts
+                    text = ""
+                    showingComposer = false
+                }
+            }
+        }
+        .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                  text.count > 1000 || community.isBusy)
     }
 
     private func saveDraft() {

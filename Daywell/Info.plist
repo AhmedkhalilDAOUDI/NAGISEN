@@ -12,6 +12,7 @@
     <key>CFBundleShortVersionString</key><string>$(MARKETING_VERSION)</string>
     <key>CFBundleVersion</key><string>$(CURRENT_PROJECT_VERSION)</string>
     <key>LSRequiresIPhoneOS</key><true/>
+    <key>ITSAppUsesNonExemptEncryption</key><false/>
     <key>MinimumOSVersion</key><string>$(IPHONEOS_DEPLOYMENT_TARGET)</string>
     <key>NSCameraUsageDescription</key><string>Scan barcodes or photograph food packages to find nutrition information.</string>
     <key>NSMicrophoneUsageDescription</key><string>Use your voice to search for food on this iPhone.</string>
