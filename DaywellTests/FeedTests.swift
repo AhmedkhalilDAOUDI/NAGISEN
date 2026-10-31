@@ -57,6 +57,19 @@ final class FeedTests: XCTestCase {
         XCTAssertEqual(post.username, "khalil")
     }
 
+    func testAPinnedPostCarriesItsPinTime() throws {
+        let post = try decode("""
+        {"id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d", "author_id": "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed",
+         "body": "Welcome", "created_at": "2026-10-31T09:15:00+00:00", "pinned_at": "2026-10-31T10:00:00+00:00",
+         "profiles": {"username": "Khalil"}}
+        """)
+        XCTAssertNotNil(post.pinnedAt)
+        XCTAssertNil(try decode("""
+        {"id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d", "author_id": "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed",
+         "body": "Hi", "created_at": "2026-10-31T09:15:00+00:00", "profiles": {"username": "sara"}}
+        """).pinnedAt, "unpinned posts have no pin time")
+    }
+
     func testATextPostRowHasNoMedia() throws {
         let post = try decode("""
         {"id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d", "author_id": "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed",
