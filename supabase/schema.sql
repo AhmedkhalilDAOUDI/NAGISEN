@@ -117,6 +117,25 @@ create policy "posts update own" on public.posts
 revoke update on public.posts from authenticated;
 grant update (body) on public.posts to authenticated;
 
+-- Pinned posts sit at the top of every feed. Only the developer (the Enji border, which members
+-- can't grant themselves) can pin or unpin, through this function.
+alter table public.posts add column if not exists pinned_at timestamptz;
+create or replace function public.set_post_pinned(target uuid, pin boolean)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+    if not exists (select 1 from public.profiles where id = auth.uid() and special_border = 'enji') then
+        raise exception 'Only the developer can pin posts' using errcode = '42501';
+    end if;
+    update public.posts set pinned_at = case when pin then now() else null end where id = target;
+end;
+$$;
+revoke all on function public.set_post_pinned(uuid, boolean) from public;
+grant execute on function public.set_post_pinned(uuid, boolean) to authenticated;
+
 -- Reports: insert only, never readable through the app.
 drop policy if exists "reports insert" on public.reports;
 create policy "reports insert" on public.reports

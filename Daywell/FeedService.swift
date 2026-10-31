@@ -43,6 +43,8 @@ struct FeedPost: Identifiable, Decodable, Equatable {
     let mediaKind: MediaKind?
     let posterPath: String?
     let createdAt: Date
+    /// Set when the developer pinned the post to the top of every feed.
+    var pinnedAt: Date?
     let author: FeedMember
     var commentCount: Int
     var likeCount: Int
@@ -59,6 +61,7 @@ struct FeedPost: Identifiable, Decodable, Equatable {
         case mediaKind = "media_kind"
         case posterPath = "poster_path"
         case createdAt = "created_at"
+        case pinnedAt = "pinned_at"
         case author = "profiles"
     }
 
@@ -87,6 +90,7 @@ struct FeedPost: Identifiable, Decodable, Equatable {
         mediaKind = try c.decodeIfPresent(MediaKind.self, forKey: .mediaKind)
         posterPath = try c.decodeIfPresent(String.self, forKey: .posterPath)
         createdAt = try c.decode(Date.self, forKey: .createdAt)
+        pinnedAt = try c.decodeIfPresent(Date.self, forKey: .pinnedAt)
         author = (try? c.decode(ProfileJoin.self, forKey: .author))?.member(authorID) ??
             FeedMember(id: authorID, username: "member", avatarPath: nil, borderTier: .none, bio: "")
         // PostgREST returns `comments(count)` as a one-element array.
@@ -551,7 +555,7 @@ final class FeedService: ObservableObject {
     // MARK: - Feed
 
     var feedQuery: String {
-        "id, author_id, body, media_path, media_kind, poster_path, created_at, " +
+        "id, author_id, body, media_path, media_kind, poster_path, created_at, pinned_at, " +
             "\(ProfileJoin.columns(via: "posts_author_id_fkey")), comments(count), " +
             "likes:appreciations(count), mine:appreciations(member_id)"
     }
@@ -572,6 +576,7 @@ final class FeedService: ObservableObject {
         guard let client, state == .ready else { return }
         do {
             let page: [FeedPost] = try await scopedPosts(client)
+                .order("pinned_at", ascending: false, nullsFirst: false)
                 .order("created_at", ascending: false).range(from: 0, to: pageSize - 1)
                 .execute().value
             posts = page
@@ -590,6 +595,7 @@ final class FeedService: ObservableObject {
         guard let client, state == .ready, canLoadMore else { return }
         do {
             let page: [FeedPost] = try await scopedPosts(client)
+                .order("pinned_at", ascending: false, nullsFirst: false)
                 .order("created_at", ascending: false)
                 .range(from: posts.count, to: posts.count + pageSize - 1)
                 .execute().value
@@ -610,6 +616,7 @@ final class FeedService: ObservableObject {
         do {
             return try await selectPosts(client)
                 .eq("author_id", value: member.id)
+                .order("pinned_at", ascending: false, nullsFirst: false)
                 .order("created_at", ascending: false).limit(60)
                 .execute().value
         } catch {
@@ -664,6 +671,21 @@ final class FeedService: ObservableObject {
             }
             message = Self.describe(error, doing: "share the post")
             return false
+        }
+    }
+
+    /// The developer's account (the Enji border), the only one that can pin posts.
+    var isDeveloper: Bool { specialBorder == .enji }
+
+    /// Pins a post to the top of every feed, or unpins it. The database refuses anyone but the developer.
+    func setPinned(_ post: FeedPost, _ pinned: Bool) async {
+        guard let client, isDeveloper else { return }
+        struct Params: Encodable { let target: UUID; let pin: Bool }
+        do {
+            try await client.rpc("set_post_pinned", params: Params(target: post.id, pin: pinned)).execute()
+            await refresh()
+        } catch {
+            message = Self.describe(error, doing: pinned ? "pin the post" : "unpin the post")
         }
     }
 

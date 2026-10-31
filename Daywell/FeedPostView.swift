@@ -195,6 +195,11 @@ struct FeedPostView: View {
             }
             .buttonStyle(.plain)
             Spacer()
+            if post.pinnedAt != nil {
+                Label("Pinned", systemImage: "pin.fill")
+                    .font(.caption2.weight(.semibold)).tracking(1.2).textCase(.uppercase)
+                    .foregroundStyle(Theme.muted)
+            }
             Button { showingActions = true } label: {
                 Image(systemName: "ellipsis")
                     .frame(width: 44, height: 44)
@@ -203,11 +208,17 @@ struct FeedPostView: View {
             .buttonStyle(.plain)
             .accessibilityLabel("More for this post")
             .nagisenActions(isPresented: $showingActions, title: feed.isMine(post) ? "Your post" : "@\(post.username)") {
-                if feed.isMine(post) {
-                    return [NagisenAction(title: "Edit post", symbol: "pencil") { editing = true },
-                            NagisenAction(title: "Delete post", symbol: "trash", destructive: true) { confirmingDelete = true }]
-                }
                 var actions: [NagisenAction] = []
+                if feed.isDeveloper {
+                    let pinned = post.pinnedAt != nil
+                    actions.append(NagisenAction(title: pinned ? "Unpin" : "Pin to top", symbol: pinned ? "pin.slash" : "pin") {
+                        Task { await feed.setPinned(post, !pinned) }
+                    })
+                }
+                if feed.isMine(post) {
+                    return actions + [NagisenAction(title: "Edit post", symbol: "pencil") { editing = true },
+                                      NagisenAction(title: "Delete post", symbol: "trash", destructive: true) { confirmingDelete = true }]
+                }
                 if feed.isFollowing(post.author) {
                     actions.append(NagisenAction(title: "Unfollow", symbol: "person.badge.minus") {
                         Task { await feed.unfollow(post.author) }
