@@ -24,6 +24,7 @@ struct SocialFeedView: View {
     @State private var blockingPost: FeedPost?
     @State private var commentingPost: FeedPost?
     @State private var viewingMember: FeedMember?
+    @State private var showingActivity = false
 
     private var drafts: [FeedDraft] {
         (try? JSONDecoder().decode([FeedDraft].self, from: savedDrafts)) ?? []
@@ -98,6 +99,7 @@ struct SocialFeedView: View {
             }
             .sheet(item: $commentingPost) { PostCommentsView(post: $0) }
             .sheet(item: $viewingMember) { MemberPageView(member: $0) }
+            .sheet(isPresented: $showingActivity) { ActivityView() }
             .confirmationDialog("Delete this post for everyone?", isPresented: Binding(
                 get: { deletingPost != nil }, set: { if !$0 { deletingPost = nil } }
             )) {
@@ -154,6 +156,19 @@ struct SocialFeedView: View {
                     Label("@\(feed.username ?? "")", systemImage: "person.crop.circle")
                         .font(.subheadline.weight(.semibold))
                     Spacer()
+                    Button { showingActivity = true } label: {
+                        Image(systemName: "bell")
+                            .font(.subheadline)
+                            .overlay(alignment: .topTrailing) {
+                                if feed.hasNewActivity {
+                                    Circle().fill(Theme.accent).frame(width: 7, height: 7).offset(x: 3, y: -2)
+                                }
+                            }
+                            .frame(width: 32, height: 28)
+                            .contentShape(Rectangle())
+                    }
+                    .foregroundStyle(Theme.ink)
+                    .accessibilityLabel(feed.hasNewActivity ? "Activity, new" : "Activity")
                     Button("Account") { showingAccount = true }
                         .font(.subheadline).foregroundStyle(Theme.accentText)
                 }

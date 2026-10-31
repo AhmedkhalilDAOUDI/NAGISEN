@@ -128,6 +128,35 @@ struct PostAttachment {
     var fileExtension: String { kind == .photo ? "jpg" : "mp4" }
 }
 
+/// Something another member did on one of your posts.
+struct FeedActivity: Identifiable, Equatable {
+    enum Kind: Equatable {
+        case comment(String)
+        case appreciation
+    }
+
+    let id: String
+    let member: FeedMember
+    let postID: UUID
+    let date: Date
+    let kind: Kind
+
+    /// Comments and appreciations together, newest first.
+    static func merged(comments: [FeedComment], marks: [FeedActivity]) -> [FeedActivity] {
+        let fromComments = comments.map {
+            FeedActivity(id: "comment-\($0.id)", member: $0.author, postID: $0.postID, date: $0.createdAt,
+                         kind: .comment($0.body))
+        }
+        return (fromComments + marks).sorted { $0.date > $1.date }
+    }
+
+    /// True when anything is newer than the last time Activity was opened.
+    static func hasNew(_ items: [FeedActivity], since lastSeen: Date?) -> Bool {
+        guard let newest = items.first?.date else { return false }
+        return lastSeen.map { newest > $0 } ?? true
+    }
+}
+
 enum FeedRules {
     static let maxBodyLength = 1000
     static let maxCommentLength = 500
@@ -166,6 +195,8 @@ final class FeedService: ObservableObject {
     @Published private(set) var canLoadMore = false
     @Published private(set) var blockedCount = 0
     @Published private(set) var isBusy = false
+    @Published private(set) var activity: [FeedActivity] = []
+    @Published private(set) var hasNewActivity = false
     @Published var message: String?
 
     private let client: SupabaseClient?
@@ -228,6 +259,8 @@ final class FeedService: ObservableObject {
                 email = nil
                 posts = []
                 blockedCount = 0
+                activity = []
+                hasNewActivity = false
                 state = .signedOut
             }
             // An expired stored session is refreshed by the client, which then emits again.
@@ -498,6 +531,7 @@ final class FeedService: ObservableObject {
             struct Block: Decodable { let blocked_id: UUID }
             let blocks: [Block] = try await client.from("blocks").select("blocked_id").execute().value
             blockedCount = blocks.count
+            await loadActivity()
         } catch {
             message = Self.describe(error, doing: "load the feed")
         }
@@ -659,6 +693,59 @@ final class FeedService: ObservableObject {
                 posts[again].appreciationCount = giving ? 0 : 1
             }
             message = Self.describe(error, doing: giving ? "appreciate the post" : "take back your appreciation")
+        }
+    }
+
+    // MARK: - Activity
+
+    private let activitySeenKey = "nagisen.activity.lastSeen"
+
+    /// The latest 50 comments and 50 appreciations others left on your posts.
+    func loadActivity() async {
+        guard let client, let userID, state == .ready else { return }
+        struct Mark: Decodable {
+            let post_id: UUID
+            let member_id: UUID
+            let created_at: Date
+            let profiles: ProfileJoin?
+        }
+        do {
+            let comments: [FeedComment] = try await client.from("comments")
+                .select("\(commentQuery), posts!inner(author_id)")
+                .eq("posts.author_id", value: userID).neq("author_id", value: userID)
+                .order("created_at", ascending: false).limit(50)
+                .execute().value
+            let marks: [Mark] = try await client.from("appreciations")
+                .select("post_id, member_id, created_at, \(ProfileJoin.columns), posts!inner(author_id)")
+                .eq("posts.author_id", value: userID)
+                .order("created_at", ascending: false).limit(50)
+                .execute().value
+            let markItems = marks.map {
+                FeedActivity(id: "mark-\($0.post_id)-\($0.member_id)",
+                             member: $0.profiles?.member($0.member_id) ??
+                                FeedMember(id: $0.member_id, username: "member", avatarPath: nil, borderTier: .none, bio: ""),
+                             postID: $0.post_id, date: $0.created_at, kind: .appreciation)
+            }
+            activity = FeedActivity.merged(comments: comments, marks: markItems)
+            hasNewActivity = FeedActivity.hasNew(activity, since: UserDefaults.standard.object(forKey: activitySeenKey) as? Date)
+        } catch {
+            // Activity is a quiet extra; the feed itself already reports connection problems.
+        }
+    }
+
+    func markActivitySeen() {
+        UserDefaults.standard.set(activity.first?.date ?? .now, forKey: activitySeenKey)
+        hasNewActivity = false
+    }
+
+    /// One post by id, for opening it from Activity.
+    func post(id: UUID) async -> FeedPost? {
+        guard let client, state == .ready else { return nil }
+        do {
+            return try await client.from("posts").select(feedQuery).eq("id", value: id).single().execute().value
+        } catch {
+            message = "That post isn't available anymore."
+            return nil
         }
     }
 
