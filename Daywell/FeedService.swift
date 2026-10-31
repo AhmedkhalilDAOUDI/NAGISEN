@@ -27,7 +27,9 @@ struct ProfileJoin: Decodable {
     }
 
     static let fields = "username, avatar_path, border_tier, bio, special_border"
-    static let columns = "profiles(\(fields))"
+    /// The author's profile, naming the foreign key so PostgREST never has to guess: posts and
+    /// profiles are also linked through appreciations, which makes a bare `profiles(...)` ambiguous.
+    static func columns(via foreignKey: String) -> String { "profiles!\(foreignKey)(\(fields))" }
 }
 
 /// A post as Feed shows it, decoded from a `posts` row joined with its author's profile.
@@ -517,7 +519,7 @@ final class FeedService: ObservableObject {
     // MARK: - Feed
 
     private var feedQuery: String {
-        "id, author_id, body, media_path, media_kind, created_at, \(ProfileJoin.columns), comments(count), appreciations(count)"
+        "id, author_id, body, media_path, media_kind, created_at, \(ProfileJoin.columns(via: "posts_author_id_fkey")), comments(count), appreciations(count)"
     }
 
     func refresh() async {
@@ -716,7 +718,7 @@ final class FeedService: ObservableObject {
                 .order("created_at", ascending: false).limit(50)
                 .execute().value
             let marks: [Mark] = try await client.from("appreciations")
-                .select("post_id, member_id, created_at, \(ProfileJoin.columns), posts!inner(author_id)")
+                .select("post_id, member_id, created_at, \(ProfileJoin.columns(via: "appreciations_member_id_fkey")), posts!inner(author_id)")
                 .eq("posts.author_id", value: userID)
                 .order("created_at", ascending: false).limit(50)
                 .execute().value
@@ -751,7 +753,7 @@ final class FeedService: ObservableObject {
 
     // MARK: - Comments
 
-    private var commentQuery: String { "id, post_id, author_id, body, created_at, \(ProfileJoin.columns)" }
+    private var commentQuery: String { "id, post_id, author_id, body, created_at, \(ProfileJoin.columns(via: "comments_author_id_fkey"))" }
 
     /// The oldest 200 comments on a post, oldest first.
     func comments(on post: FeedPost) async -> [FeedComment]? {
