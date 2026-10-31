@@ -1,6 +1,30 @@
 import Foundation
 import Supabase
 
+/// A member as others see them: name, picture, earned border and bio.
+struct FeedMember: Identifiable, Equatable {
+    let id: UUID
+    let username: String
+    let avatarPath: String?
+    let borderTier: BorderTier
+    let bio: String
+}
+
+/// The `profiles(...)` part of a post or comment row.
+struct ProfileJoin: Decodable {
+    let username: String
+    let avatar_path: String?
+    let border_tier: Int?
+    let bio: String?
+
+    func member(_ id: UUID) -> FeedMember {
+        FeedMember(id: id, username: username, avatarPath: avatar_path,
+                   borderTier: BorderTier(rawValue: border_tier ?? 0) ?? .none, bio: bio ?? "")
+    }
+
+    static let columns = "profiles(username, avatar_path, border_tier, bio)"
+}
+
 /// A post as Feed shows it, decoded from a `posts` row joined with its author's profile.
 struct FeedPost: Identifiable, Decodable, Equatable {
     enum MediaKind: String, Codable { case photo, video }
@@ -11,10 +35,11 @@ struct FeedPost: Identifiable, Decodable, Equatable {
     let mediaPath: String?
     let mediaKind: MediaKind?
     let createdAt: Date
-    let username: String
+    let author: FeedMember
     var commentCount: Int
 
-    private struct Author: Decodable { let username: String }
+    var username: String { author.username }
+
     private struct Count: Decodable { let count: Int }
     private enum CodingKeys: String, CodingKey {
         case id, body, comments
@@ -33,7 +58,7 @@ struct FeedPost: Identifiable, Decodable, Equatable {
         self.mediaPath = mediaPath
         self.mediaKind = mediaKind
         self.createdAt = createdAt
-        self.username = username
+        self.author = FeedMember(id: authorID, username: username, avatarPath: nil, borderTier: .none, bio: "")
         self.commentCount = commentCount
     }
 
@@ -45,7 +70,8 @@ struct FeedPost: Identifiable, Decodable, Equatable {
         mediaPath = try c.decodeIfPresent(String.self, forKey: .mediaPath)
         mediaKind = try c.decodeIfPresent(MediaKind.self, forKey: .mediaKind)
         createdAt = try c.decode(Date.self, forKey: .createdAt)
-        username = (try? c.decode(Author.self, forKey: .author).username) ?? "member"
+        author = (try? c.decode(ProfileJoin.self, forKey: .author))?.member(authorID) ??
+            FeedMember(id: authorID, username: "member", avatarPath: nil, borderTier: .none, bio: "")
         // PostgREST returns `comments(count)` as a one-element array.
         commentCount = (try? c.decode([Count].self, forKey: .comments).first?.count) ?? 0
     }
@@ -58,9 +84,10 @@ struct FeedComment: Identifiable, Decodable, Equatable {
     let authorID: UUID
     let body: String
     let createdAt: Date
-    let username: String
+    let author: FeedMember
 
-    private struct Author: Decodable { let username: String }
+    var username: String { author.username }
+
     private enum CodingKeys: String, CodingKey {
         case id, body
         case postID = "post_id"
@@ -76,7 +103,8 @@ struct FeedComment: Identifiable, Decodable, Equatable {
         authorID = try c.decode(UUID.self, forKey: .authorID)
         body = try c.decode(String.self, forKey: .body)
         createdAt = try c.decode(Date.self, forKey: .createdAt)
-        username = (try? c.decode(Author.self, forKey: .author).username) ?? "member"
+        author = (try? c.decode(ProfileJoin.self, forKey: .author))?.member(authorID) ??
+            FeedMember(id: authorID, username: "member", avatarPath: nil, borderTier: .none, bio: "")
     }
 }
 
@@ -92,6 +120,7 @@ struct PostAttachment {
 enum FeedRules {
     static let maxBodyLength = 1000
     static let maxCommentLength = 500
+    static let maxBioLength = 150
     static let reportReasons = ["Spam", "Harassment or hate", "Sexual or violent content", "Something else"]
 
     /// Lowercase letters, digits and underscores, 3 to 20 characters, as the database enforces.
@@ -117,6 +146,10 @@ final class FeedService: ObservableObject {
 
     @Published private(set) var state: State
     @Published private(set) var username: String?
+    @Published private(set) var avatarPath: String?
+    @Published private(set) var bio = ""
+    @Published private(set) var borderTier: BorderTier = .none
+    @Published private(set) var email: String?
     @Published private(set) var posts: [FeedPost] = []
     @Published private(set) var canLoadMore = false
     @Published private(set) var blockedCount = 0
@@ -171,10 +204,15 @@ final class FeedService: ObservableObject {
         guard let client else { return }
         for await (_, session) in client.auth.authStateChanges {
             if let session, !session.isExpired {
+                email = session.user.email
                 await signedIn(as: session.user.id)
             } else if session == nil {
                 userID = nil
                 username = nil
+                avatarPath = nil
+                bio = ""
+                borderTier = .none
+                email = nil
                 posts = []
                 blockedCount = 0
                 state = .signedOut
@@ -186,11 +224,14 @@ final class FeedService: ObservableObject {
     private func signedIn(as id: UUID) async {
         guard let client else { return }
         userID = id
-        struct Row: Decodable { let username: String }
         do {
-            let rows: [Row] = try await client.from("profiles").select("username")
+            let rows: [ProfileJoin] = try await client.from("profiles").select("username, avatar_path, border_tier, bio")
                 .eq("id", value: id).limit(1).execute().value
-            username = rows.first?.username
+            let me = rows.first?.member(id)
+            username = me?.username
+            avatarPath = me?.avatarPath
+            bio = me?.bio ?? ""
+            borderTier = me?.borderTier ?? .none
             state = username == nil ? .needsUsername : .ready
             if state == .ready { await refresh() }
         } catch {
@@ -297,10 +338,138 @@ final class FeedService: ObservableObject {
         }
     }
 
+    // MARK: - Profile
+
+    var me: FeedMember? {
+        guard let userID, let username else { return nil }
+        return FeedMember(id: userID, username: username, avatarPath: avatarPath, borderTier: borderTier, bio: bio)
+    }
+
+    func avatarURL(_ path: String?) -> URL? {
+        guard let client, let path else { return nil }
+        return try? client.storage.from(bucket).getPublicURL(path: path)
+    }
+
+    /// Saves a new username and bio. Usernames follow the same rules as at sign-up.
+    func updateProfile(username raw: String, bio rawBio: String) async -> Bool {
+        guard let client, let userID else { return false }
+        let name = FeedRules.normalizedUsername(raw)
+        let newBio = rawBio.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard FeedRules.isValidUsername(name) else {
+            message = "Use 3 to 20 lowercase letters, numbers or underscores."
+            return false
+        }
+        guard newBio.count <= FeedRules.maxBioLength else {
+            message = "Bios can be up to \(FeedRules.maxBioLength) characters."
+            return false
+        }
+        isBusy = true
+        defer { isBusy = false }
+        struct Change: Encodable { let username: String; let bio: String }
+        do {
+            try await client.from("profiles").update(Change(username: name, bio: newBio))
+                .eq("id", value: userID).execute()
+            username = name
+            bio = newBio
+            message = nil
+            await refresh()
+            return true
+        } catch let error as PostgrestError where error.code == "23505" {
+            message = "That username is taken. Try another."
+        } catch {
+            message = Self.describe(error, doing: "save your profile")
+        }
+        return false
+    }
+
+    /// Uploads a square JPEG from `PostMedia.avatar(from:)` and replaces the previous picture.
+    func setAvatar(_ jpeg: Data) async -> Bool {
+        guard let client, let userID else { return false }
+        isBusy = true
+        defer { isBusy = false }
+        let path = "\(FeedRules.mediaFolder(for: userID))/avatar-\(UUID().uuidString.lowercased()).jpg"
+        do {
+            try await client.storage.from(bucket).upload(path, data: jpeg, options: FileOptions(contentType: "image/jpeg"))
+            struct Change: Encodable { let avatar_path: String }
+            try await client.from("profiles").update(Change(avatar_path: path)).eq("id", value: userID).execute()
+            if let old = avatarPath { _ = try? await client.storage.from(bucket).remove(paths: [old]) }
+            avatarPath = path
+            message = nil
+            await refresh()
+            return true
+        } catch {
+            _ = try? await client.storage.from(bucket).remove(paths: [path])
+            message = Self.describe(error, doing: "change your picture")
+            return false
+        }
+    }
+
+    func removeAvatar() async {
+        guard let client, let userID, let old = avatarPath else { return }
+        struct Change: Encodable { let avatar_path: String? }
+        do {
+            try await client.from("profiles").update(Change(avatar_path: nil)).eq("id", value: userID).execute()
+            _ = try? await client.storage.from(bucket).remove(paths: [old])
+            avatarPath = nil
+            await refresh()
+        } catch {
+            message = Self.describe(error, doing: "remove your picture")
+        }
+    }
+
+    /// Supabase emails a confirmation link; the address changes once it is opened.
+    func changeEmail(to raw: String) async -> Bool {
+        guard let client else { return false }
+        let address = raw.trimmingCharacters(in: .whitespaces)
+        guard address.contains("@"), address != email else { return false }
+        isBusy = true
+        defer { isBusy = false }
+        do {
+            _ = try await client.auth.update(user: UserAttributes(email: address), redirectTo: Self.authRedirect)
+            message = "Check your inbox to confirm the change. Your sign-in email stays the same until you do."
+            return true
+        } catch {
+            message = Self.describe(error, doing: "change your email")
+            return false
+        }
+    }
+
+    func changePassword(to password: String) async -> Bool {
+        guard let client else { return false }
+        guard password.count >= 8 else {
+            message = "Choose a longer password (at least 8 characters)."
+            return false
+        }
+        isBusy = true
+        defer { isBusy = false }
+        do {
+            _ = try await client.auth.update(user: UserAttributes(password: password))
+            message = "Password changed."
+            return true
+        } catch {
+            message = Self.describe(error, doing: "change your password")
+            return false
+        }
+    }
+
+    /// Saves the border earned on this iPhone to the profile, so other members see it.
+    /// Only writes when it changed.
+    func syncBorder(_ tier: BorderTier) async {
+        guard let client, let userID, state == .ready, tier != borderTier else { return }
+        struct Change: Encodable { let border_tier: Int }
+        do {
+            try await client.from("profiles").update(Change(border_tier: tier.rawValue)).eq("id", value: userID).execute()
+            borderTier = tier
+            await refresh()
+        } catch {
+            // Not worth interrupting the member; the next change retries.
+        }
+    }
+
     // MARK: - Feed
 
     private var feedQuery: String {
-        "id, author_id, body, media_path, media_kind, created_at, profiles(username), comments(count)"
+        "id, author_id, body, media_path, media_kind, created_at, \(ProfileJoin.columns), comments(count)"
     }
 
     func refresh() async {
@@ -436,7 +605,7 @@ final class FeedService: ObservableObject {
 
     // MARK: - Comments
 
-    private var commentQuery: String { "id, post_id, author_id, body, created_at, profiles(username)" }
+    private var commentQuery: String { "id, post_id, author_id, body, created_at, \(ProfileJoin.columns)" }
 
     /// The oldest 200 comments on a post, oldest first.
     func comments(on post: FeedPost) async -> [FeedComment]? {

@@ -11,6 +11,7 @@ struct PostCommentsView: View {
     @State private var deleting: FeedComment?
     @State private var reporting: FeedComment?
     @State private var blocking: FeedComment?
+    @State private var viewingMember: FeedMember?
 
     var body: some View {
         NavigationStack {
@@ -58,6 +59,7 @@ struct PostCommentsView: View {
                 comments = await feed.comments(on: post) ?? []
                 loading = false
             }
+            .sheet(item: $viewingMember) { MemberCardView(member: $0) }
             .confirmationDialog("Delete this comment?", isPresented: Binding(
                 get: { deleting != nil }, set: { if !$0 { deleting = nil } }
             )) {
@@ -107,7 +109,14 @@ struct PostCommentsView: View {
     private func row(_ comment: FeedComment) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
-                Text("@\(comment.username)").font(.caption.weight(.semibold))
+                Button { viewingMember = comment.author } label: {
+                    HStack(spacing: 8) {
+                        AvatarView(url: feed.avatarURL(comment.author.avatarPath), username: comment.username,
+                                   tier: comment.author.borderTier, size: 26)
+                        Text("@\(comment.username)").font(.caption.weight(.semibold))
+                    }
+                }
+                .buttonStyle(.plain)
                 Text(comment.createdAt, style: .relative)
                     .font(.caption).foregroundStyle(Theme.muted)
                 Spacer()
