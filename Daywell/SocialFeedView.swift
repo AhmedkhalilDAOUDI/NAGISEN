@@ -207,18 +207,14 @@ struct SocialFeedView: View {
             Group {
                 if rulesAccepted { composerForm } else { communityRules }
             }
-            .padding(20)
+            .padding(.horizontal, 22)
+            .padding(.top, 12)
             .background(NagisenBackdrop())
-            .navigationTitle(rulesAccepted ? "New post" : "Community rules")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { showingComposer = false }
-                }
-                if rulesAccepted {
-                    ToolbarItem(placement: .confirmationAction) { postButton }
-                }
-            }
+            .foregroundStyle(Theme.ink)
+            .nagisenSheetBar(rulesAccepted ? "New post" : "Community rules",
+                             onClose: { showingComposer = false },
+                             actionTitle: rulesAccepted ? "Share" : nil, actionEnabled: canPost,
+                             busy: feed.isBusy, onAction: rulesAccepted ? publish : nil)
         }
     }
 
@@ -246,27 +242,54 @@ struct SocialFeedView: View {
 
     private var composerForm: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                Text("What did you do today?")
-                    .font(.system(size: 25, design: .serif))
-                TextEditor(text: $text)
-                    .scrollContentBackground(.hidden)
-                    .padding(8)
-                    .frame(minHeight: 130, maxHeight: 220)
-                    .nagisenGlass(in: RoundedRectangle(cornerRadius: 15), tint: Theme.surface.opacity(0.18))
-                Text("\(text.count)/1,000 · Visible to signed-in members in Feed.")
-                    .font(.caption).foregroundStyle(Theme.muted)
+            VStack(alignment: .leading, spacing: 22) {
+                HStack(spacing: 10) {
+                    AvatarView(url: feed.avatarURL(feed.avatarPath), username: feed.username ?? "",
+                               tier: feed.borderTier, special: feed.specialBorder, size: 36)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(feed.username ?? "").font(.subheadline.weight(.semibold)).memberName(feed.specialBorder)
+                        Text("Shared with NAGISEN members").font(.caption).foregroundStyle(Theme.muted)
+                    }
+                }
+                ZStack(alignment: .topLeading) {
+                    if text.isEmpty {
+                        Text("What did you do today?")
+                            .font(.system(size: 22, design: .serif))
+                            .foregroundStyle(Theme.muted.opacity(0.7))
+                            .padding(.top, 8).padding(.leading, 5)
+                            .allowsHitTesting(false)
+                    }
+                    TextEditor(text: $text)
+                        .font(.system(size: 19, design: .serif))
+                        .lineSpacing(3)
+                        .scrollContentBackground(.hidden)
+                        .frame(minHeight: 140, maxHeight: 260)
+                }
+                HStack {
+                    Rectangle().fill(Theme.ink.opacity(0.10)).frame(height: 0.5)
+                    Text("\(text.count) / \(FeedRules.maxBodyLength.formatted())")
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(text.count > FeedRules.maxBodyLength ? Theme.accentText : Theme.muted)
+                        .fixedSize()
+                }
                 if let message = feed.message {
                     Text(message)
                         .font(.subheadline).foregroundStyle(Theme.accentText)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 attachmentRow
-                Button("Save private draft") { saveDraft() }
-                    .font(.subheadline).foregroundStyle(Theme.accentText)
-                    .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                Button { saveDraft() } label: {
+                    Label("Keep as a private draft", systemImage: "tray.and.arrow.down")
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(Theme.muted)
+                }
+                .buttonStyle(.plain)
+                .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .opacity(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.45 : 1)
             }
+            .padding(.bottom, 30)
         }
+        .scrollDismissesKeyboard(.interactively)
         .onChange(of: pickedItem) { _, item in
             guard let item else { return }
             Task { await prepare(item) }
@@ -281,18 +304,20 @@ struct SocialFeedView: View {
                 case .photo:
                     if let image = UIImage(contentsOfFile: attachment.fileURL.path) {
                         Image(uiImage: image).resizable().scaledToFit()
-                            .frame(maxHeight: 260)
-                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                            .frame(maxHeight: 300)
+                            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                     }
                 case .video:
                     FeedVideo(url: attachment.fileURL)
-                        .frame(height: 220)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .frame(height: 240)
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                 }
-                Button("Remove \(attachment.kind == .photo ? "photo" : "video")", role: .destructive) {
-                    clearAttachment()
+                Button { clearAttachment() } label: {
+                    Label("Remove \(attachment.kind == .photo ? "photo" : "video")", systemImage: "xmark")
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(Theme.muted)
                 }
-                .font(.subheadline)
+                .buttonStyle(.plain)
             }
         } else if preparingMedia {
             HStack(spacing: 10) {
@@ -301,40 +326,42 @@ struct SocialFeedView: View {
             }
         } else {
             PhotosPicker(selection: $pickedItem, matching: .any(of: [.images, .videos])) {
-                Label("Add a photo or video", systemImage: "photo.on.rectangle")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Theme.accentText)
+                HStack(spacing: 14) {
+                    Image(systemName: "photo.on.rectangle.angled")
+                        .font(.system(size: 18, weight: .light))
+                        .foregroundStyle(Theme.accentText)
+                        .frame(width: 44, height: 44)
+                        .overlay(Circle().strokeBorder(Theme.accentText.opacity(0.35), lineWidth: 0.5))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Add a photo or video").font(.subheadline.weight(.medium)).foregroundStyle(Theme.ink)
+                        Text("One photo, or a video up to 60 seconds").font(.caption).foregroundStyle(Theme.muted)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(14)
+                .nagisenPanel(cornerRadius: 18)
             }
-            Text("One photo, or one video up to 60 seconds.")
-                .font(.caption).foregroundStyle(Theme.muted)
+            .buttonStyle(.plain)
         }
         if let mediaError {
             Text(mediaError).font(.caption).foregroundStyle(Theme.accentText)
         }
     }
 
-    @ViewBuilder
-    private var postButton: some View {
-        if feed.isBusy {
-            ProgressView()
-        } else {
-            sendButton
-        }
+    private var canPost: Bool {
+        !(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && attachment == nil) &&
+            text.count <= FeedRules.maxBodyLength && !feed.isBusy && !preparingMedia
     }
 
-    private var sendButton: some View {
-        Button("Post") {
-            Task {
-                if await feed.publish(text, attachment: attachment) {
-                    let posted = text.trimmingCharacters(in: .whitespacesAndNewlines)
-                    savedDrafts = (try? JSONEncoder().encode(drafts.filter { $0.text != posted })) ?? savedDrafts
-                    text = ""
-                    showingComposer = false
-                }
+    private func publish() {
+        Task {
+            if await feed.publish(text, attachment: attachment) {
+                let posted = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                savedDrafts = (try? JSONEncoder().encode(drafts.filter { $0.text != posted })) ?? savedDrafts
+                text = ""
+                showingComposer = false
             }
         }
-        .disabled((text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && attachment == nil) ||
-                  text.count > FeedRules.maxBodyLength || feed.isBusy || preparingMedia)
     }
 
     private func prepare(_ item: PhotosPickerItem) async {

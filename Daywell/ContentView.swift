@@ -23,6 +23,8 @@ enum Theme {
     static let moss = adaptive(0x777174, 0xAAA3A8)
     static let workout = adaptive(0xB85A2B, 0xB86677)
     static let gold = adaptive(0xB98654, 0xD6A875)
+    /// Destructive actions: a muted rose instead of the system's alarm red.
+    static let danger = adaptive(0xA8432F, 0xD27885)
     static let slate = adaptive(0x6E858B, 0xA9BFC5)
     static let protein = adaptive(0x377F77, 0x80C9BC)
     static let carbs = adaptive(0xB57726, 0xE1B76E)
@@ -1449,14 +1451,14 @@ extension View {
             self
                 .glassEffect(.regular.tint(tint), in: shape)
                 .overlay(shape.stroke(
-                    LinearGradient(colors: [.white.opacity(0.42), .white.opacity(0.08), Theme.accent.opacity(0.16)],
+                    LinearGradient(colors: [.white.opacity(0.20), .white.opacity(0.04), Theme.accent.opacity(0.12)],
                                    startPoint: .topLeading, endPoint: .bottomTrailing),
-                    lineWidth: 1))
+                    lineWidth: 0.5))
         } else {
             self
                 .background(.ultraThinMaterial, in: shape)
                 .background(tint, in: shape)
-                .overlay(shape.stroke(.white.opacity(0.22), lineWidth: 1))
+                .overlay(shape.stroke(.white.opacity(0.12), lineWidth: 0.5))
         }
     }
 
@@ -1469,7 +1471,27 @@ extension View {
     func softCardStyle() -> some View {
         self.padding(18)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .nagisenGlass(in: RoundedRectangle(cornerRadius: 17), tint: Theme.surface.opacity(0.18))
+            .nagisenPanel()
+    }
+
+    /// The quiet panel behind grouped settings and forms: a breath of ink and a hairline edge,
+    /// so the paper shows through instead of a grey glass slab.
+    func nagisenPanel(cornerRadius: CGFloat = 22) -> some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        return background(Theme.ink.opacity(0.035), in: shape)
+            .overlay(shape.strokeBorder(Theme.ink.opacity(0.10), lineWidth: 0.5))
+    }
+
+    /// Replaces a sheet's system navigation bar with NAGISEN's own: serif title, quiet close mark, one action.
+    func nagisenSheetBar(_ title: String, closeSymbol: String = "xmark", onClose: @escaping () -> Void,
+                         actionTitle: String? = nil, actionEnabled: Bool = true, busy: Bool = false,
+                         onAction: (() -> Void)? = nil) -> some View {
+        toolbar(.hidden, for: .navigationBar)
+            .safeAreaInset(edge: .top, spacing: 0) {
+                NagisenSheetBar(title: title, closeSymbol: closeSymbol, onClose: onClose, actionTitle: actionTitle,
+                                actionEnabled: actionEnabled, busy: busy, onAction: onAction)
+                    .background(Theme.paper)
+            }
     }
 
     func accentCardStyle(_ accent: Color) -> some View {
@@ -1532,6 +1554,75 @@ struct NagisenHeader: View {
     }
 }
 
+/// A text field on the quiet panel instead of the system's rounded box.
+struct NagisenFieldStyle: TextFieldStyle {
+    func _body(configuration: TextField<Self._Label>) -> some View {
+        configuration
+            .font(.subheadline)
+            .padding(.horizontal, 14)
+            .frame(minHeight: 40)
+            .nagisenPanel(cornerRadius: 12)
+    }
+}
+
+extension TextFieldStyle where Self == NagisenFieldStyle {
+    static var nagisen: NagisenFieldStyle { NagisenFieldStyle() }
+}
+
+/// The top of a sheet. The title sits centered in serif; the close mark and the action stay light.
+struct NagisenSheetBar: View {
+    let title: String
+    var closeSymbol = "xmark"
+    let onClose: () -> Void
+    var actionTitle: String?
+    var actionEnabled = true
+    var busy = false
+    var onAction: (() -> Void)?
+
+    var body: some View {
+        ZStack {
+            Text(title)
+                .font(.system(size: 18, weight: .regular, design: .serif))
+                .lineLimit(1)
+                .padding(.horizontal, 96)
+            HStack {
+                Button(action: onClose) {
+                    Image(systemName: closeSymbol)
+                        .font(.system(size: 13, weight: .semibold))
+                        .frame(width: 34, height: 34)
+                        .overlay(Circle().strokeBorder(Theme.ink.opacity(0.16), lineWidth: 0.5))
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityLabel(closeSymbol == "xmark" ? "Close" : "Back")
+                Spacer()
+                if let actionTitle, let onAction {
+                    if busy {
+                        ProgressView().frame(width: 44, height: 44)
+                    } else {
+                        Button(action: onAction) {
+                            Text(actionTitle)
+                                .font(.footnote.weight(.semibold)).tracking(0.4)
+                                .foregroundStyle(actionEnabled ? Color.white : Theme.muted)
+                                .padding(.horizontal, 16).frame(height: 32)
+                                .background(actionEnabled ? Theme.accent : Color.clear, in: Capsule())
+                                .overlay(Capsule().strokeBorder(Theme.ink.opacity(actionEnabled ? 0 : 0.16), lineWidth: 0.5))
+                                .frame(minHeight: 44)
+                                .contentShape(Rectangle())
+                        }
+                        .disabled(!actionEnabled)
+                    }
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(Theme.ink)
+        .padding(.horizontal, 12)
+        .padding(.top, 10)
+        .padding(.bottom, 6)
+    }
+}
+
 struct NagisenPageHeading: View {
     let kicker: String
     let title: String
@@ -1589,7 +1680,8 @@ struct NagisenSection<Content: View>: View {
                     .padding(.leading, 2)
                 VStack(alignment: .leading, spacing: 0) { content }
                     .padding(.horizontal, 19)
-                    .nagisenGlass(in: RoundedRectangle(cornerRadius: 20), tint: Theme.surface.opacity(0.20))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .nagisenPanel()
             }
         }
     }

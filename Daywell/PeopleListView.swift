@@ -27,11 +27,7 @@ struct PeopleListView: View {
                 .padding(.vertical, 10)
             }
             .background(NagisenBackdrop())
-            .navigationTitle(title)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
-            }
+            .nagisenSheetBar(title, onClose: { dismiss() })
             .task {
                 people = await load()
                 loading = false

@@ -328,11 +328,7 @@ struct PostDetailView: View {
                 FeedPostView(post: post, onRemoved: { dismiss() })
             }
             .background(NagisenBackdrop())
-            .navigationTitle("Post")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
-            }
+            .nagisenSheetBar("Post", onClose: { dismiss() })
         }
     }
 }

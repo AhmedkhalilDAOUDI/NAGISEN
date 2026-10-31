@@ -30,13 +30,7 @@ struct ActivityView: View {
             }
             .refreshable { await feed.loadActivity() }
             .background(NagisenBackdrop())
-            .navigationTitle("Activity")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }
-                }
-            }
+            .nagisenSheetBar("Activity", onClose: { dismiss() })
             .task {
                 feed.message = nil
                 await feed.loadActivity()

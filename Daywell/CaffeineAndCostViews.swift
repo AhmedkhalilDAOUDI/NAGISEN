@@ -85,12 +85,8 @@ private struct CaffeineDetailView: View {
                 .padding(.horizontal, 18)
                 .padding(.vertical, 16)
             }
-            .background(Theme.surface.ignoresSafeArea())
-            .navigationTitle("Caffeine")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
-            }
+            .background(NagisenBackdrop())
+            .nagisenSheetBar("Caffeine", onClose: { dismiss() })
         }
     }
 
@@ -179,8 +175,8 @@ private struct CaffeineDetailView: View {
             HStack(spacing: 8) {
                 TextField("Custom mg", text: $customMilligrams)
                     .keyboardType(.numberPad)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 110)
+                    .textFieldStyle(.nagisen)
+                    .frame(width: 120)
                 Button("Add") {
                     if let value = Int(customMilligrams), value > 0 {
                         store.addCaffeine(milligrams: value, name: "Custom", at: drinkTime())
@@ -365,25 +361,31 @@ private struct CostDetailView: View {
                 .padding(.vertical, 16)
             }
             .scrollDismissesKeyboard(.interactively)
-            .background(Theme.surface.ignoresSafeArea())
-            .navigationTitle("Cost")
-            .navigationBarTitleDisplayMode(.inline)
+            .background(NagisenBackdrop())
             .onChange(of: search) { _, _ in searchOnline() }
             .onDisappear { searchTask?.cancel() }
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    HStack(spacing: 14) {
-                        Button { showingScanner = true } label: {
-                            Image(systemName: "barcode.viewfinder")
+            .toolbar(.hidden, for: .navigationBar)
+            .safeAreaInset(edge: .top, spacing: 0) {
+                NagisenSheetBar(title: "Cost", onClose: { dismiss() })
+                    .overlay(alignment: .trailing) {
+                        HStack(spacing: 0) {
+                            Button { showingScanner = true } label: {
+                                Image(systemName: "barcode.viewfinder").frame(width: 44, height: 44)
+                            }
+                            .accessibilityLabel("Scan a product barcode for its price")
+                            Button { showingReceipt = true } label: {
+                                Image(systemName: "doc.text.viewfinder").frame(width: 44, height: 44)
+                            }
+                            .accessibilityLabel("Scan a receipt")
                         }
-                        .accessibilityLabel("Scan a product barcode for its price")
-                        Button { showingReceipt = true } label: {
-                            Image(systemName: "doc.text.viewfinder")
-                        }
-                        .accessibilityLabel("Scan a receipt")
+                        .font(.system(size: 16, weight: .regular))
+                        .foregroundStyle(Theme.ink)
+                        .buttonStyle(.plain)
+                        .padding(.trailing, 10).padding(.top, 4)
                     }
-                }
-                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+                    .background(Theme.paper)
+            }
+            .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
                     Button("Done") { searchFocused = false }
@@ -691,26 +693,18 @@ private struct PriceEditorView: View {
                 .padding(.vertical, 16)
             }
             .scrollDismissesKeyboard(.interactively)
-            .background(Theme.surface.ignoresSafeArea())
-            .navigationTitle(food.name)
-            .navigationBarTitleDisplayMode(.inline)
+            .background(NagisenBackdrop())
+            .nagisenSheetBar(food.name, onClose: { dismiss() }, actionTitle: "Save", actionEnabled: derived != nil) {
+                if let derived {
+                    let price = suggestedPrice
+                        ? FoodPrice(per100g: derived.per100g, perServing: derived.perServing)
+                        : derived
+                    store.setPrice(price, for: food)
+                    store.addCostFood(food)
+                }
+                dismiss()
+            }
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        if let derived {
-                            let price = suggestedPrice
-                                ? FoodPrice(per100g: derived.per100g, perServing: derived.perServing)
-                                : derived
-                            store.setPrice(price, for: food)
-                            store.addCostFood(food)
-                        }
-                        dismiss()
-                    }
-                    .disabled(derived == nil)
-                }
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
                     Button("Done") { focusedField = nil }
@@ -758,14 +752,14 @@ private struct PriceEditorView: View {
                         .font(.caption).foregroundStyle(Theme.muted)
                     TextField("0", text: Binding(get: { amount }, set: { amount = $0; suggestedPrice = false }))
                         .keyboardType(.decimalPad)
-                        .textFieldStyle(.roundedBorder)
+                        .textFieldStyle(.nagisen)
                         .focused($focusedField, equals: .amount)
                 }
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Paid in MAD").font(.caption).foregroundStyle(Theme.muted)
                     TextField("0", text: Binding(get: { paid }, set: { paid = $0; suggestedPrice = false }))
                         .keyboardType(.decimalPad)
-                        .textFieldStyle(.roundedBorder)
+                        .textFieldStyle(.nagisen)
                         .focused($focusedField, equals: .paid)
                 }
             }

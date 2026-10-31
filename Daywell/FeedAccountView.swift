@@ -38,13 +38,7 @@ struct FeedAccountView: View {
                 .padding(20)
             }
             .background(NagisenBackdrop())
-            .navigationTitle(title)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }
-                }
-            }
+            .nagisenSheetBar(title, onClose: { dismiss() })
             .onChange(of: feed.state) { _, state in
                 if state == .ready { dismiss() }
             }
