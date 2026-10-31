@@ -767,6 +767,7 @@ private struct CalorieCard: View {
     @EnvironmentObject private var store: NutritionStore
     let date: Date
     @State private var showingStreakAudit = false
+    @State private var celebrating = false
 
     var body: some View {
         let eaten = store.totals(on: date).calories
@@ -850,7 +851,10 @@ private struct CalorieCard: View {
                 }
                 Toggle(isOn: Binding(
                     get: { store.isLoggingComplete(on: date) },
-                    set: { store.setLoggingComplete($0, on: date) }
+                    set: { done in
+                        store.setLoggingComplete(done, on: date)
+                        if done && Calendar.current.isDateInToday(date) { celebrating = true }
+                    }
                 )) {
                     Label("Done Logging", systemImage: store.isLoggingComplete(on: date) ? "checkmark.circle.fill" : "checkmark.circle")
                         .font(.subheadline.weight(.medium))
@@ -866,12 +870,18 @@ private struct CalorieCard: View {
         .sheet(isPresented: $showingStreakAudit) {
             StreakAuditView().environmentObject(store)
         }
+        .fullScreenCover(isPresented: $celebrating) {
+            StreakCelebrationView(streak: store.streakSnapshot(asOf: date).activeStreak, date: date)
+                .environmentObject(store)
+                .presentationBackground(.black.opacity(0.5))
+        }
         #if DEBUG
         .onAppear {
             // Test-only: lets the audit be captured without tapping through the UI.
             if ProcessInfo.processInfo.arguments.contains("-NAGISENOpenAudit") {
                 showingStreakAudit = true
             }
+            if ProcessInfo.processInfo.arguments.contains("-NAGISENCelebrate") { celebrating = true }
         }
         #endif
     }
