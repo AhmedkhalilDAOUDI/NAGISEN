@@ -31,6 +31,7 @@ struct DaywellApp: App {
                 }
                 .onAppear {
                     WaterReminders.reconcile()
+                    Reminders.reconcile(store: store)
                     spotify.connectIfAuthorized()
                     Task {
                         await community.connect()
@@ -47,6 +48,7 @@ struct DaywellApp: App {
                         guard !Task.isCancelled else { return }
                         await community.sync(store)
                         await syncBorder()
+                        Reminders.reconcile(store: store)
                     }
                 }
                 .onChange(of: feed.state) { _, state in
@@ -57,6 +59,7 @@ struct DaywellApp: App {
                         spotify.connectIfAuthorized()
                         health.refresh()
                         WaterReminders.reconcile()
+                        Reminders.reconcile(store: store)
                         Task {
                             await community.connect()
                             await community.sync(store)
