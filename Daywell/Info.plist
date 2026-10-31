@@ -29,6 +29,10 @@
             <key>CFBundleURLName</key><string>com.daywell.nutrition.spotify</string>
             <key>CFBundleURLSchemes</key><array><string>daywell-spotify-login</string></array>
         </dict>
+        <dict>
+            <key>CFBundleURLName</key><string>com.daywell.nutrition.auth</string>
+            <key>CFBundleURLSchemes</key><array><string>nagisen</string></array>
+        </dict>
     </array>
     <key>UISupportedInterfaceOrientations</key>
     <array>

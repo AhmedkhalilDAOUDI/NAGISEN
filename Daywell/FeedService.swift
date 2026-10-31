@@ -101,7 +101,26 @@ final class FeedService: ObservableObject {
               // Dashboards sometimes show the REST endpoint (…/rest/v1/); the client wants the bare project URL.
               let url = URL(string: "https://\(host)") else { return nil }
         return SupabaseClient(supabaseURL: url, supabaseKey: key,
-                              options: SupabaseClientOptions(auth: .init(emitLocalSessionAsInitialSession: true)))
+                              options: SupabaseClientOptions(auth: .init(redirectToURL: authRedirect,
+                                                                         emitLocalSessionAsInitialSession: true)))
+    }
+
+    /// Where email links (sign-up confirmation) send the member: back into the app.
+    /// Must also be listed under Authentication → URL Configuration → Redirect URLs in Supabase.
+    static let authRedirect = URL(string: "nagisen://auth-callback")!
+
+    /// Finishes sign-in when a confirmation link opens the app.
+    func handle(url: URL) {
+        guard let client, url.scheme == Self.authRedirect.scheme, url.host == Self.authRedirect.host else { return }
+        Task {
+            do {
+                _ = try await client.auth.session(from: url)
+                message = nil
+            } catch {
+                // The link was opened on another device, or already used: the email is still confirmed.
+                message = "Your email is confirmed. Sign in with your email and password."
+            }
+        }
     }
 
     // MARK: - Account
@@ -144,9 +163,9 @@ final class FeedService: ObservableObject {
         defer { isBusy = false }
         do {
             let response = try await client.auth.signUp(email: email.trimmingCharacters(in: .whitespaces),
-                                                        password: password)
+                                                        password: password, redirectTo: Self.authRedirect)
             if case .user = response {
-                message = "Check your inbox and confirm your email, then sign in."
+                message = "Check your inbox and tap the confirmation link on this iPhone. It opens NAGISEN and signs you in."
                 return true
             }
             message = nil
