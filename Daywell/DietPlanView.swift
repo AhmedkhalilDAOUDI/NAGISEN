@@ -90,10 +90,8 @@ private enum DietPlanEngine {
     static func calories(weight: Double, height: Double, age: Int,
                          equation: EnergyEquation, activity: DietActivity,
                          direction: DietDirection) -> Int {
-        let resting = 10 * weight + 6.25 * height - 5 * Double(age) + (equation == .male ? 5 : -161)
-        let maintenance = resting * activity.factor
-        let adjustment: Double = direction == .lose ? -300 : direction == .gain ? 250 : 0
-        return Int((max(1200, maintenance + adjustment) / 25).rounded() * 25)
+        EnergyMath.dailyCalories(weight: weight, height: height, age: age, equation: equation,
+                                 activity: activity, direction: direction)
     }
 
     static func day(style: DietStyle, index: Int, targetCalories: Int, avoiding: [String]) -> PlanDay? {

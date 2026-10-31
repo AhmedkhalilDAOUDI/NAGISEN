@@ -103,10 +103,10 @@ struct FoodPrice: Codable, Equatable {
             let amount = grams >= 1000
                 ? "\((grams / 1000).formatted(.number.precision(.fractionLength(0...2)))) kg"
                 : "\(grams.formatted(.number.precision(.fractionLength(0...0)))) g"
-            return "\(amount) for \(paid.formatted(.number.precision(.fractionLength(0...2)))) MAD"
+            return "\(amount) for \(paid.formatted(.number.precision(.fractionLength(0...2)))) \(UserRegion.currency)"
         }
         if let servings = boughtServings {
-            return "\(servings.formatted(.number.precision(.fractionLength(0...2)))) servings for \(paid.formatted(.number.precision(.fractionLength(0...2)))) MAD"
+            return "\(servings.formatted(.number.precision(.fractionLength(0...2)))) servings for \(paid.formatted(.number.precision(.fractionLength(0...2)))) \(UserRegion.currency)"
         }
         return nil
     }
@@ -204,6 +204,19 @@ enum FoodCost {
 
     static func display(_ value: Double) -> String {
         let digits = value >= 100 ? 0 : (value >= 10 ? 1 : 2)
-        return value.formatted(.number.precision(.fractionLength(digits))) + " MAD"
+        return value.formatted(.number.precision(.fractionLength(digits))) + " " + UserRegion.currency
+    }
+}
+
+/// The country chosen during setup. Prices are shown in its currency, and online price suggestions
+/// (which only cover Moroccan shops, in MAD) are offered only there. Morocco when none was chosen.
+enum UserRegion {
+    static let key = "nagisen.country"
+    static var code: String { UserDefaults.standard.string(forKey: key) ?? "MA" }
+    static var currency: String { currency(for: code) }
+    static var hasPriceSuggestions: Bool { code == "MA" }
+
+    static func currency(for code: String) -> String {
+        Locale(identifier: "en_\(code)").currency?.identifier ?? "MAD"
     }
 }

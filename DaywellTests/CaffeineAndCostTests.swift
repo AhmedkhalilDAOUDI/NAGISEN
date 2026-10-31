@@ -203,4 +203,26 @@ final class CaffeineAndCostTests: XCTestCase {
         XCTAssertEqual(FoodCost.price(for: first, prices: prices)?.per100g, 8)
         XCTAssertEqual(FoodCost.price(for: second, prices: ["greek yogurt": FoodPrice(per100g: 6)])?.per100g, 6)
     }
+
+    func testSetupTargetsFollowTheAnswers() {
+        var plan = OnboardingPlan(equation: .female, age: "30", height: "165", weight: "60",
+                                  direction: .maintain, trainingDays: 3, country: "FR", takesCreatine: false)
+        let goals = plan.goals
+        XCTAssertEqual(goals?.calories, 1825)
+        XCTAssertEqual(goals?.protein, 108, "1.8 g per kg")
+        XCTAssertEqual(goals?.fat, 55)
+        XCTAssertEqual(goals?.carbs, 224, "the rest of the calories")
+        XCTAssertEqual(plan.waterGoalML, 2000)
+        XCTAssertEqual(OnboardingPlan.activity(trainingDays: 0), .sedentary)
+        XCTAssertEqual(OnboardingPlan.activity(trainingDays: 7), .veryActive)
+
+        plan.height = "16"
+        XCTAssertNil(plan.goals, "an impossible height gives no target")
+    }
+
+    func testPricesUseTheCountrysCurrency() {
+        XCTAssertEqual(UserRegion.currency(for: "MA"), "MAD")
+        XCTAssertEqual(UserRegion.currency(for: "FR"), "EUR")
+        XCTAssertEqual(UserRegion.currency(for: "US"), "USD")
+    }
 }
