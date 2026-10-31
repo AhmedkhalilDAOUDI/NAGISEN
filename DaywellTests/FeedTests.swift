@@ -135,14 +135,27 @@ final class FeedTests: XCTestCase {
         XCTAssertNil(post.author.special)
     }
 
-    func testTheAppreciationCountComesWithThePost() throws {
+    func testLikesAndYourOwnLikeComeWithThePost() throws {
         let post = try decode("""
         {"id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d", "author_id": "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed",
          "body": "Leg day", "created_at": "2026-10-31T09:15:00+00:00", "profiles": {"username": "khalil"},
-         "comments": [{"count": 2}], "appreciations": [{"count": 5}]}
+         "media_path": "x/v.mp4", "media_kind": "video", "poster_path": "x/v-poster.jpg",
+         "comments": [{"count": 2}], "likes": [{"count": 5}],
+         "mine": [{"member_id": "3f2504e0-4f89-41d3-9a0c-0305e82c3301"}]}
         """)
-        XCTAssertEqual(post.appreciationCount, 5)
+        XCTAssertEqual(post.likeCount, 5)
+        XCTAssertTrue(post.likedByMe)
         XCTAssertEqual(post.commentCount, 2)
+        XCTAssertEqual(post.posterPath, "x/v-poster.jpg")
+    }
+
+    func testAPostYouHaventLikedSaysSo() throws {
+        let post = try decode("""
+        {"id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d", "author_id": "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed",
+         "body": "x", "created_at": "2026-10-31T09:15:00+00:00", "likes": [{"count": 3}], "mine": []}
+        """)
+        XCTAssertEqual(post.likeCount, 3)
+        XCTAssertFalse(post.likedByMe)
     }
 
     // MARK: - Activity
@@ -158,21 +171,53 @@ final class FeedTests: XCTestCase {
          "created_at": "2026-10-31T10:00:00+00:00", "profiles": {"username": "sara"}}
         """.utf8))
         let older = FeedActivity(id: "a", member: member("omar"), postID: UUID(),
-                                 date: comment.createdAt.addingTimeInterval(-60), kind: .appreciation)
+                                 date: comment.createdAt.addingTimeInterval(-60), kind: .like)
         let newer = FeedActivity(id: "b", member: member("lina"), postID: UUID(),
-                                 date: comment.createdAt.addingTimeInterval(60), kind: .appreciation)
-        let merged = FeedActivity.merged(comments: [comment], marks: [older, newer])
-        XCTAssertEqual(merged.map(\.member.username), ["lina", "sara", "omar"])
-        XCTAssertEqual(merged[1].kind, .comment("Strong"))
+                                 date: comment.createdAt.addingTimeInterval(60), kind: .like)
+        let merged = FeedActivity.merged(comments: [comment], others: [older, newer])
+        XCTAssertEqual(merged.map { $0.member.username }, ["lina", "sara", "omar"])
+        XCTAssertEqual(merged[1].kind, FeedActivity.Kind.comment("Strong"))
     }
 
     func testOnlyActivityAfterTheLastVisitIsNew() {
         let now = Date()
-        let items = [FeedActivity(id: "a", member: member("sara"), postID: UUID(), date: now, kind: .appreciation)]
+        let items = [FeedActivity(id: "a", member: member("sara"), postID: UUID(), date: now, kind: .like)]
         XCTAssertTrue(FeedActivity.hasNew(items, since: nil))
         XCTAssertTrue(FeedActivity.hasNew(items, since: now.addingTimeInterval(-1)))
         XCTAssertFalse(FeedActivity.hasNew(items, since: now))
         XCTAssertFalse(FeedActivity.hasNew([], since: nil))
+    }
+
+    // MARK: - Stories
+
+    func testYourStoriesComeFirstThenUnseenThenSeen() {
+        let me = UUID(), seenFriend = UUID(), newFriend = UUID()
+        let base = Date(timeIntervalSince1970: 1_790_000_000)
+        let old = FeedStory(authorID: seenFriend, createdAt: base.addingTimeInterval(300), username: "seen")
+        let fresh = FeedStory(authorID: newFriend, createdAt: base, username: "fresh")
+        let mine = FeedStory(authorID: me, createdAt: base.addingTimeInterval(-100), username: "me")
+        let groups = StoryGroup.grouped([old, fresh, mine], me: me, seen: [old.id])
+        XCTAssertEqual(groups.map(\.member.username), ["me", "fresh", "seen"])
+    }
+
+    func testPlaybackStartsAtTheFirstUnseenStory() {
+        let author = UUID(), base = Date(timeIntervalSince1970: 1_790_000_000)
+        let first = FeedStory(authorID: author, createdAt: base)
+        let second = FeedStory(authorID: author, createdAt: base.addingTimeInterval(60))
+        let group = StoryGroup.grouped([second, first], me: nil, seen: [first.id])[0]
+        XCTAssertEqual(group.stories.map(\.id), [first.id, second.id], "oldest first")
+        XCTAssertEqual(group.startIndex([first.id]), 1)
+        XCTAssertEqual(group.startIndex([first.id, second.id]), 0, "all seen replays from the start")
+        XCTAssertFalse(group.hasUnseen([first.id, second.id]))
+    }
+
+    // MARK: - Feed shape
+
+    func testPhotosKeepTheirShapeWithinFeedLimits() {
+        XCTAssertEqual(PostMedia.feedAspectRatio(width: 1000, height: 1000), 1)
+        XCTAssertEqual(PostMedia.feedAspectRatio(width: 1000, height: 3000), 0.8, "tall photos stop at 4:5")
+        XCTAssertEqual(PostMedia.feedAspectRatio(width: 4000, height: 1000), 1.91, "wide photos stop at 1.91:1")
+        XCTAssertEqual(PostMedia.feedAspectRatio(width: 0, height: 0), 0.8)
     }
 
     // MARK: - Media limits

@@ -41,37 +41,41 @@ struct FeedPost: Identifiable, Decodable, Equatable {
     let body: String
     let mediaPath: String?
     let mediaKind: MediaKind?
+    let posterPath: String?
     let createdAt: Date
     let author: FeedMember
     var commentCount: Int
-    /// For your own posts, how many members appreciated it; for anyone else's, 1 if you did.
-    /// The database rules decide which marks you can see, so the same count serves both.
-    var appreciationCount: Int
+    var likeCount: Int
+    var likedByMe: Bool
 
     var username: String { author.username }
 
     private struct Count: Decodable { let count: Int }
+    private struct Mine: Decodable { let member_id: UUID }
     private enum CodingKeys: String, CodingKey {
-        case id, body, comments, appreciations
+        case id, body, comments, likes, mine
         case authorID = "author_id"
         case mediaPath = "media_path"
         case mediaKind = "media_kind"
+        case posterPath = "poster_path"
         case createdAt = "created_at"
         case author = "profiles"
     }
 
     init(id: UUID, authorID: UUID, body: String, mediaPath: String? = nil,
-         mediaKind: MediaKind? = nil, createdAt: Date = .now, username: String, commentCount: Int = 0,
-         appreciationCount: Int = 0) {
+         mediaKind: MediaKind? = nil, posterPath: String? = nil, createdAt: Date = .now, username: String,
+         commentCount: Int = 0, likeCount: Int = 0, likedByMe: Bool = false) {
         self.id = id
         self.authorID = authorID
         self.body = body
         self.mediaPath = mediaPath
         self.mediaKind = mediaKind
+        self.posterPath = posterPath
         self.createdAt = createdAt
         self.author = FeedMember(id: authorID, username: username, avatarPath: nil, borderTier: .none, bio: "")
         self.commentCount = commentCount
-        self.appreciationCount = appreciationCount
+        self.likeCount = likeCount
+        self.likedByMe = likedByMe
     }
 
     init(from decoder: any Decoder) throws {
@@ -81,12 +85,15 @@ struct FeedPost: Identifiable, Decodable, Equatable {
         body = try c.decodeIfPresent(String.self, forKey: .body) ?? ""
         mediaPath = try c.decodeIfPresent(String.self, forKey: .mediaPath)
         mediaKind = try c.decodeIfPresent(MediaKind.self, forKey: .mediaKind)
+        posterPath = try c.decodeIfPresent(String.self, forKey: .posterPath)
         createdAt = try c.decode(Date.self, forKey: .createdAt)
         author = (try? c.decode(ProfileJoin.self, forKey: .author))?.member(authorID) ??
             FeedMember(id: authorID, username: "member", avatarPath: nil, borderTier: .none, bio: "")
         // PostgREST returns `comments(count)` as a one-element array.
         commentCount = (try? c.decode([Count].self, forKey: .comments).first?.count) ?? 0
-        appreciationCount = (try? c.decode([Count].self, forKey: .appreciations).first?.count) ?? 0
+        likeCount = (try? c.decode([Count].self, forKey: .likes).first?.count) ?? 0
+        // `mine` is the likes table filtered to the signed-in member: one row if they liked it.
+        likedByMe = !((try? c.decode([Mine].self, forKey: .mine)) ?? []).isEmpty
     }
 }
 
@@ -125,6 +132,8 @@ struct FeedComment: Identifiable, Decodable, Equatable {
 struct PostAttachment {
     let kind: FeedPost.MediaKind
     let fileURL: URL
+    /// The first frame of a video, as a JPEG, for grids and story rings.
+    var posterURL: URL? = nil
 
     var contentType: String { kind == .photo ? "image/jpeg" : "video/mp4" }
     var fileExtension: String { kind == .photo ? "jpg" : "mp4" }
@@ -134,22 +143,24 @@ struct PostAttachment {
 struct FeedActivity: Identifiable, Equatable {
     enum Kind: Equatable {
         case comment(String)
-        case appreciation
+        case like
+        case follow
     }
 
     let id: String
     let member: FeedMember
-    let postID: UUID
+    /// The post it happened on; nil for a new follower.
+    let postID: UUID?
     let date: Date
     let kind: Kind
 
-    /// Comments and appreciations together, newest first.
-    static func merged(comments: [FeedComment], marks: [FeedActivity]) -> [FeedActivity] {
+    /// Comments, likes and follows together, newest first.
+    static func merged(comments: [FeedComment], others: [FeedActivity]) -> [FeedActivity] {
         let fromComments = comments.map {
             FeedActivity(id: "comment-\($0.id)", member: $0.author, postID: $0.postID, date: $0.createdAt,
                          kind: .comment($0.body))
         }
-        return (fromComments + marks).sorted { $0.date > $1.date }
+        return (fromComments + others).sorted { $0.date > $1.date }
     }
 
     /// True when anything is newer than the last time Activity was opened.
@@ -193,18 +204,26 @@ final class FeedService: ObservableObject {
     @Published private(set) var borderTier: BorderTier = .none
     @Published private(set) var specialBorder: SpecialBorder?
     @Published private(set) var email: String?
-    @Published private(set) var posts: [FeedPost] = []
+    @Published internal(set) var posts: [FeedPost] = []
     @Published private(set) var canLoadMore = false
     @Published private(set) var blockedCount = 0
-    @Published private(set) var isBusy = false
+    @Published internal(set) var isBusy = false
     @Published private(set) var activity: [FeedActivity] = []
     @Published private(set) var hasNewActivity = false
     @Published var message: String?
+    /// Who you follow, kept here so Follow buttons and the Following feed agree everywhere.
+    @Published internal(set) var following: Set<UUID> = []
+    @Published var mode: FeedMode = .following
+    @Published internal(set) var storyGroups: [StoryGroup] = []
+    @Published internal(set) var seenStories: Set<UUID> = []
 
-    private let client: SupabaseClient?
-    private let pageSize = 20
-    private let bucket = "post-media"
-    private var userID: UUID?
+    enum FeedMode: String, CaseIterable { case following = "Following", explore = "Explore" }
+
+    // Internal (not private) so the Social and Stories extensions in their own files can use them.
+    let client: SupabaseClient?
+    let pageSize = 20
+    let bucket = "post-media"
+    internal(set) var userID: UUID?
 
     init(bundle: Bundle = .main) {
         client = Self.makeClient(bundle)
@@ -260,6 +279,9 @@ final class FeedService: ObservableObject {
                 specialBorder = nil
                 email = nil
                 posts = []
+                following = []
+                storyGroups = []
+                seenStories = []
                 blockedCount = 0
                 activity = []
                 hasNewActivity = false
@@ -282,7 +304,11 @@ final class FeedService: ObservableObject {
             borderTier = me?.borderTier ?? .none
             specialBorder = me?.special
             state = username == nil ? .needsUsername : .ready
-            if state == .ready { await refresh() }
+            if state == .ready {
+                await loadFollowing()
+                await refresh()
+                await cleanUpExpiredStories()
+            }
         } catch {
             message = Self.describe(error, doing: "load your account")
         }
@@ -518,14 +544,28 @@ final class FeedService: ObservableObject {
 
     // MARK: - Feed
 
-    private var feedQuery: String {
-        "id, author_id, body, media_path, media_kind, created_at, \(ProfileJoin.columns(via: "posts_author_id_fkey")), comments(count), appreciations(count)"
+    var feedQuery: String {
+        "id, author_id, body, media_path, media_kind, poster_path, created_at, " +
+            "\(ProfileJoin.columns(via: "posts_author_id_fkey")), comments(count), " +
+            "likes:appreciations(count), mine:appreciations(member_id)"
+    }
+
+    /// Posts with their author, counts and your like; `mine` is narrowed to you.
+    func selectPosts(_ client: SupabaseClient) -> PostgrestFilterBuilder {
+        client.from("posts").select(feedQuery).eq("mine.member_id", value: userID ?? UUID())
+    }
+
+    /// The authors whose posts the current mode shows: you and the people you follow, or everyone.
+    private func scopedPosts(_ client: SupabaseClient) -> PostgrestFilterBuilder {
+        let query = selectPosts(client)
+        guard mode == .following, let userID else { return query }
+        return query.in("author_id", values: Array(following.union([userID])))
     }
 
     func refresh() async {
         guard let client, state == .ready else { return }
         do {
-            let page: [FeedPost] = try await client.from("posts").select(feedQuery)
+            let page: [FeedPost] = try await scopedPosts(client)
                 .order("created_at", ascending: false).range(from: 0, to: pageSize - 1)
                 .execute().value
             posts = page
@@ -534,6 +574,7 @@ final class FeedService: ObservableObject {
             let blocks: [Block] = try await client.from("blocks").select("blocked_id").execute().value
             blockedCount = blocks.count
             await loadActivity()
+            await loadStories()
         } catch {
             message = Self.describe(error, doing: "load the feed")
         }
@@ -542,7 +583,7 @@ final class FeedService: ObservableObject {
     func loadMore() async {
         guard let client, state == .ready, canLoadMore else { return }
         do {
-            let page: [FeedPost] = try await client.from("posts").select(feedQuery)
+            let page: [FeedPost] = try await scopedPosts(client)
                 .order("created_at", ascending: false)
                 .range(from: posts.count, to: posts.count + pageSize - 1)
                 .execute().value
@@ -557,13 +598,13 @@ final class FeedService: ObservableObject {
 
     func isMe(_ member: FeedMember) -> Bool { member.id == userID }
 
-    /// A member's latest 50 posts for their page. Blocked members return nothing.
+    /// A member's latest 60 posts for their profile grid. Blocked members return nothing.
     func posts(by member: FeedMember) async -> [FeedPost]? {
         guard let client, state == .ready else { return nil }
         do {
-            return try await client.from("posts").select(feedQuery)
+            return try await selectPosts(client)
                 .eq("author_id", value: member.id)
-                .order("created_at", ascending: false).limit(50)
+                .order("created_at", ascending: false).limit(60)
                 .execute().value
         } catch {
             message = Self.describe(error, doing: "load @\(member.username)'s posts")
@@ -571,8 +612,15 @@ final class FeedService: ObservableObject {
         }
     }
 
-    func mediaURL(for post: FeedPost) -> URL? {
-        guard let client, let path = post.mediaPath else { return nil }
+    func mediaURL(for post: FeedPost) -> URL? { publicURL(post.mediaPath) }
+
+    /// What a grid tile shows: the photo, or a video's poster frame.
+    func thumbnailURL(for post: FeedPost) -> URL? {
+        publicURL(post.mediaKind == .video ? post.posterPath : post.mediaPath)
+    }
+
+    func publicURL(_ path: String?) -> URL? {
+        guard let client, let path else { return nil }
         return try? client.storage.from(bucket).getPublicURL(path: path)
     }
 
@@ -585,29 +633,29 @@ final class FeedService: ObservableObject {
         }
         isBusy = true
         defer { isBusy = false }
-        var uploadedPath: String?
+        var uploaded: (media: String, poster: String?)?
         do {
             if let attachment {
-                let path = "\(FeedRules.mediaFolder(for: userID))/\(UUID().uuidString.lowercased()).\(attachment.fileExtension)"
-                try await client.storage.from(bucket).upload(path, fileURL: attachment.fileURL,
-                                                             options: FileOptions(contentType: attachment.contentType))
-                uploadedPath = path
+                uploaded = try await upload(attachment, prefix: "")
             }
             struct NewPost: Encodable {
                 let author_id: UUID
                 let body: String
                 let media_path: String?
                 let media_kind: String?
+                let poster_path: String?
             }
             let saved: FeedPost = try await client.from("posts")
-                .insert(NewPost(author_id: userID, body: body, media_path: uploadedPath,
-                                media_kind: attachment?.kind.rawValue))
+                .insert(NewPost(author_id: userID, body: body, media_path: uploaded?.media,
+                                media_kind: attachment?.kind.rawValue, poster_path: uploaded?.poster))
                 .select(feedQuery).single().execute().value
             posts.insert(saved, at: 0)
             message = nil
             return true
         } catch {
-            if let uploadedPath { _ = try? await client.storage.from(bucket).remove(paths: [uploadedPath]) }
+            if let uploaded {
+                _ = try? await client.storage.from(bucket).remove(paths: [uploaded.media] + [uploaded.poster].compactMap { $0 })
+            }
             message = Self.describe(error, doing: "share the post")
             return false
         }
@@ -617,7 +665,8 @@ final class FeedService: ObservableObject {
         guard let client, isMine(post) else { return }
         do {
             try await client.from("posts").delete().eq("id", value: post.id).execute()
-            if let path = post.mediaPath { _ = try? await client.storage.from(bucket).remove(paths: [path]) }
+            let files = [post.mediaPath, post.posterPath].compactMap { $0 }
+            if !files.isEmpty { _ = try? await client.storage.from(bucket).remove(paths: files) }
             posts.removeAll { $0.id == post.id }
         } catch {
             message = Self.describe(error, doing: "delete the post")
@@ -670,44 +719,21 @@ final class FeedService: ObservableObject {
         }
     }
 
-    // MARK: - Appreciation
-
-    /// Whether you've marked someone else's post.
-    func hasAppreciated(_ post: FeedPost) -> Bool { !isMine(post) && post.appreciationCount > 0 }
-
-    /// Gives or takes back your mark on someone else's post. Updates the screen first and
-    /// undoes it if the server refuses.
-    func toggleAppreciation(_ post: FeedPost) async {
-        guard let client, let userID, !isMine(post),
-              let index = posts.firstIndex(where: { $0.id == post.id }) else { return }
-        let giving = posts[index].appreciationCount == 0
-        posts[index].appreciationCount = giving ? 1 : 0
-        struct Mark: Encodable { let post_id: UUID }
-        do {
-            if giving {
-                try await client.from("appreciations").upsert(Mark(post_id: post.id), onConflict: "post_id,member_id").execute()
-            } else {
-                try await client.from("appreciations").delete()
-                    .eq("post_id", value: post.id).eq("member_id", value: userID).execute()
-            }
-        } catch {
-            if let again = posts.firstIndex(where: { $0.id == post.id }) {
-                posts[again].appreciationCount = giving ? 0 : 1
-            }
-            message = Self.describe(error, doing: giving ? "appreciate the post" : "take back your appreciation")
-        }
-    }
-
     // MARK: - Activity
 
     private let activitySeenKey = "nagisen.activity.lastSeen"
 
-    /// The latest 50 comments and 50 appreciations others left on your posts.
+    /// The latest comments, likes and new followers on your posts and profile.
     func loadActivity() async {
         guard let client, let userID, state == .ready else { return }
-        struct Mark: Decodable {
+        struct Like: Decodable {
             let post_id: UUID
             let member_id: UUID
+            let created_at: Date
+            let profiles: ProfileJoin?
+        }
+        struct Follow: Decodable {
+            let follower_id: UUID
             let created_at: Date
             let profiles: ProfileJoin?
         }
@@ -717,22 +743,32 @@ final class FeedService: ObservableObject {
                 .eq("posts.author_id", value: userID).neq("author_id", value: userID)
                 .order("created_at", ascending: false).limit(50)
                 .execute().value
-            let marks: [Mark] = try await client.from("appreciations")
+            let likes: [Like] = try await client.from("appreciations")
                 .select("post_id, member_id, created_at, \(ProfileJoin.columns(via: "appreciations_member_id_fkey")), posts!inner(author_id)")
-                .eq("posts.author_id", value: userID)
+                .eq("posts.author_id", value: userID).neq("member_id", value: userID)
                 .order("created_at", ascending: false).limit(50)
                 .execute().value
-            let markItems = marks.map {
-                FeedActivity(id: "mark-\($0.post_id)-\($0.member_id)",
-                             member: $0.profiles?.member($0.member_id) ??
-                                FeedMember(id: $0.member_id, username: "member", avatarPath: nil, borderTier: .none, bio: ""),
-                             postID: $0.post_id, date: $0.created_at, kind: .appreciation)
+            let follows: [Follow] = try await client.from("follows")
+                .select("follower_id, created_at, \(ProfileJoin.columns(via: "follows_follower_id_fkey"))")
+                .eq("followee_id", value: userID)
+                .order("created_at", ascending: false).limit(50)
+                .execute().value
+            let others = likes.map {
+                FeedActivity(id: "like-\($0.post_id)-\($0.member_id)", member: Self.member($0.member_id, $0.profiles),
+                             postID: $0.post_id, date: $0.created_at, kind: .like)
+            } + follows.map {
+                FeedActivity(id: "follow-\($0.follower_id)", member: Self.member($0.follower_id, $0.profiles),
+                             postID: nil, date: $0.created_at, kind: .follow)
             }
-            activity = FeedActivity.merged(comments: comments, marks: markItems)
+            activity = FeedActivity.merged(comments: comments, others: others)
             hasNewActivity = FeedActivity.hasNew(activity, since: UserDefaults.standard.object(forKey: activitySeenKey) as? Date)
         } catch {
             // Activity is a quiet extra; the feed itself already reports connection problems.
         }
+    }
+
+    nonisolated static func member(_ id: UUID, _ profile: ProfileJoin?) -> FeedMember {
+        profile?.member(id) ?? FeedMember(id: id, username: "member", avatarPath: nil, borderTier: .none, bio: "")
     }
 
     func markActivitySeen() {
@@ -744,7 +780,7 @@ final class FeedService: ObservableObject {
     func post(id: UUID) async -> FeedPost? {
         guard let client, state == .ready else { return nil }
         do {
-            return try await client.from("posts").select(feedQuery).eq("id", value: id).single().execute().value
+            return try await selectPosts(client).eq("id", value: id).single().execute().value
         } catch {
             message = "That post isn't available anymore."
             return nil
@@ -753,7 +789,7 @@ final class FeedService: ObservableObject {
 
     // MARK: - Comments
 
-    private var commentQuery: String { "id, post_id, author_id, body, created_at, \(ProfileJoin.columns(via: "comments_author_id_fkey"))" }
+    var commentQuery: String { "id, post_id, author_id, body, created_at, \(ProfileJoin.columns(via: "comments_author_id_fkey"))" }
 
     /// The oldest 200 comments on a post, oldest first.
     func comments(on post: FeedPost) async -> [FeedComment]? {
