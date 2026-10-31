@@ -687,7 +687,7 @@ private struct PriceEditorView: View {
                     header
                     fields
                     if derived != nil { result }
-                    assistant
+                    if UserRegion.hasPriceSuggestions { assistant }
                 }
                 .padding(.horizontal, 18)
                 .padding(.vertical, 16)
@@ -712,7 +712,7 @@ private struct PriceEditorView: View {
             }
             .onAppear(perform: prefill)
             .task {
-                guard autoLookUp else { return }
+                guard autoLookUp, UserRegion.hasPriceSuggestions else { return }
                 try? await Task.sleep(nanoseconds: 350_000_000)
                 lookUp()
             }
@@ -724,7 +724,7 @@ private struct PriceEditorView: View {
             Text("How much did you buy?")
                 .font(.system(size: 19, design: .serif))
                 .foregroundStyle(Theme.ink)
-            Text("Enter what you bought and what you paid in MAD.")
+            Text("Enter what you bought and what you paid in \(UserRegion.currency).")
                 .font(.caption)
                 .foregroundStyle(Theme.muted)
             if scannedBarcode, let code = food.barcode {
@@ -756,7 +756,7 @@ private struct PriceEditorView: View {
                         .focused($focusedField, equals: .amount)
                 }
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Paid in MAD").font(.caption).foregroundStyle(Theme.muted)
+                    Text("Paid in \(UserRegion.currency)").font(.caption).foregroundStyle(Theme.muted)
                     TextField("0", text: Binding(get: { paid }, set: { paid = $0; suggestedPrice = false }))
                         .keyboardType(.decimalPad)
                         .textFieldStyle(.nagisen)

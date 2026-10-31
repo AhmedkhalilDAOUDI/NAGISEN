@@ -98,6 +98,7 @@ struct ContentView: View {
     @State private var section: MainSection = .launchSection
     @State private var showingCoach = MainSection.launchOpensCoach
     @State private var showingIntro = true
+    @AppStorage(OnboardingPlan.doneKey) private var onboarded = false
     @State private var slideDirection: CGFloat = 1
     @State private var keyboardVisible = false
 
@@ -129,8 +130,13 @@ struct ContentView: View {
             }
         }
         .overlay {
+            if !onboarded { OnboardingView { withAnimation(.smooth(duration: 0.5)) { onboarded = true } } }
+        }
+        .overlay {
             if showingIntro { LaunchIntroView { showingIntro = false }.ignoresSafeArea() }
         }
+        // Someone who already has history (an update, or a restored backup) never sees setup.
+        .onAppear { if !onboarded && OnboardingPlan.hasHistory(store) { onboarded = true } }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
             keyboardVisible = true
         }
@@ -311,6 +317,7 @@ private enum MainSection: String, CaseIterable, Identifiable {
 
 private struct HomeView: View {
     @EnvironmentObject private var store: NutritionStore
+    @AppStorage(OnboardingPlan.tracksCreatineKey) private var tracksCreatine = true
     @EnvironmentObject private var health: HealthManager
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -434,8 +441,10 @@ private struct HomeView: View {
                     }
                     .cardStyle()
                     .padding(.horizontal, 18)
-                    CreatineCard(date: date)
-                        .padding(.horizontal, 18)
+                    if tracksCreatine {
+                        CreatineCard(date: date)
+                            .padding(.horizontal, 18)
+                    }
                     CaffeineCard(date: date)
                         .padding(.horizontal, 18)
                     CostCard(date: date)
@@ -528,7 +537,8 @@ struct DailyGuidanceCard: View {
                               symbol: "figure.walk"))
         }
 
-        if !store.creatineTaken(on: today) && calendar.component(.hour, from: today) >= 18 {
+        if UserDefaults.standard.object(forKey: OnboardingPlan.tracksCreatineKey) as? Bool ?? true,
+           !store.creatineTaken(on: today) && calendar.component(.hour, from: today) >= 18 {
             result.append(Cue(title: "Evening check-in",
                               detail: "Your 5 g creatine switch is still off for today. Mark it when taken.",
                               symbol: "checkmark.circle"))
@@ -1577,18 +1587,22 @@ struct NagisenActionSheet: View {
                 .foregroundStyle(Theme.muted)
                 .lineLimit(1)
                 .padding(.bottom, 8)
-            ScrollView {
-                VStack(spacing: 0) {
-                    ForEach(Array(actions.enumerated()), id: \.element.id) { index, action in
-                        if index > 0 {
-                            Rectangle().fill(Theme.ink.opacity(0.08)).frame(height: 0.5)
-                                .padding(.leading, action.symbol == nil ? 0 : 52)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(spacing: 0) {
+                        ForEach(Array(actions.enumerated()), id: \.element.id) { index, action in
+                            if index > 0 {
+                                Rectangle().fill(Theme.ink.opacity(0.08)).frame(height: 0.5)
+                                    .padding(.leading, action.symbol == nil ? 0 : 52)
+                            }
+                            row(action).id(action.id)
                         }
-                        row(action)
                     }
                 }
+                .scrollBounceBehavior(.basedOnSize)
+                // Long lists (countries, exercises) open on the current choice.
+                .onAppear { if let chosen = actions.first(where: \.selected) { proxy.scrollTo(chosen.id, anchor: .center) } }
             }
-            .scrollBounceBehavior(.basedOnSize)
         }
         .padding(.horizontal, 20)
         .padding(.top, 18)
