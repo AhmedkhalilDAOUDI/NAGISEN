@@ -1,3 +1,5 @@
+import AVKit
+import PhotosUI
 import SwiftUI
 
 private struct FeedDraft: Identifiable, Codable {
@@ -7,15 +9,19 @@ private struct FeedDraft: Identifiable, Codable {
 }
 
 struct SocialFeedView: View {
-    @EnvironmentObject private var community: CommunityCloud
+    @EnvironmentObject private var feed: FeedService
     @AppStorage("nagisen.feed.drafts") private var savedDrafts = Data()
-    @AppStorage("nagisen.community.name") private var displayName = ""
-    @State private var showingComposer = false
-    @State private var text = ""
-    @State private var deletingPost: CommunityPost?
-    @State private var reportingPost: CommunityPost?
-    @State private var blockingPost: CommunityPost?
     @AppStorage("nagisen.community.rulesAccepted") private var rulesAccepted = false
+    @State private var showingComposer = false
+    @State private var showingAccount = false
+    @State private var text = ""
+    @State private var pickedItem: PhotosPickerItem?
+    @State private var attachment: PostAttachment?
+    @State private var preparingMedia = false
+    @State private var mediaError: String?
+    @State private var deletingPost: FeedPost?
+    @State private var reportingPost: FeedPost?
+    @State private var blockingPost: FeedPost?
 
     private static let reportReasons = ["Spam", "Harassment or hate", "Sexual or violent content",
                                         "Something else"]
@@ -30,104 +36,28 @@ struct SocialFeedView: View {
                 VStack(alignment: .leading, spacing: 22) {
                     NagisenPageHeading(kicker: "NAGISEN COMMUNITY", title: "Feed",
                                        subtitle: "The people who keep you moving.", accent: Theme.protein)
-                    VStack(alignment: .leading, spacing: 14) {
-                        Label(community.accountMessage, systemImage: "person.crop.circle")
-                            .font(.subheadline)
-                        if community.accountReady {
-                            TextField("Name shown with your posts", text: $displayName)
-                                .textInputAutocapitalization(.words)
-                                .submitLabel(.done)
-                                .onChange(of: displayName) { _, value in
-                                    if value.count > 40 { displayName = String(value.prefix(40)) }
-                                }
-                        }
-                        Button { showingComposer = true } label: {
-                            HStack {
-                                Text("Share a moment")
-                                Spacer()
-                                Image(systemName: "square.and.pencil")
-                            }
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.white)
-                            .padding(16)
-                            .background(Theme.accent, in: RoundedRectangle(cornerRadius: 13))
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(!community.accountReady ||
-                                  displayName.trimmingCharacters(in: .whitespaces).isEmpty)
-                        Text("Posts are public to NAGISEN members. Your food and workout history stays in your private iCloud backup.")
-                            .font(.caption).foregroundStyle(Theme.muted)
-                        if !community.blockedAuthors.isEmpty {
-                            HStack {
-                                Text(community.blockedAuthors.count == 1 ? "1 person blocked" :
-                                        "\(community.blockedAuthors.count) people blocked")
-                                Spacer()
-                                Button("Unblock all") { Task { await community.unblockEveryone() } }
-                                    .foregroundStyle(Theme.accentText)
-                            }
-                            .font(.caption)
-                            .foregroundStyle(Theme.muted)
-                        }
-                    }
-                    .accentCardStyle(Theme.protein)
+                    accountCard
 
-                    if let message = community.feedMessage {
+                    if let message = feed.message {
                         Text(message).font(.subheadline).foregroundStyle(Theme.accentText)
                     }
-                    if community.posts.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("The first page is yours to write")
-                                .font(.system(size: 23, design: .serif))
-                            Text("Share a workout, a meal you made, or a small win.")
-                                .font(.subheadline).foregroundStyle(Theme.muted)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .accentCardStyle(Theme.slate)
-                    } else {
-                        ForEach(community.posts) { post in
-                            VStack(alignment: .leading, spacing: 13) {
-                                HStack {
-                                    Image(systemName: "person.crop.circle.fill")
-                                        .font(.title3).foregroundStyle(Theme.protein)
-                                    Text(post.authorName).font(.subheadline.weight(.semibold))
-                                    Spacer()
-                                    Text(post.createdAt, style: .relative)
-                                        .font(.caption).foregroundStyle(Theme.muted)
-                                }
-                                Text(post.text).font(.body)
-                                    .fixedSize(horizontal: false, vertical: true)
-                                HStack(spacing: 20) {
-                                    ShareLink(item: post.text) {
-                                        Label("Share", systemImage: "square.and.arrow.up")
-                                    }
-                                    if community.isMine(post) {
-                                        Button(role: .destructive) { deletingPost = post } label: {
-                                            Label("Delete", systemImage: "trash")
-                                        }
-                                    } else if community.accountReady {
-                                        Spacer()
-                                        Menu {
-                                            Button("Report post", systemImage: "flag") { reportingPost = post }
-                                            if post.authorID != nil {
-                                                Button("Block \(post.authorName)", systemImage: "hand.raised",
-                                                       role: .destructive) { blockingPost = post }
-                                            }
-                                        } label: {
-                                            Image(systemName: "ellipsis")
-                                                .frame(width: 32, height: 24)
-                                                .contentShape(Rectangle())
-                                        }
-                                        .accessibilityLabel("More for this post")
-                                    }
-                                }
-                                .font(.caption.weight(.medium))
+                    if feed.state == .ready {
+                        if feed.posts.isEmpty {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("The first page is yours to write")
+                                    .font(.system(size: 23, design: .serif))
+                                Text("Share a workout, a meal you made, or a small win.")
+                                    .font(.subheadline).foregroundStyle(Theme.muted)
                             }
+                            .frame(maxWidth: .infinity, alignment: .leading)
                             .accentCardStyle(Theme.slate)
-                        }
-                        if community.canLoadMore {
-                            Button("Load more posts") { Task { await community.loadMore() } }
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(Theme.accentText)
+                        } else {
+                            ForEach(feed.posts) { post in postCard(post) }
+                            if feed.canLoadMore {
+                                Button("Load more posts") { Task { await feed.loadMore() } }
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(Theme.accentText)
+                            }
                         }
                     }
                     if !drafts.isEmpty {
@@ -151,23 +81,21 @@ struct SocialFeedView: View {
                 .padding(18)
                 .padding(.bottom, 100)
             }
-            .refreshable { await community.refreshFeed() }
-            .task {
-                await community.connect()
-                await community.refreshFeed()
-            }
+            .refreshable { await feed.refresh() }
+            .task { await feed.refresh() }
             .scrollClipDisabled()
             .softTopScrollEdgeEffect()
             .background(NagisenBackdrop())
             .toolbar(.hidden, for: .navigationBar)
-            .sheet(isPresented: $showingComposer) { composer }
+            .sheet(isPresented: $showingComposer, onDismiss: clearAttachment) { composer }
+            .sheet(isPresented: $showingAccount) { FeedAccountView(openedSignedIn: feed.state == .ready) }
             .confirmationDialog("Delete this post for everyone?", isPresented: Binding(
                 get: { deletingPost != nil }, set: { if !$0 { deletingPost = nil } }
             )) {
                 Button("Delete post", role: .destructive) {
                     guard let post = deletingPost else { return }
                     deletingPost = nil
-                    Task { await community.delete(post) }
+                    Task { await feed.delete(post) }
                 }
             }
             .confirmationDialog("Why are you reporting this post?", isPresented: Binding(
@@ -177,22 +105,166 @@ struct SocialFeedView: View {
                     Button(reason) {
                         guard let post = reportingPost else { return }
                         reportingPost = nil
-                        Task { await community.report(post, reason: reason) }
+                        Task { await feed.report(post, reason: reason) }
                     }
                 }
             } message: {
                 Text("The post will be hidden from your feed and sent for review.")
             }
-            .confirmationDialog("Block \(blockingPost?.authorName ?? "this person")?", isPresented: Binding(
+            .confirmationDialog("Block @\(blockingPost?.username ?? "member")?", isPresented: Binding(
                 get: { blockingPost != nil }, set: { if !$0 { blockingPost = nil } }
             ), titleVisibility: .visible) {
                 Button("Block", role: .destructive) {
                     guard let post = blockingPost else { return }
                     blockingPost = nil
-                    community.block(post)
+                    Task { await feed.block(post) }
                 }
             } message: {
-                Text("You won’t see their posts on this iPhone. They aren’t told.")
+                Text("You won’t see their posts anymore. They aren’t told.")
+            }
+        }
+    }
+
+    // MARK: - Account card
+
+    private var accountCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            switch feed.state {
+            case .notConfigured:
+                Label("Feed isn’t set up in this build.", systemImage: "person.crop.circle")
+                    .font(.subheadline)
+            case .signedOut, .needsUsername:
+                Text(feed.state == .signedOut ? "Create an account to share workouts, meals and small wins with NAGISEN members."
+                                              : "Choose a username to finish setting up your account.")
+                    .font(.subheadline)
+                NagisenPrimaryButton(feed.state == .signedOut ? "Sign in or create an account" : "Choose a username") {
+                    showingAccount = true
+                }
+            case .ready:
+                HStack {
+                    Label("@\(feed.username ?? "")", systemImage: "person.crop.circle")
+                        .font(.subheadline.weight(.semibold))
+                    Spacer()
+                    Button("Account") { showingAccount = true }
+                        .font(.subheadline).foregroundStyle(Theme.accentText)
+                }
+                Button { showingComposer = true } label: {
+                    HStack {
+                        Text("Share a moment")
+                        Spacer()
+                        Image(systemName: "square.and.pencil")
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(16)
+                    .background(Theme.accent, in: RoundedRectangle(cornerRadius: 13))
+                }
+                .buttonStyle(.plain)
+                if feed.blockedCount > 0 {
+                    HStack {
+                        Text(feed.blockedCount == 1 ? "1 person blocked" : "\(feed.blockedCount) people blocked")
+                        Spacer()
+                        Button("Unblock all") { Task { await feed.unblockEveryone() } }
+                            .foregroundStyle(Theme.accentText)
+                    }
+                    .font(.caption)
+                    .foregroundStyle(Theme.muted)
+                }
+            }
+            Text("Posts are visible to signed-in NAGISEN members. Your food and workout history stays on this iPhone and in your private iCloud backup.")
+                .font(.caption).foregroundStyle(Theme.muted)
+        }
+        .accentCardStyle(Theme.protein)
+    }
+
+    // MARK: - Posts
+
+    private func postCard(_ post: FeedPost) -> some View {
+        VStack(alignment: .leading, spacing: 13) {
+            HStack {
+                Image(systemName: "person.crop.circle.fill")
+                    .font(.title3).foregroundStyle(Theme.protein)
+                Text("@\(post.username)").font(.subheadline.weight(.semibold))
+                Spacer()
+                Text(post.createdAt, style: .relative)
+                    .font(.caption).foregroundStyle(Theme.muted)
+            }
+            if !post.body.isEmpty {
+                Text(post.body).font(.body)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if let url = feed.mediaURL(for: post) {
+                switch post.mediaKind {
+                case .photo:
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image.resizable().scaledToFit()
+                        case .failure:
+                            Label("Photo unavailable", systemImage: "photo")
+                                .font(.caption).foregroundStyle(Theme.muted)
+                                .frame(maxWidth: .infinity, minHeight: 120)
+                        default:
+                            ProgressView().frame(maxWidth: .infinity, minHeight: 220)
+                        }
+                    }
+                    .frame(maxHeight: 460)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                case .video:
+                    FeedVideo(url: url)
+                        .frame(height: 300)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                case nil:
+                    EmptyView()
+                }
+            }
+            HStack(spacing: 20) {
+                if !post.body.isEmpty {
+                    ShareLink(item: post.body) {
+                        Label("Share", systemImage: "square.and.arrow.up")
+                    }
+                }
+                if feed.isMine(post) {
+                    Button(role: .destructive) { deletingPost = post } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                } else {
+                    Spacer()
+                    Menu {
+                        Button("Report post", systemImage: "flag") { reportingPost = post }
+                        Button("Block @\(post.username)", systemImage: "hand.raised",
+                               role: .destructive) { blockingPost = post }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .frame(width: 32, height: 24)
+                            .contentShape(Rectangle())
+                    }
+                    .accessibilityLabel("More for this post")
+                }
+            }
+            .font(.caption.weight(.medium))
+        }
+        .accentCardStyle(Theme.slate)
+    }
+
+    // MARK: - Composer
+
+    private var composer: some View {
+        NavigationStack {
+            Group {
+                if rulesAccepted { composerForm } else { communityRules }
+            }
+            .padding(20)
+            .background(NagisenBackdrop())
+            .navigationTitle(rulesAccepted ? "New post" : "Community rules")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { showingComposer = false }
+                }
+                if rulesAccepted {
+                    ToolbarItem(placement: .confirmationAction) { postButton }
+                }
             }
         }
     }
@@ -219,47 +291,74 @@ struct SocialFeedView: View {
         }
     }
 
-    private var composer: some View {
-        NavigationStack {
-            Group {
-                if rulesAccepted { composerForm } else { communityRules }
+    private var composerForm: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("What did you do today?")
+                    .font(.system(size: 25, design: .serif))
+                TextEditor(text: $text)
+                    .scrollContentBackground(.hidden)
+                    .padding(8)
+                    .frame(minHeight: 130, maxHeight: 220)
+                    .nagisenGlass(in: RoundedRectangle(cornerRadius: 15), tint: Theme.surface.opacity(0.18))
+                Text("\(text.count)/1,000 · Visible to signed-in members in Feed.")
+                    .font(.caption).foregroundStyle(Theme.muted)
+                attachmentRow
+                Button("Save private draft") { saveDraft() }
+                    .font(.subheadline).foregroundStyle(Theme.accentText)
+                    .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
-            .padding(20)
-            .background(NagisenBackdrop())
-            .navigationTitle(rulesAccepted ? "New post" : "Community rules")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { showingComposer = false }
-                }
-                if rulesAccepted {
-                    ToolbarItem(placement: .confirmationAction) { postButton }
-                }
-            }
+        }
+        .onChange(of: pickedItem) { _, item in
+            guard let item else { return }
+            Task { await prepare(item) }
         }
     }
 
-    private var composerForm: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("What did you do today?")
-                .font(.system(size: 25, design: .serif))
-            TextEditor(text: $text)
-                .scrollContentBackground(.hidden)
-                .padding(8)
-                .frame(minHeight: 170, maxHeight: 250)
-                .nagisenGlass(in: RoundedRectangle(cornerRadius: 15), tint: Theme.surface.opacity(0.18))
-            Text("\(text.count)/1,000 · Visible to everyone in Feed.")
+    @ViewBuilder
+    private var attachmentRow: some View {
+        if let attachment {
+            VStack(alignment: .leading, spacing: 10) {
+                switch attachment.kind {
+                case .photo:
+                    if let image = UIImage(contentsOfFile: attachment.fileURL.path) {
+                        Image(uiImage: image).resizable().scaledToFit()
+                            .frame(maxHeight: 260)
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                    }
+                case .video:
+                    FeedVideo(url: attachment.fileURL)
+                        .frame(height: 220)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                }
+                Button("Remove \(attachment.kind == .photo ? "photo" : "video")", role: .destructive) {
+                    clearAttachment()
+                }
+                .font(.subheadline)
+            }
+        } else if preparingMedia {
+            HStack(spacing: 10) {
+                ProgressView()
+                Text("Preparing…").font(.subheadline).foregroundStyle(Theme.muted)
+            }
+        } else {
+            PhotosPicker(selection: $pickedItem, matching: .any(of: [.images, .videos])) {
+                Label("Add a photo or video", systemImage: "photo.on.rectangle")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Theme.accentText)
+            }
+            Text("One photo, or one video up to 60 seconds.")
                 .font(.caption).foregroundStyle(Theme.muted)
-            Button("Save private draft") { saveDraft() }
-                .font(.subheadline).foregroundStyle(Theme.accentText)
-            Spacer()
+        }
+        if let mediaError {
+            Text(mediaError).font(.caption).foregroundStyle(Theme.accentText)
         }
     }
 
     private var postButton: some View {
         Button("Post") {
             Task {
-                if await community.publish(text, as: displayName) {
+                if await feed.publish(text, attachment: attachment) {
                     let posted = text.trimmingCharacters(in: .whitespacesAndNewlines)
                     savedDrafts = (try? JSONEncoder().encode(drafts.filter { $0.text != posted })) ?? savedDrafts
                     text = ""
@@ -267,8 +366,36 @@ struct SocialFeedView: View {
                 }
             }
         }
-        .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                  text.count > 1000 || community.isBusy)
+        .disabled((text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && attachment == nil) ||
+                  text.count > FeedRules.maxBodyLength || feed.isBusy || preparingMedia)
+    }
+
+    private func prepare(_ item: PhotosPickerItem) async {
+        preparingMedia = true
+        mediaError = nil
+        defer { preparingMedia = false; pickedItem = nil }
+        do {
+            if item.supportedContentTypes.contains(where: { $0.conforms(to: .movie) }) {
+                guard let movie = try await item.loadTransferable(type: PickedMovie.self) else {
+                    throw PostMediaError.unreadable
+                }
+                defer { try? FileManager.default.removeItem(at: movie.url) }
+                attachment = try await PostMedia.video(at: movie.url)
+            } else {
+                guard let data = try await item.loadTransferable(type: Data.self) else {
+                    throw PostMediaError.unreadable
+                }
+                attachment = try PostMedia.photo(from: data)
+            }
+        } catch {
+            mediaError = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    private func clearAttachment() {
+        if let attachment { try? FileManager.default.removeItem(at: attachment.fileURL) }
+        attachment = nil
+        mediaError = nil
     }
 
     private func saveDraft() {
@@ -282,5 +409,17 @@ struct SocialFeedView: View {
 
     private func deleteDraft(_ draft: FeedDraft) {
         savedDrafts = (try? JSONEncoder().encode(drafts.filter { $0.id != draft.id })) ?? savedDrafts
+    }
+}
+
+/// A video that plays only when tapped and stops when it scrolls away.
+private struct FeedVideo: View {
+    let url: URL
+    @State private var player: AVPlayer?
+
+    var body: some View {
+        VideoPlayer(player: player)
+            .onAppear { if player == nil { player = AVPlayer(url: url) } }
+            .onDisappear { player?.pause() }
     }
 }

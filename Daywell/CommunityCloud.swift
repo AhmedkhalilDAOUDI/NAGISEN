@@ -2,39 +2,11 @@ import CloudKit
 import CryptoKit
 import Foundation
 
-struct CommunityPost: Identifiable {
-    let id: CKRecord.ID
-    let authorName: String
-    let authorID: String?
-    let text: String
-    let createdAt: Date
-
-    init?(record: CKRecord) {
-        guard let text = record["text"] as? String, !text.isEmpty else { return nil }
-        id = record.recordID
-        let savedName = record["authorName"] as? String ?? ""
-        authorName = savedName.isEmpty ? "NAGISEN member" : savedName
-        authorID = record.creatorUserRecordID?.recordName
-        self.text = text
-        createdAt = record.creationDate ?? .now
-    }
-
-    init(id: CKRecord.ID, authorName: String, authorID: String?, text: String, createdAt: Date = .now) {
-        self.id = id
-        self.authorName = authorName
-        self.authorID = authorID
-        self.text = text
-        self.createdAt = createdAt
-    }
-}
-
 @MainActor
 final class CommunityCloud: ObservableObject {
     @Published private(set) var accountReady = false
     @Published private(set) var accountMessage = "Checking iCloud…"
     @Published private(set) var syncMessage = "Your history has not synced yet."
-    @Published private(set) var posts: [CommunityPost] = []
-    @Published private(set) var feedMessage: String?
     @Published private(set) var isBusy = false
     @Published private(set) var hasConflict = false
 
@@ -44,31 +16,11 @@ final class CommunityCloud: ObservableObject {
         "nagisen.cloud.lastSyncedDigest.\(currentUserID ?? "unavailable")"
     }
     private var currentUserID: String?
-    private var cursor: CKQueryOperation.Cursor?
-    private let defaults: UserDefaults
-    private static let blockedKey = "nagisen.community.blockedAuthors"
-    private static let hiddenKey = "nagisen.community.hiddenPosts"
-    @Published private(set) var blockedAuthors: Set<String>
-    private var hiddenPosts: Set<String>
-
-    init(defaults: UserDefaults = .standard) {
-        self.defaults = defaults
-        blockedAuthors = Set(defaults.stringArray(forKey: Self.blockedKey) ?? [])
-        hiddenPosts = Set(defaults.stringArray(forKey: Self.hiddenKey) ?? [])
-    }
-
-    /// Drops posts the user reported or whose author they blocked.
-    func visible(_ posts: [CommunityPost]) -> [CommunityPost] {
-        posts.filter { post in
-            !hiddenPosts.contains(post.id.recordName) &&
-                !(post.authorID.map(blockedAuthors.contains) ?? false)
-        }
-    }
 
     func connect() async {
         #if targetEnvironment(simulator)
         accountReady = false
-        accountMessage = "iCloud community is available on iPhone."
+        accountMessage = "iCloud sync is available on iPhone."
         return
         #elseif NAGISEN_NO_ICLOUD
         // Builds signed by a personal team cannot carry the iCloud entitlement.
@@ -81,7 +33,7 @@ final class CommunityCloud: ObservableObject {
         }
         accountReady = status == .available
         accountMessage = accountReady ? "Connected with your Apple Account" :
-            "Sign in to iCloud in iPhone Settings to post and sync."
+            "Sign in to iCloud in iPhone Settings to sync."
         guard accountReady else { currentUserID = nil; return }
         let userRecord = try? await container.userRecordID()
         currentUserID = userRecord?.recordName
@@ -90,114 +42,6 @@ final class CommunityCloud: ObservableObject {
             accountMessage = "Couldn’t identify this iCloud account. Try again in a moment."
         }
         #endif
-    }
-
-    func refreshFeed() async {
-        guard accountReady else { return }
-        feedMessage = nil
-        cursor = nil
-        do {
-            let query = CKQuery(recordType: "NagisenPost", predicate: NSPredicate(value: true))
-            query.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
-            let page = try await container.publicCloudDatabase.records(matching: query,
-                                                                        resultsLimit: 40)
-            posts = visible(page.matchResults.compactMap { try? $0.1.get() }.compactMap(CommunityPost.init))
-            cursor = page.queryCursor
-        } catch let error as CKError where error.code == .unknownItem {
-            posts = [] // New development container, before its first post creates the schema.
-        } catch {
-            feedMessage = "Couldn’t load the community. \(error.localizedDescription)"
-        }
-    }
-
-    func loadMore() async {
-        guard accountReady, let cursor else { return }
-        do {
-            let page = try await container.publicCloudDatabase.records(continuingMatchFrom: cursor,
-                                                                        resultsLimit: 40)
-            let more = page.matchResults.compactMap { try? $0.1.get() }.compactMap(CommunityPost.init)
-            posts.append(contentsOf: visible(more))
-            self.cursor = page.queryCursor
-        } catch {
-            feedMessage = "Couldn’t load more posts. \(error.localizedDescription)"
-        }
-    }
-
-    var canLoadMore: Bool { cursor != nil }
-
-    func isMine(_ post: CommunityPost) -> Bool {
-        post.authorID != nil && post.authorID == currentUserID
-    }
-
-    func publish(_ text: String, as name: String) async -> Bool {
-        guard accountReady else { feedMessage = accountMessage; return false }
-        let body = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !body.isEmpty, body.count <= 1000 else {
-            feedMessage = "Posts must be between 1 and 1,000 characters."
-            return false
-        }
-        isBusy = true
-        defer { isBusy = false }
-        do {
-            let record = CKRecord(recordType: "NagisenPost")
-            record["text"] = body as NSString
-            record["authorName"] = String(name.trimmingCharacters(in: .whitespacesAndNewlines).prefix(40)) as NSString
-            let saved = try await container.publicCloudDatabase.save(record)
-            if let post = CommunityPost(record: saved) { posts.insert(post, at: 0) }
-            feedMessage = nil
-            return true
-        } catch {
-            feedMessage = "Post wasn’t shared. \(error.localizedDescription)"
-            return false
-        }
-    }
-
-    func delete(_ post: CommunityPost) async {
-        guard accountReady, isMine(post) else { return }
-        do {
-            _ = try await container.publicCloudDatabase.deleteRecord(withID: post.id)
-            posts.removeAll { $0.id == post.id }
-        } catch {
-            feedMessage = "Couldn’t delete the post. \(error.localizedDescription)"
-        }
-    }
-
-    /// Sends a report to the public database for review and hides the post on this iPhone.
-    /// The post stays hidden even if sending fails, so the user never has to see it again.
-    func report(_ post: CommunityPost, reason: String) async {
-        guard accountReady, !isMine(post) else { return }
-        hide(post)
-        do {
-            let record = CKRecord(recordType: "NagisenReport")
-            record["postID"] = post.id.recordName as NSString
-            record["postText"] = post.text as NSString
-            record["authorName"] = post.authorName as NSString
-            record["authorID"] = (post.authorID ?? "") as NSString
-            record["reason"] = reason as NSString
-            _ = try await container.publicCloudDatabase.save(record)
-            feedMessage = "Thanks. The post is hidden and has been sent for review."
-        } catch {
-            feedMessage = "The post is hidden, but the report wasn’t sent. \(error.localizedDescription)"
-        }
-    }
-
-    func hide(_ post: CommunityPost) {
-        hiddenPosts.insert(post.id.recordName)
-        defaults.set(Array(hiddenPosts), forKey: Self.hiddenKey)
-        posts = visible(posts)
-    }
-
-    func block(_ post: CommunityPost) {
-        guard let author = post.authorID, !isMine(post) else { return }
-        blockedAuthors.insert(author)
-        defaults.set(Array(blockedAuthors), forKey: Self.blockedKey)
-        posts = visible(posts)
-    }
-
-    func unblockEveryone() async {
-        blockedAuthors = []
-        defaults.removeObject(forKey: Self.blockedKey)
-        await refreshFeed()
     }
 
     func sync(_ store: NutritionStore) async {
