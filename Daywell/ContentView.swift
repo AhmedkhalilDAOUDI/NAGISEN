@@ -1554,6 +1554,136 @@ struct NagisenHeader: View {
     }
 }
 
+/// One choice in a NAGISEN action sheet.
+struct NagisenAction: Identifiable {
+    let id = UUID()
+    let title: String
+    var symbol: String? = nil
+    var destructive = false
+    var selected = false
+    let run: () -> Void
+}
+
+/// NAGISEN's own action sheet, used instead of the system menu popup: paper, hairlines, quiet icons.
+struct NagisenActionSheet: View {
+    let title: String
+    let actions: [NagisenAction]
+    let choose: (NagisenAction) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(title.uppercased())
+                .font(.caption2.weight(.semibold)).tracking(2.2)
+                .foregroundStyle(Theme.muted)
+                .lineLimit(1)
+                .padding(.bottom, 8)
+            ScrollView {
+                VStack(spacing: 0) {
+                    ForEach(Array(actions.enumerated()), id: \.element.id) { index, action in
+                        if index > 0 {
+                            Rectangle().fill(Theme.ink.opacity(0.08)).frame(height: 0.5)
+                                .padding(.leading, action.symbol == nil ? 0 : 52)
+                        }
+                        row(action)
+                    }
+                }
+            }
+            .scrollBounceBehavior(.basedOnSize)
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 28)
+        .presentationDetents([.height(min(CGFloat(78 + actions.count * 57), 560))])
+        .presentationBackground(Theme.paper)
+        .presentationCornerRadius(30)
+        .presentationDragIndicator(.visible)
+    }
+
+    private func row(_ action: NagisenAction) -> some View {
+        let tint = action.destructive ? Theme.danger : Theme.ink
+        return Button { choose(action) } label: {
+            HStack(spacing: 16) {
+                if let symbol = action.symbol {
+                    Image(systemName: symbol)
+                        .font(.system(size: 14, weight: .regular))
+                        .frame(width: 36, height: 36)
+                        .overlay(Circle().strokeBorder(tint.opacity(0.3), lineWidth: 0.5))
+                }
+                Text(action.title).font(.body).lineLimit(2)
+                Spacer(minLength: 8)
+                if action.selected {
+                    Image(systemName: "checkmark").font(.footnote.weight(.semibold)).foregroundStyle(Theme.accentText)
+                }
+            }
+            .foregroundStyle(tint)
+            .frame(minHeight: 56)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(action.selected ? .isSelected : [])
+    }
+}
+
+private struct NagisenActionsModifier: ViewModifier {
+    @Binding var isPresented: Bool
+    let title: String
+    let actions: () -> [NagisenAction]
+    /// Runs after the sheet has gone, so an action can open another sheet or dialog.
+    @State private var pending: (() -> Void)?
+
+    func body(content: Content) -> some View {
+        content.sheet(isPresented: $isPresented, onDismiss: { pending?(); pending = nil }) {
+            NagisenActionSheet(title: title, actions: actions()) { action in
+                pending = action.run
+                isPresented = false
+            }
+        }
+    }
+}
+
+extension View {
+    func nagisenActions(isPresented: Binding<Bool>, title: String,
+                        actions: @escaping () -> [NagisenAction]) -> some View {
+        modifier(NagisenActionsModifier(isPresented: isPresented, title: title, actions: actions))
+    }
+}
+
+/// A labelled choice that opens the NAGISEN action sheet, in place of a menu-style Picker.
+struct NagisenPicker<Value: Hashable>: View {
+    let title: String
+    @Binding var selection: Value
+    let options: [(value: Value, label: String)]
+    @State private var choosing = false
+
+    init(_ title: String, selection: Binding<Value>, options: [(value: Value, label: String)]) {
+        self.title = title
+        _selection = selection
+        self.options = options
+    }
+
+    var body: some View {
+        Button { choosing = true } label: {
+            HStack(spacing: 8) {
+                Text(title).foregroundStyle(Theme.ink)
+                Spacer(minLength: 8)
+                Text(options.first { $0.value == selection }?.label ?? "")
+                    .foregroundStyle(Theme.accentText)
+                    .lineLimit(1)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(Theme.muted)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityValue(options.first { $0.value == selection }?.label ?? "")
+        .nagisenActions(isPresented: $choosing, title: title) {
+            options.map { option in
+                NagisenAction(title: option.label, selected: option.value == selection) { selection = option.value }
+            }
+        }
+    }
+}
+
 /// A text field on the quiet panel instead of the system's rounded box.
 struct NagisenFieldStyle: TextFieldStyle {
     func _body(configuration: TextField<Self._Label>) -> some View {

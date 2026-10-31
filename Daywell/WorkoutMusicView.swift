@@ -989,11 +989,8 @@ private struct RecordLiftView: View {
                 NagisenHeader("Log a lift", subtitle: "Weight and reps are saved on this iPhone.",
                               symbol: "xmark", onBack: { dismiss() })
                 NagisenSection("Exercise") {
-                    Picker("Exercise", selection: $exercise) {
-                        ForEach(BodybuildingExerciseCatalog.all + ["Custom exercise"], id: \.self) { name in
-                            Text(name).tag(name)
-                        }
-                    }
+                    NagisenPicker("Exercise", selection: $exercise,
+                                  options: (BodybuildingExerciseCatalog.all + ["Custom exercise"]).map { ($0, $0) })
                     .frame(minHeight: 50)
                     if exercise == "Custom exercise" {
                         TextField("Exercise name", text: $customExercise)

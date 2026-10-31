@@ -13,6 +13,7 @@ struct MemberPageView: View {
     @State private var list: PeopleList?
     @State private var editing = false
     @State private var confirmingBlock = false
+    @State private var showingActions = false
 
     private enum PeopleList: String, Identifiable { case followers = "Followers", following = "Following"; var id: String { rawValue } }
 
@@ -40,11 +41,7 @@ struct MemberPageView: View {
                 NagisenSheetBar(title: shown.username, onClose: { dismiss() })
                     .overlay(alignment: .trailing) {
                         if !isMe {
-                            Menu {
-                                Button("Block @\(member.username)", systemImage: "hand.raised", role: .destructive) {
-                                    confirmingBlock = true
-                                }
-                            } label: {
+                            Button { showingActions = true } label: {
                                 Image(systemName: "ellipsis")
                                     .font(.system(size: 14, weight: .semibold))
                                     .foregroundStyle(Theme.ink)
@@ -52,11 +49,15 @@ struct MemberPageView: View {
                                     .overlay(Circle().strokeBorder(Theme.ink.opacity(0.16), lineWidth: 0.5))
                                     .frame(width: 44, height: 44)
                             }
+                            .buttonStyle(.plain)
                             .padding(.trailing, 12).padding(.top, 4)
                             .accessibilityLabel("More for @\(member.username)")
                         }
                     }
                     .background(Theme.paper)
+            }
+            .nagisenActions(isPresented: $showingActions, title: "@\(member.username)") {
+                [NagisenAction(title: "Block @\(member.username)", symbol: "hand.raised", destructive: true) { confirmingBlock = true }]
             }
             .task { feed.message = nil; await load() }
             .onChange(of: feed.isFollowing(member)) { _, _ in Task { counts = await feed.counts(for: member) } }

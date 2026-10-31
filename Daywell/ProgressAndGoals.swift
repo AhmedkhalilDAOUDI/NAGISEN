@@ -220,12 +220,8 @@ struct GoalsView: View {
                 NagisenHeader("Daily goals", subtitle: "Your targets, at a glance.", onBack: { dismiss() },
                               actionTitle: "Save", actionEnabled: valid, onAction: save)
                 NagisenSection("Schedule") {
-                    Picker("Apply to", selection: $selectedWeekday) {
-                        Text("Every day").tag(0)
-                        ForEach(weekdays, id: \.0) { weekday in
-                            Text(weekday.1).tag(weekday.0)
-                        }
-                    }
+                    NagisenPicker("Apply to", selection: $selectedWeekday,
+                                  options: [(0, "Every day")] + weekdays.map { ($0.0, $0.1) })
                     .frame(minHeight: 54)
                 }
                 NagisenSection("Energy") {

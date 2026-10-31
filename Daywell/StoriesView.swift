@@ -120,6 +120,7 @@ struct StoryViewer: View {
     @State private var viewerCount: Int?
     @State private var reporting = false
     @State private var confirmingDelete = false
+    @State private var showingActions = false
 
     /// How long a photo stays up.
     static let photoSeconds = 6.0
@@ -181,7 +182,7 @@ struct StoryViewer: View {
                 if let story { Task { await feed.deleteStory(story); dismiss() } }
             }
         }
-        .onChange(of: reporting || confirmingDelete) { _, open in paused = open }
+        .onChange(of: reporting || confirmingDelete || showingActions) { _, open in paused = open }
     }
 
     private var bars: some View {
@@ -211,19 +212,20 @@ struct StoryViewer: View {
                     .font(.caption).foregroundStyle(.white.opacity(0.7))
             }
             Spacer()
-            Menu {
-                if isMine {
-                    Button("Delete story", systemImage: "trash", role: .destructive) { confirmingDelete = true }
-                } else if let story {
-                    Button("Report story", systemImage: "flag") { reporting = true }
-                    Button("Block @\(story.author.username)", systemImage: "hand.raised", role: .destructive) {
-                        Task { await feed.block(authorID: story.authorID); await feed.loadStories(); dismiss() }
-                    }
-                }
-            } label: {
+            Button { showingActions = true } label: {
                 Image(systemName: "ellipsis").frame(width: 44, height: 44)
             }
             .accessibilityLabel("More for this story")
+            .nagisenActions(isPresented: $showingActions, title: isMine ? "Your story" : "Story") {
+                if isMine {
+                    return [NagisenAction(title: "Delete story", symbol: "trash", destructive: true) { confirmingDelete = true }]
+                }
+                guard let story else { return [] }
+                return [NagisenAction(title: "Report story", symbol: "flag") { reporting = true },
+                        NagisenAction(title: "Block @\(story.author.username)", symbol: "hand.raised", destructive: true) {
+                            Task { await feed.block(authorID: story.authorID); await feed.loadStories(); dismiss() }
+                        }]
+            }
             Button { dismiss() } label: {
                 Image(systemName: "xmark").font(.headline).frame(width: 44, height: 44)
             }

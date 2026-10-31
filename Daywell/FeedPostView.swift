@@ -117,6 +117,7 @@ struct FeedPostView: View {
     @State private var viewingMember: FeedMember?
     @State private var confirmingDelete = false
     @State private var editing = false
+    @State private var showingActions = false
     @State private var reporting = false
     @State private var confirmingBlock = false
     @State private var captionExpanded = false
@@ -196,27 +197,28 @@ struct FeedPostView: View {
             }
             .buttonStyle(.plain)
             Spacer()
-            Menu {
-                if feed.isMine(post) {
-                    Button("Edit post", systemImage: "pencil") { editing = true }
-                    Button("Delete post", systemImage: "trash", role: .destructive) { confirmingDelete = true }
-                } else {
-                    if feed.isFollowing(post.author) {
-                        Button("Unfollow @\(post.username)", systemImage: "person.badge.minus") {
-                            Task { await feed.unfollow(post.author) }
-                        }
-                    }
-                    Button("Report post", systemImage: "flag") { reporting = true }
-                    Button("Block @\(post.username)", systemImage: "hand.raised", role: .destructive) {
-                        confirmingBlock = true
-                    }
-                }
-            } label: {
+            Button { showingActions = true } label: {
                 Image(systemName: "ellipsis")
                     .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
             .accessibilityLabel("More for this post")
+            .nagisenActions(isPresented: $showingActions, title: feed.isMine(post) ? "Your post" : "@\(post.username)") {
+                if feed.isMine(post) {
+                    return [NagisenAction(title: "Edit post", symbol: "pencil") { editing = true },
+                            NagisenAction(title: "Delete post", symbol: "trash", destructive: true) { confirmingDelete = true }]
+                }
+                var actions: [NagisenAction] = []
+                if feed.isFollowing(post.author) {
+                    actions.append(NagisenAction(title: "Unfollow", symbol: "person.badge.minus") {
+                        Task { await feed.unfollow(post.author) }
+                    })
+                }
+                actions.append(NagisenAction(title: "Report post", symbol: "flag") { reporting = true })
+                actions.append(NagisenAction(title: "Block", symbol: "hand.raised", destructive: true) { confirmingBlock = true })
+                return actions
+            }
         }
         .padding(.leading, 14)
         .padding(.trailing, 4)
