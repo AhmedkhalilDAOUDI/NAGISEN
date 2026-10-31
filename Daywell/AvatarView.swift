@@ -20,6 +20,19 @@ extension BorderTier {
     }
 }
 
+extension SpecialBorder {
+    /// Deep burgundy lacquer, darkening and catching light as it turns.
+    var colors: [Color] {
+        switch self {
+        case .enji: [Color(hex: 0x8B2B49), Color(hex: 0x3A0C18), Color(hex: 0x6E1B33),
+                     Color(hex: 0xB04A66), Color(hex: 0x3A0C18), Color(hex: 0x8B2B49)]
+        }
+    }
+
+    /// The fine gold line just inside the ring, like the gilded edge of lacquerware.
+    var innerLine: Color { Color(hex: 0xD9B36A) }
+}
+
 private extension Color {
     init(hex: UInt32) {
         self.init(red: Double((hex >> 16) & 0xFF) / 255, green: Double((hex >> 8) & 0xFF) / 255,
@@ -32,12 +45,14 @@ struct AvatarView: View {
     let url: URL?
     let username: String
     let tier: BorderTier
+    var special: SpecialBorder? = nil
     var size: CGFloat = 36
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var sheen = false
 
-    private var ringWidth: CGFloat { tier == .none ? 1 : max(2, size * 0.065) }
+    private var hasRing: Bool { special != nil || tier != .none }
+    private var ringWidth: CGFloat { hasRing ? max(2, size * (special == nil ? 0.065 : 0.085)) : 1 }
 
     var body: some View {
         ZStack {
@@ -55,13 +70,14 @@ struct AvatarView: View {
             }
         }
         .clipShape(Circle())
-        .padding(ringWidth + (tier == .none ? 0 : 1.5))
+        .padding(ringWidth + (hasRing ? 1.5 : 0))
         .overlay(ring)
         .frame(width: size, height: size)
         .accessibilityElement()
-        .accessibilityLabel(tier == .none ? "@\(username)" : "@\(username), \(tier.name) border")
+        .accessibilityLabel(special.map { "@\(username), \($0.name) border" } ??
+                            (tier == .none ? "@\(username)" : "@\(username), \(tier.name) border"))
         .onAppear {
-            guard tier.shimmers, !reduceMotion else { return }
+            guard special != nil || tier.shimmers, !reduceMotion else { return }
             withAnimation(.linear(duration: 9).repeatForever(autoreverses: false)) { sheen = true }
         }
     }
@@ -72,11 +88,24 @@ struct AvatarView: View {
             .foregroundStyle(Theme.muted)
     }
 
+    @ViewBuilder
     private var ring: some View {
-        Circle()
-            .strokeBorder(AngularGradient(colors: tier.colors, center: .center,
-                                          angle: .degrees(sheen ? 360 : 0)),
-                          lineWidth: ringWidth)
+        if let special {
+            ZStack {
+                Circle()
+                    .strokeBorder(AngularGradient(colors: special.colors, center: .center,
+                                                  angle: .degrees(sheen ? 360 : 0)),
+                                  lineWidth: ringWidth)
+                Circle()
+                    .strokeBorder(special.innerLine.opacity(0.85), lineWidth: max(0.75, size * 0.012))
+                    .padding(ringWidth)
+            }
+        } else {
+            Circle()
+                .strokeBorder(AngularGradient(colors: tier.colors, center: .center,
+                                              angle: .degrees(sheen ? 360 : 0)),
+                              lineWidth: ringWidth)
+        }
     }
 }
 
@@ -88,10 +117,14 @@ struct MemberCardView: View {
     var body: some View {
         VStack(spacing: 14) {
             AvatarView(url: feed.avatarURL(member.avatarPath), username: member.username,
-                       tier: member.borderTier, size: 104)
+                       tier: member.borderTier, special: member.special, size: 104)
             Text("@\(member.username)")
                 .font(.system(size: 25, design: .serif))
-            if member.borderTier != .none {
+            if let special = member.special {
+                Text("\(special.name.uppercased()) · \(special.title.uppercased())")
+                    .font(.caption2.weight(.semibold)).tracking(2)
+                    .foregroundStyle(Theme.accentText)
+            } else if member.borderTier != .none {
                 Text("\(member.borderTier.name.uppercased()) BORDER")
                     .font(.caption2.weight(.semibold)).tracking(2)
                     .foregroundStyle(Theme.muted)

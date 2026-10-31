@@ -116,6 +116,25 @@ final class FeedTests: XCTestCase {
         XCTAssertEqual(post.author.bio, "")
     }
 
+    func testAGrantedBorderIsReadWithTheProfile() throws {
+        let post = try decode("""
+        {"id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d", "author_id": "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed",
+         "body": "x", "created_at": "2026-10-31T09:15:00+00:00",
+         "profiles": {"username": "khalil", "avatar_path": null, "border_tier": 2, "bio": "", "special_border": "enji"}}
+        """)
+        XCTAssertEqual(post.author.special, .enji)
+        XCTAssertEqual(post.author.borderTier, .hinoki, "the earned border is still known")
+    }
+
+    func testAnUnknownGrantedBorderIsIgnored() throws {
+        let post = try decode("""
+        {"id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d", "author_id": "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed",
+         "body": "x", "created_at": "2026-10-31T09:15:00+00:00",
+         "profiles": {"username": "someone", "special_border": "rainbow"}}
+        """)
+        XCTAssertNil(post.author.special)
+    }
+
     // MARK: - Media limits
 
     func testVideosUpToAMinuteAreAccepted() throws {

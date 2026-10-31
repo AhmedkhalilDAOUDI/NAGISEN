@@ -8,6 +8,8 @@ struct FeedMember: Identifiable, Equatable {
     let avatarPath: String?
     let borderTier: BorderTier
     let bio: String
+    /// A hand-granted border shown instead of the earned one.
+    var special: SpecialBorder? = nil
 }
 
 /// The `profiles(...)` part of a post or comment row.
@@ -16,13 +18,16 @@ struct ProfileJoin: Decodable {
     let avatar_path: String?
     let border_tier: Int?
     let bio: String?
+    let special_border: String?
 
     func member(_ id: UUID) -> FeedMember {
         FeedMember(id: id, username: username, avatarPath: avatar_path,
-                   borderTier: BorderTier(rawValue: border_tier ?? 0) ?? .none, bio: bio ?? "")
+                   borderTier: BorderTier(rawValue: border_tier ?? 0) ?? .none, bio: bio ?? "",
+                   special: special_border.flatMap(SpecialBorder.init(rawValue:)))
     }
 
-    static let columns = "profiles(username, avatar_path, border_tier, bio)"
+    static let fields = "username, avatar_path, border_tier, bio, special_border"
+    static let columns = "profiles(\(fields))"
 }
 
 /// A post as Feed shows it, decoded from a `posts` row joined with its author's profile.
@@ -149,6 +154,7 @@ final class FeedService: ObservableObject {
     @Published private(set) var avatarPath: String?
     @Published private(set) var bio = ""
     @Published private(set) var borderTier: BorderTier = .none
+    @Published private(set) var specialBorder: SpecialBorder?
     @Published private(set) var email: String?
     @Published private(set) var posts: [FeedPost] = []
     @Published private(set) var canLoadMore = false
@@ -212,6 +218,7 @@ final class FeedService: ObservableObject {
                 avatarPath = nil
                 bio = ""
                 borderTier = .none
+                specialBorder = nil
                 email = nil
                 posts = []
                 blockedCount = 0
@@ -225,13 +232,14 @@ final class FeedService: ObservableObject {
         guard let client else { return }
         userID = id
         do {
-            let rows: [ProfileJoin] = try await client.from("profiles").select("username, avatar_path, border_tier, bio")
+            let rows: [ProfileJoin] = try await client.from("profiles").select(ProfileJoin.fields)
                 .eq("id", value: id).limit(1).execute().value
             let me = rows.first?.member(id)
             username = me?.username
             avatarPath = me?.avatarPath
             bio = me?.bio ?? ""
             borderTier = me?.borderTier ?? .none
+            specialBorder = me?.special
             state = username == nil ? .needsUsername : .ready
             if state == .ready { await refresh() }
         } catch {
@@ -342,7 +350,8 @@ final class FeedService: ObservableObject {
 
     var me: FeedMember? {
         guard let userID, let username else { return nil }
-        return FeedMember(id: userID, username: username, avatarPath: avatarPath, borderTier: borderTier, bio: bio)
+        return FeedMember(id: userID, username: username, avatarPath: avatarPath, borderTier: borderTier, bio: bio,
+                          special: specialBorder)
     }
 
     func avatarURL(_ path: String?) -> URL? {

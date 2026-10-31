@@ -18,6 +18,32 @@ alter table public.profiles add column if not exists border_tier smallint not nu
 alter table public.profiles drop constraint if exists profiles_border_tier_check;
 alter table public.profiles add constraint profiles_border_tier_check check (border_tier between 0 and 30);
 
+-- A one-off border granted by hand (only 'enji', the developer's). Members can't set it:
+-- the trigger rejects any change made through the app, and only the SQL editor can grant it.
+alter table public.profiles add column if not exists special_border text;
+alter table public.profiles drop constraint if exists profiles_special_border_check;
+alter table public.profiles add constraint profiles_special_border_check
+    check (special_border is null or special_border in ('enji'));
+
+create or replace function public.protect_special_border()
+returns trigger
+language plpgsql
+as $$
+begin
+    if current_user in ('authenticated', 'anon') then
+        if tg_op = 'INSERT' then
+            new.special_border := null;
+        elsif new.special_border is distinct from old.special_border then
+            raise exception 'special_border can only be granted by the developer';
+        end if;
+    end if;
+    return new;
+end;
+$$;
+drop trigger if exists protect_special_border on public.profiles;
+create trigger protect_special_border before insert or update on public.profiles
+    for each row execute function public.protect_special_border();
+
 -- Posts: text, one photo or video, or both.
 create table if not exists public.posts (
     id uuid primary key default gen_random_uuid(),
