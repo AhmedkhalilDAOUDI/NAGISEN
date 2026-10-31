@@ -19,7 +19,10 @@ struct DaywellApp: App {
                 .environmentObject(health)
                 .environmentObject(community)
                 .environmentObject(feed)
-                .onOpenURL { spotify.handle(url: $0) }
+                .onOpenURL { url in
+                    spotify.handle(url: url)
+                    feed.handle(url: url)
+                }
                 .onReceive(health.$workouts) { _ in
                     if autoImportHealth { _ = store.importHealth(workouts: health.workouts, weights: health.weightSamples) }
                 }
