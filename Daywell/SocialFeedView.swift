@@ -232,7 +232,23 @@ struct SocialFeedView: View {
                     EmptyView()
                 }
             }
+            if feed.isMine(post) && post.appreciationCount > 0 {
+                Label(post.appreciationCount == 1 ? "1 person appreciated this"
+                                                  : "\(post.appreciationCount) people appreciated this",
+                      systemImage: "seal.fill")
+                    .font(.caption).foregroundStyle(Theme.accentText)
+            }
             HStack(spacing: 20) {
+                if !feed.isMine(post) {
+                    let marked = feed.hasAppreciated(post)
+                    Button { Task { await feed.toggleAppreciation(post) } } label: {
+                        Image(systemName: marked ? "seal.fill" : "seal")
+                            .foregroundStyle(marked ? Theme.accentText : Theme.ink)
+                            .contentTransition(.symbolEffect(.replace))
+                    }
+                    .accessibilityLabel(marked ? "Appreciated. Tap to take back" : "Appreciate")
+                    .sensoryFeedback(.selection, trigger: marked)
+                }
                 Button { commentingPost = post } label: {
                     Label(post.commentCount == 0 ? "Comment" : "\(post.commentCount)", systemImage: "bubble.left")
                 }
