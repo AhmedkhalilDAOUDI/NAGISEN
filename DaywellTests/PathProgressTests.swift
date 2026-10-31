@@ -240,4 +240,40 @@ final class PathProgressTests: XCTestCase {
     func testBrokenMarkdownFallsBackToPlainText() {
         XCTAssertEqual(String(DeepSeekChatView.rendered("5 * 3 = **15").characters).isEmpty, false)
     }
+
+    // MARK: - Usual foods
+
+    private func logged(_ name: String, day offset: Int) -> DiaryEntry {
+        DiaryEntry(food: Food(name: name, brand: "", serving: "1 serving", calories: 100, protein: 0, carbs: 0, fat: 0),
+                   meal: .lunch, servings: 1, date: day(offset))
+    }
+
+    func testUsualFoodsAreTheMostLoggedFirst() {
+        let entries = [logged("Oats", day: 0), logged("Oats", day: 1), logged("Oats", day: 2),
+                       logged("Eggs", day: 0), logged("Eggs", day: 3),
+                       logged("Tea", day: 5)]
+        XCTAssertEqual(NutritionStore.frequentFoods(in: entries, limit: 10).map(\.name), ["Oats", "Eggs", "Tea"])
+    }
+
+    func testTiesGoToTheMostRecentlyLogged() {
+        let entries = [logged("Rice", day: 1), logged("Dates", day: 4)]
+        XCTAssertEqual(NutritionStore.frequentFoods(in: entries, limit: 10).map(\.name), ["Dates", "Rice"])
+    }
+
+    func testTheSameFoodInDifferentCaseCountsOnce() {
+        let entries = [logged("Skyr", day: 0), logged("skyr", day: 1), logged("Kefir", day: 2)]
+        let usual = NutritionStore.frequentFoods(in: entries, limit: 10)
+        XCTAssertEqual(usual.count, 2)
+        XCTAssertEqual(usual.first?.name.lowercased(), "skyr")
+    }
+
+    func testRemovedQuickPicksStayHiddenAndTheLimitHolds() {
+        let entries = [logged("Oats", day: 0), logged("Oats", day: 1), logged("Eggs", day: 2), logged("Tea", day: 3)]
+        let hidden: Set<String> = [NutritionStore.foodKey(entries[0].food)]
+        XCTAssertEqual(NutritionStore.frequentFoods(in: entries, limit: 1, excluding: hidden).map(\.name), ["Tea"])
+    }
+
+    func testNoLogsMeansNoUsualFoods() {
+        XCTAssertTrue(NutritionStore.frequentFoods(in: [], limit: 10).isEmpty)
+    }
 }

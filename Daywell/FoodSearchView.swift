@@ -34,9 +34,11 @@ struct FoodSearchView: View {
     let date: Date
     let initialMeal: Meal
 
+    @AppStorage(QuickPicks.storageKey) private var hiddenPicks = Data()
+
     private var localMatches: [Food] {
-        guard !search.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return store.allFoods }
-        return store.allFoods.filter {
+        guard !search.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return store.myFoods }
+        return store.myFoods.filter {
             $0.name.localizedCaseInsensitiveContains(search) || $0.brand.localizedCaseInsensitiveContains(search)
         }
     }
@@ -217,8 +219,16 @@ struct FoodSearchView: View {
 
     @ViewBuilder private var searchSections: some View {
         if search.isEmpty {
-            Section("Starter foods") {
-                ForEach(NutritionStore.starterFoods) { food in foodRow(food) }
+            let usual = store.frequentFoods(excluding: QuickPicks.hidden(in: hiddenPicks))
+            if usual.isEmpty {
+                Section {
+                    Text("The foods you log most will appear here. Search above, scan a barcode or add one manually.")
+                        .foregroundStyle(Theme.muted)
+                }
+            } else {
+                Section("Your usual foods") {
+                    ForEach(usual) { food in foodRow(food) }
+                }
             }
         } else {
             if !localMatches.isEmpty {
@@ -689,5 +699,19 @@ private struct CreateRecipeView: View {
         .scrollDismissesKeyboard(.interactively)
         .background(NagisenBackdrop())
         .toolbar(.hidden, for: .navigationBar)
+    }
+}
+
+/// Foods removed from Lab's quick picks and the usual-foods list. Only hides them there;
+/// nothing logged is deleted.
+enum QuickPicks {
+    static let storageKey = "nagisen.quickPicks.hidden"
+
+    static func hidden(in data: Data) -> Set<String> {
+        (try? JSONDecoder().decode(Set<String>.self, from: data)) ?? []
+    }
+
+    static func encode(_ keys: Set<String>) -> Data {
+        (try? JSONEncoder().encode(keys)) ?? Data()
     }
 }

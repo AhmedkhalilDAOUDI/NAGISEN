@@ -1132,6 +1132,33 @@ final class NutritionStore: ObservableObject {
 
     var allFoods: [Food] { customFoods + Self.starterFoods }
 
+    /// Foods you created plus everything you've logged: what search looks through before going online.
+    var myFoods: [Food] {
+        var seen = Set<String>()
+        return (customFoods + recentFoods()).filter { seen.insert(Self.foodKey($0)).inserted }
+    }
+
+    /// Your usual foods: logged most often first, the most recent first among ties.
+    func frequentFoods(limit: Int = 20, excluding hidden: Set<String> = []) -> [Food] {
+        Self.frequentFoods(in: entries, limit: limit, excluding: hidden)
+    }
+
+    static func frequentFoods(in entries: [DiaryEntry], limit: Int, excluding hidden: Set<String> = []) -> [Food] {
+        let groups = Dictionary(grouping: entries) { foodKey($0.food) }
+        return groups.compactMap { key, group -> (food: Food, count: Int, last: Date)? in
+            guard !hidden.contains(key), let latest = group.max(by: { $0.date < $1.date }) else { return nil }
+            return (latest.food, group.count, latest.date)
+        }
+        .sorted { $0.count != $1.count ? $0.count > $1.count : $0.last > $1.last }
+        .prefix(limit)
+        .map(\.food)
+    }
+
+    /// One identity per food, regardless of capitalisation: name, brand and serving.
+    static func foodKey(_ food: Food) -> String {
+        "\(food.name.lowercased())|\(food.brand.lowercased())|\(food.serving.lowercased())"
+    }
+
     func recentFoods(for meal: Meal? = nil) -> [Food] {
         var seen = Set<String>()
         return entries.sorted { $0.date > $1.date }
