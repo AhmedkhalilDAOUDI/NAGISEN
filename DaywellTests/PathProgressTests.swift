@@ -218,4 +218,13 @@ final class PathProgressTests: XCTestCase {
     func testNoNudgeAfterTheLastBorder() {
         XCTAssertNil(Reminders.borderToNudge(PathProgress(checkedDays: 5000), lastNudged: nil))
     }
+
+    // MARK: - Workout split labels
+
+    func testLongSplitDaysAreShortenedAndPhrasesKept() {
+        XCTAssertEqual(WorkoutMusicView.shortFocus("Conditioning"), "Cond.")
+        XCTAssertEqual(WorkoutMusicView.shortFocus("Full Body"), "Full Body")
+        XCTAssertEqual(WorkoutMusicView.shortFocus("Boxing"), "Boxing")
+        XCTAssertEqual(WorkoutMusicView.shortFocus("Upper Body Strength"), "Upper Body Strength")
+    }
 }
