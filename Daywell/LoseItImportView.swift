@@ -110,18 +110,18 @@ struct LoseItImportView: View {
                       allowsMultipleSelection: true) { result in
             handleFileResult(result)
         }
-        .confirmationDialog("Import this data?", isPresented: $showingConfirmation) {
-            Button("Import", role: .destructive) { commit() }
-            Button("Cancel", role: .cancel) { }
-        } message: {
-            Text(confirmationMessage)
+        .nagisenDialog("Import this data?", isPresented: $showingConfirmation, message: confirmationMessage) {
+            [NagisenAction(title: "Import", destructive: true) { commit() }]
         }
-        .alert(item: $outcome) { outcome in
-            Alert(title: Text("Lose It! import"),
-                  message: Text(outcome.message),
-                  dismissButton: .default(Text("OK")) { if case .imported = outcome { dismiss() } })
-        }
+        .nagisenDialog("Lose It! import", isPresented: Binding(get: { outcome != nil }, set: { if !$0 { finishImport() } }),
+                       message: outcome?.message, cancelTitle: "OK")
         .onAppear(perform: primeFields)
+    }
+
+    /// Closing the result: a finished import leaves the screen; an error stays to be fixed.
+    private func finishImport() {
+        if case .imported = outcome { dismiss() }
+        outcome = nil
     }
 
     // MARK: - Legacy card

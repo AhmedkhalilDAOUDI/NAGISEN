@@ -68,13 +68,11 @@ struct AccountSettingsView: View {
                 }
             }
         }
-        .confirmationDialog("Delete your NAGISEN account?", isPresented: $confirmingDelete,
-                            titleVisibility: .visible) {
-            Button("Delete account and posts", role: .destructive) {
+        .nagisenDialog("Delete your NAGISEN account?", isPresented: $confirmingDelete,
+                       message: "Your username, picture, every post, comment and photo or video you shared are removed for good. Your nutrition and workout history on this iPhone is not affected.") {
+            [NagisenAction(title: "Delete account and posts", destructive: true) {
                 Task { if await feed.deleteAccount() { dismiss() } }
-            }
-        } message: {
-            Text("Your username, picture, every post, comment and photo or video you shared are removed for good. Your nutrition and workout history on this iPhone is not affected.")
+            }]
         }
     }
 

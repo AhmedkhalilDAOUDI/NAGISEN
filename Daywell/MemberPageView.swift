@@ -69,12 +69,11 @@ struct MemberPageView: View {
                 }
             }
             .sheet(isPresented: $editing) { NavigationStack { AccountSettingsView(inSheet: true) } }
-            .confirmationDialog("Block @\(member.username)?", isPresented: $confirmingBlock, titleVisibility: .visible) {
-                Button("Block", role: .destructive) {
+            .nagisenDialog("Block @\(member.username)?", isPresented: $confirmingBlock,
+                           message: "You won’t see their posts, comments or stories anymore. They aren’t told.") {
+                [NagisenAction(title: "Block", destructive: true) {
                     Task { if await feed.block(authorID: member.id) { dismiss() } }
-                }
-            } message: {
-                Text("You won’t see their posts, comments or stories anymore. They aren’t told.")
+                }]
             }
         }
     }

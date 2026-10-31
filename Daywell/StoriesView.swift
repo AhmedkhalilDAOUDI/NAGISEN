@@ -172,15 +172,15 @@ struct StoryViewer: View {
         .sheet(isPresented: $showingViewers, onDismiss: { paused = false }) {
             if let story { PeopleListView(title: "Seen by") { await feed.viewers(of: story) } }
         }
-        .confirmationDialog("Why are you reporting this story?", isPresented: $reporting, titleVisibility: .visible) {
-            ForEach(FeedRules.reportReasons, id: \.self) { reason in
-                Button(reason) { if let story { Task { await feed.reportStory(story, reason: reason); next() } } }
+        .nagisenDialog("Why are you reporting this story?", isPresented: $reporting) {
+            FeedRules.reportReasons.map { reason in
+                NagisenAction(title: reason) { if let story { Task { await feed.reportStory(story, reason: reason); next() } } }
             }
         }
-        .confirmationDialog("Delete this story?", isPresented: $confirmingDelete) {
-            Button("Delete story", role: .destructive) {
+        .nagisenDialog("Delete this story?", isPresented: $confirmingDelete) {
+            [NagisenAction(title: "Delete story", destructive: true) {
                 if let story { Task { await feed.deleteStory(story); dismiss() } }
-            }
+            }]
         }
         .onChange(of: reporting || confirmingDelete || showingActions) { _, open in paused = open }
     }

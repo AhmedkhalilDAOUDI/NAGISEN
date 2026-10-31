@@ -278,37 +278,27 @@ struct ProfileView: View {
                 pendingRestore = try? Data(contentsOf: url)
                 restoreError = pendingRestore == nil
             }
-            .confirmationDialog("Replace your current NAGISEN history?", isPresented: Binding(
+            .nagisenDialog("Replace your current NAGISEN history?", isPresented: Binding(
                 get: { pendingRestore != nil },
                 set: { if !$0 { pendingRestore = nil } }
-            )) {
-                Button("Replace with backup", role: .destructive) {
-                    if let pendingRestore, !store.restoreJSON(pendingRestore) { restoreError = true }
-                    pendingRestore = nil
-                }
-                Button("Cancel", role: .cancel) { pendingRestore = nil }
-            } message: {
-                Text("This replaces current food, goals, weight, water, and workout history. Export a copy first if you want to keep it.")
+            ), message: "This replaces current food, goals, weight, water, and workout history. Export a copy first if you want to keep it.") {
+                let backup = pendingRestore
+                return [NagisenAction(title: "Replace with backup", destructive: true) {
+                    if let backup, !store.restoreJSON(backup) { restoreError = true }
+                }]
             }
-            .confirmationDialog("Restore the latest automatic backup?", isPresented: $showingAutomaticRestore) {
-                Button("Restore recent history", role: .destructive) {
+            .nagisenDialog("Restore the latest automatic backup?", isPresented: $showingAutomaticRestore,
+                           message: "Current NAGISEN history will be replaced. Export it first if you want to keep both versions.") {
+                [NagisenAction(title: "Restore recent history", destructive: true) {
                     if !store.restoreLatestAutomaticBackup() { restoreError = true }
-                }
-                Button("Cancel", role: .cancel) { }
-            } message: {
-                Text("Current NAGISEN history will be replaced. Export it first if you want to keep both versions.")
+                }]
             }
-            .alert("Could not restore backup", isPresented: $restoreError) {
-                Button("OK", role: .cancel) { }
-            } message: {
-                Text("Choose a NAGISEN JSON backup created by Export my data.")
-            }
-            .confirmationDialog("Which history should NAGISEN keep?", isPresented: $showingCloudChoice) {
-                Button("Keep this iPhone") { Task { await community.keepThisPhone(store) } }
-                Button("Use iCloud copy") { Task { await community.useICloud(store) } }
-                Button("Cancel", role: .cancel) { }
-            } message: {
-                Text("Both versions changed. The replaced iPhone history is saved to a local backup first.")
+            .nagisenDialog("Could not restore backup", isPresented: $restoreError,
+                           message: "Choose a NAGISEN JSON backup created by Export my data.", cancelTitle: "OK")
+            .nagisenDialog("Which history should NAGISEN keep?", isPresented: $showingCloudChoice,
+                           message: "Both versions changed. The replaced iPhone history is saved to a local backup first.") {
+                [NagisenAction(title: "Keep this iPhone") { Task { await community.keepThisPhone(store) } },
+                 NagisenAction(title: "Use iCloud copy") { Task { await community.useICloud(store) } }]
             }
             .task { await community.connect(); await community.sync(store) }
         }

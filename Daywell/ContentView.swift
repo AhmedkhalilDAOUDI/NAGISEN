@@ -1090,11 +1090,8 @@ private struct WaterDetailView: View {
         .background(NagisenBackdrop())
         .toolbar(.hidden, for: .navigationBar)
         .onAppear { goal = String(store.waterGoalML) }
-        .alert("Notifications are off", isPresented: $reminderError) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text("Allow NAGISEN notifications in iPhone Settings to use water check-ins.")
-        }
+        .nagisenDialog("Notifications are off", isPresented: $reminderError,
+                       message: "Allow NAGISEN notifications in iPhone Settings to use water check-ins.", cancelTitle: "OK")
     }
 }
 
@@ -1261,10 +1258,9 @@ private struct MealCard: View {
         .padding(19)
         .frame(maxWidth: .infinity, alignment: .leading)
         .nagisenGlass(in: RoundedRectangle(cornerRadius: 21), tint: meal.highlight.opacity(0.08))
-        .confirmationDialog("Clear \(meal.rawValue)?", isPresented: $showingDeleteMeal) {
-            Button("Delete whole meal", role: .destructive) { store.deleteMeal(meal, on: date) }
-        } message: {
-            Text("This removes every food logged for \(meal.rawValue) on this day.")
+        .nagisenDialog("Clear \(meal.rawValue)?", isPresented: $showingDeleteMeal,
+                       message: "This removes every food logged for \(meal.rawValue) on this day.") {
+            [NagisenAction(title: "Delete whole meal", destructive: true) { store.deleteMeal(meal, on: date) }]
         }
     }
 
@@ -1411,13 +1407,11 @@ private struct DiaryView: View {
             }
             #endif
             .sheet(isPresented: $showingQuickAdd) { NavigationStack { QuickAddView(date: date) } }
-            .confirmationDialog("Copy yesterday's food?", isPresented: $showingCopyConfirmation) {
-                Button("Add \(store.entries(on: previousDay).count) foods") {
+            .nagisenDialog("Copy yesterday's food?", isPresented: $showingCopyConfirmation,
+                           message: "This adds yesterday's foods to the selected day. You can edit or remove entries afterwards.") {
+                [NagisenAction(title: "Add \(store.entries(on: previousDay).count) foods") {
                     store.copyDay(from: previousDay, to: date)
-                }
-                Button("Cancel", role: .cancel) { }
-            } message: {
-                Text("This adds yesterday's foods to the selected day. You can edit or remove entries afterwards.")
+                }]
             }
         }
     }
@@ -1665,6 +1659,105 @@ extension View {
     func nagisenActions(isPresented: Binding<Bool>, title: String,
                         actions: @escaping () -> [NagisenAction]) -> some View {
         modifier(NagisenActionsModifier(isPresented: isPresented, title: title, actions: actions))
+    }
+}
+
+/// NAGISEN's own confirmation: a centered card that fades in over a dim backdrop, used instead of
+/// the system's confirmation dialogs and alerts. Cancel (or OK, when there is nothing else) is added.
+private struct NagisenDialogModifier: ViewModifier {
+    @Binding var isPresented: Bool
+    let title: String
+    let message: String?
+    let cancelTitle: String
+    let actions: () -> [NagisenAction]
+    @State private var shown = false
+    @State private var visible = false
+    @State private var pending: (() -> Void)?
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: isPresented) { _, open in
+                if open { withoutAnimation { shown = true } } else if shown { close() }
+            }
+            .fullScreenCover(isPresented: $shown, onDismiss: { pending?(); pending = nil }) {
+                card
+                    .presentationBackground(.clear)
+                    .onAppear { withAnimation(.smooth(duration: 0.25)) { visible = true } }
+            }
+    }
+
+    private var card: some View {
+        ZStack {
+            Color.black.opacity(visible ? 0.5 : 0)
+                .ignoresSafeArea()
+                .onTapGesture { close() }
+            VStack(spacing: 0) {
+                VStack(spacing: 8) {
+                    Text(title)
+                        .font(.system(size: 21, weight: .regular, design: .serif))
+                        .foregroundStyle(Theme.ink)
+                    if let message {
+                        Text(message).font(.footnote).foregroundStyle(Theme.muted)
+                    }
+                }
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 24).padding(.top, 26).padding(.bottom, 20)
+                ForEach(actions()) { action in
+                    divider
+                    button(action.title, color: action.destructive ? Theme.danger : Theme.accentText) {
+                        pending = action.run
+                        close()
+                    }
+                }
+                divider
+                button(cancelTitle, color: Theme.muted) { close() }
+            }
+            .frame(width: 300)
+            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .strokeBorder(Theme.ink.opacity(0.10), lineWidth: 0.5))
+            .scaleEffect(visible ? 1 : 0.94)
+            .opacity(visible ? 1 : 0)
+            .accessibilityAddTraits(.isModal)
+        }
+    }
+
+    private var divider: some View {
+        Rectangle().fill(Theme.ink.opacity(0.08)).frame(height: 0.5)
+    }
+
+    private func button(_ title: String, color: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title).font(.body).foregroundStyle(color)
+                .frame(maxWidth: .infinity, minHeight: 52)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func close() {
+        withAnimation(.smooth(duration: 0.2)) { visible = false }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            withoutAnimation { shown = false }
+            isPresented = false
+        }
+    }
+
+    /// The cover itself appears and leaves without sliding; only the card fades.
+    private func withoutAnimation(_ change: () -> Void) {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction, change)
+    }
+}
+
+extension View {
+    func nagisenDialog(_ title: String, isPresented: Binding<Bool>, message: String? = nil,
+                       cancelTitle: String = "Cancel",
+                       actions: @escaping () -> [NagisenAction] = { [] }) -> some View {
+        modifier(NagisenDialogModifier(isPresented: isPresented, title: title, message: message,
+                                       cancelTitle: cancelTitle, actions: actions))
     }
 }
 
