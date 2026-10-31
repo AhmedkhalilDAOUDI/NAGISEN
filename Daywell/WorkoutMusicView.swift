@@ -1,4 +1,3 @@
-import ConfettiSwiftUI
 import AVFoundation
 import SwiftUI
 import UIKit
@@ -455,6 +454,7 @@ struct WorkoutMusicView: View {
             }
             .fullScreenCover(item: $activeAward) { trophy in
                 TrophyCelebrationView(trophy: trophy, onDismiss: dismissAward)
+                    .presentationBackground(.black.opacity(0.5))
             }
             .sheet(isPresented: $showingShuffle) {
                 VStack(alignment: .leading, spacing: 24) {
@@ -484,6 +484,10 @@ struct WorkoutMusicView: View {
             }
             .onChange(of: store.workouts.count) { _, _ in checkForNewAwards() }
             .onAppear(perform: prepareMotivation)
+            #if DEBUG
+            // Test-only: shows a trophy celebration without earning one.
+            .onAppear { if ProcessInfo.processInfo.arguments.contains("-NAGISENTrophy") { activeAward = trophies.last } }
+            #endif
         }
     }
 
@@ -551,73 +555,73 @@ private struct TrophyCelebrationView: View {
     let trophy: Trophy
     let onDismiss: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var revealed = false
-    @State private var confettiTrigger = 0
+    @State private var horizon = false
+    @State private var risen = false
+    @State private var named = false
     @State private var soundPlayer: AVAudioPlayer?
 
     var body: some View {
-        ZStack {
-            JapanesePrintBackdrop()
-                .ignoresSafeArea()
-
-            SakuraPetalRain()
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
-
-            VStack(spacing: 20) {
-                Spacer()
-                JapaneseTrophySeal(symbol: trophy.symbol, earned: true, size: 228)
-                    .shadow(color: .black.opacity(0.3), radius: 20, y: 11)
-                .frame(height: 270)
-                .scaleEffect(revealed ? 1 : 0.3)
-                .rotation3DEffect(.degrees(reduceMotion ? 0 : (revealed ? 0 : -70)), axis: (x: 0, y: 1, z: 0))
-                .opacity(revealed ? 1 : 0)
-                .confettiCannon(trigger: $confettiTrigger,
-                                num: 28,
-                                confettis: [.sfSymbol(symbolName: "leaf.fill"), .shape(.circle)],
-                                colors: [Theme.gold, Theme.red, Theme.moss],
-                                confettiSize: 10,
-                                rainHeight: 600,
-                                openingAngle: .degrees(0),
-                                closingAngle: .degrees(360),
-                                radius: 280,
-                                repetitions: 1,
-                                repetitionInterval: 0.35,
-                                hapticFeedback: false)
-
-                Text(trophy.title)
-                    .font(.custom("Baskerville", size: 43, relativeTo: .largeTitle))
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(Color(red: 0.99, green: 0.94, blue: 0.83))
-                    .shadow(color: .black.opacity(0.85), radius: 9)
-                    .opacity(revealed ? 1 : 0)
-                Text(trophy.subtitle)
-                    .font(.custom("AvenirNext-Medium", size: 17, relativeTo: .subheadline))
-                    .foregroundStyle(Color(red: 0.94, green: 0.84, blue: 0.67))
-                    .shadow(color: .black.opacity(0.85), radius: 8)
-                    .opacity(revealed ? 1 : 0)
-                Spacer()
-                Button(action: onDismiss) {
-                    Text("Keep moving")
-                        .font(.custom("AvenirNext-DemiBold", size: 16, relativeTo: .body))
-                        .foregroundStyle(Color(red: 0.25, green: 0.13, blue: 0.16))
-                        .padding(.horizontal, 29)
-                        .frame(height: 48)
-                        .background(Color(red: 0.98, green: 0.92, blue: 0.82), in: Capsule())
-                        .shadow(color: .black.opacity(0.3), radius: 8, y: 3)
+        VStack(spacing: 22) {
+            // The logo's sunrise, with the trophy as the sun.
+            ZStack {
+                ZStack {
+                    Circle().fill(Theme.red)
+                    Image(systemName: trophy.symbol)
+                        .font(.system(size: 34, weight: .light))
+                        .foregroundStyle(.white)
                 }
-                .padding(.bottom, 26)
+                .frame(width: 96, height: 96)
+                .offset(y: risen ? -20 : 90)
+                .frame(width: 180, height: 170)
+                .mask(alignment: .top) { Rectangle().frame(height: 138) }
+                VStack(spacing: 9) {
+                    Capsule().frame(width: horizon ? 150 : 0, height: 2.5)
+                    Capsule().frame(width: horizon ? 90 : 0, height: 1.5)
+                }
+                .foregroundStyle(Theme.ink)
+                .offset(y: 58)
             }
-            .padding(.horizontal, 20)
+            .frame(width: 180, height: 170)
+            .padding(.top, 24)
+            .accessibilityHidden(true)
+
+            VStack(spacing: 8) {
+                Text("TROPHY EARNED")
+                    .font(.caption2.weight(.semibold)).tracking(2.5)
+                    .foregroundStyle(Theme.muted)
+                Text(trophy.title)
+                    .font(.system(size: 34, design: .serif))
+                    .foregroundStyle(Theme.ink)
+                    .multilineTextAlignment(.center)
+                    .minimumScaleFactor(0.7)
+                Text(trophy.subtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.muted)
+            }
+            .opacity(named ? 1 : 0)
+            .offset(y: named ? 0 : 8)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Trophy earned: \(trophy.title). \(trophy.subtitle)")
+
+            NagisenPrimaryButton("Keep moving", action: onDismiss)
         }
-        .onAppear {
+        .padding(22)
+        .background { DriftingCircles() }
+        .background(Theme.paper, in: RoundedRectangle(cornerRadius: 30))
+        .clipShape(RoundedRectangle(cornerRadius: 30))
+        .padding(.horizontal, 16)
+        .task {
+            if reduceMotion {
+                horizon = true; risen = true; named = true
+                playCelebration()
+                return
+            }
+            withAnimation(.easeOut(duration: 0.6)) { horizon = true }
+            try? await Task.sleep(for: .seconds(0.3))
             playCelebration()
-            withAnimation(reduceMotion ? .none : .spring(response: 0.85, dampingFraction: 0.68)) {
-                revealed = true
-            }
-            if !reduceMotion {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { confettiTrigger += 1 }
-            }
+            withAnimation(.spring(response: 0.9, dampingFraction: 0.75)) { risen = true }
+            try? await Task.sleep(for: .seconds(0.6))
+            withAnimation(.easeOut(duration: 0.5)) { named = true }
         }
     }
 
@@ -741,21 +745,6 @@ private struct WorkoutSplitEditorView: View {
     }
 }
 
-private struct JapanesePrintBackdrop: View {
-    @Environment(\.colorScheme) private var colorScheme
-
-    var body: some View {
-        GeometryReader { geometry in
-            Image(colorScheme == .dark ? "TrophyPrintNight" : "TrophyPrintDay")
-                .resizable()
-                .scaledToFill()
-                .frame(width: geometry.size.width, height: geometry.size.height)
-                .clipped()
-        }
-        .accessibilityHidden(true)
-    }
-}
-
 private struct JapaneseWavePattern: View {
     let color: Color
     let radius: CGFloat
@@ -822,30 +811,6 @@ private struct JapaneseTrophySeal: View {
         }
         .frame(width: size, height: size)
         .accessibilityHidden(true)
-    }
-}
-
-private struct SakuraPetalRain: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    var body: some View {
-        if !reduceMotion {
-            TimelineView(.animation(minimumInterval: 1.0 / 60.0)) { timeline in
-                Canvas { context, size in
-                    let time = timeline.date.timeIntervalSinceReferenceDate
-                    for index in 0..<16 {
-                        let progress = (time / (7.5 + Double(index % 4)) + Double(index) / 16).truncatingRemainder(dividingBy: 1)
-                        let x = size.width * CGFloat(Double((index * 37 + 9) % 100) / 100) + CGFloat(sin(time + Double(index)) * 21)
-                        let y = CGFloat(progress) * (size.height + 30) - 15
-                        var path = Path()
-                        path.move(to: CGPoint(x: x, y: y - 5))
-                        path.addQuadCurve(to: CGPoint(x: x, y: y + 6), control: CGPoint(x: x + 8, y: y))
-                        path.addQuadCurve(to: CGPoint(x: x, y: y - 5), control: CGPoint(x: x - 6, y: y))
-                        context.fill(path, with: .color(index.isMultiple(of: 3) ? Theme.gold.opacity(0.50) : Theme.red.opacity(0.65)))
-                    }
-                }
-            }
-        }
     }
 }
 
