@@ -227,4 +227,17 @@ final class PathProgressTests: XCTestCase {
         XCTAssertEqual(WorkoutMusicView.shortFocus("Boxing"), "Boxing")
         XCTAssertEqual(WorkoutMusicView.shortFocus("Upper Body Strength"), "Upper Body Strength")
     }
+
+    // MARK: - Coach replies
+
+    func testCoachRepliesRenderMarkdownAndKeepLineBreaks() {
+        let text = DeepSeekChatView.rendered("Go with **eggs**.\n\nThen *rest*.")
+        XCTAssertEqual(String(text.characters), "Go with eggs.\n\nThen rest.")
+        let bold = text.runs.first { String(text[$0.range].characters) == "eggs" }
+        XCTAssertEqual(bold?.inlinePresentationIntent, .stronglyEmphasized)
+    }
+
+    func testBrokenMarkdownFallsBackToPlainText() {
+        XCTAssertEqual(String(DeepSeekChatView.rendered("5 * 3 = **15").characters).isEmpty, false)
+    }
 }

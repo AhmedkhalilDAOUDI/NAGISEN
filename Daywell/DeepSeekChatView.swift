@@ -137,96 +137,63 @@ struct DeepSeekChatView: View {
     @State private var draft = ""
     @State private var showingSettings = false
     @State private var keyInput = ""
+    @State private var hasKey = false
     @FocusState private var composerFocused: Bool
+
+    private var canSend: Bool {
+        !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !chat.isSending
+    }
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                HStack(alignment: .top, spacing: 12) {
+                HStack(alignment: .top, spacing: 8) {
                     NagisenPageHeading(kicker: "NAGISEN AI", title: "Your coach",
                                        subtitle: "A space to think things through.", accent: Theme.fat)
-                    HStack(spacing: 8) {
-                        Button { chat.clearHistory(); composerFocused = false } label: {
-                            Image(systemName: "square.and.pencil")
-                                .font(.body.weight(.medium))
-                                .frame(width: 40, height: 40)
-                                .nagisenGlass(in: Circle(), tint: Theme.surface.opacity(0.16))
+                    if !chat.messages.isEmpty {
+                        headerButton("square.and.pencil", label: "New chat") {
+                            chat.clearHistory(); composerFocused = false
                         }
-                        .accessibilityLabel("New chat")
-                        Button { showingSettings = true } label: {
-                            Image(systemName: "gearshape")
-                                .font(.body.weight(.medium))
-                                .frame(width: 40, height: 40)
-                                .nagisenGlass(in: Circle(), tint: Theme.surface.opacity(0.16))
-                        }
-                        .accessibilityLabel("Chat settings")
                     }
+                    headerButton("slider.horizontal.3", label: "Chat settings") { showingSettings = true }
                 }
-                .padding(.horizontal, 20).padding(.top, 18).padding(.bottom, 12)
+                .padding(.horizontal, 20).padding(.top, 18).padding(.bottom, 4)
+
                 ScrollViewReader { proxy in
                     ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 16) {
+                        LazyVStack(alignment: .leading, spacing: 22) {
                             if chat.messages.isEmpty {
-                                welcome
-                                coachPrompts
+                                emptyState
                             }
                             ForEach(chat.messages) { message in
-                                HStack {
-                                    if message.role == "user" { Spacer(minLength: 45) }
-                                    Text(message.content)
-                                        .font(.subheadline)
-                                        .padding(15)
-                                        .background(message.role == "user" ? Theme.red : Theme.surface,
-                                                    in: RoundedRectangle(cornerRadius: 17))
-                                        .foregroundStyle(message.role == "user" ? .white : Theme.ink)
-                                    if message.role != "user" { Spacer(minLength: 45) }
+                                Group {
+                                    if message.role == "user" { userMessage(message) } else { coachMessage(message) }
                                 }
-                                .padding(.horizontal, 20)
                                 .id(message.id)
                             }
                             if chat.isSending {
-                                Label("Thinking…", systemImage: "ellipsis.bubble")
-                                    .font(.caption).foregroundStyle(Theme.muted)
+                                ThinkingDots().padding(.leading, 2).id("thinking")
                             }
                             if let error = chat.errorMessage {
-                                Text(error).font(.caption).foregroundStyle(.red)
+                                Label(error, systemImage: "exclamationmark.circle")
+                                    .font(.footnote).foregroundStyle(Theme.accentText)
                             }
                         }
-                        .padding(.vertical, 20)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 18)
                     }
                     .scrollDismissesKeyboard(.interactively)
                     .scrollIndicators(.hidden)
                     .onChange(of: chat.messages.count) { _, _ in
-                        if let last = chat.messages.last { proxy.scrollTo(last.id, anchor: .bottom) }
+                        withAnimation(.smooth(duration: 0.25)) {
+                            if let last = chat.messages.last { proxy.scrollTo(last.id, anchor: .bottom) }
+                        }
+                    }
+                    .onChange(of: chat.isSending) { _, sending in
+                        if sending { withAnimation(.smooth(duration: 0.25)) { proxy.scrollTo("thinking", anchor: .bottom) } }
                     }
                 }
-                if useContext {
-                    Label("Using your NAGISEN data in this chat", systemImage: "sparkles")
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(Theme.accentText)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 18)
-                        .padding(.top, 6)
-                }
-                HStack(spacing: 10) {
-                    TextField("Ask anything…", text: $draft, axis: .vertical)
-                        .lineLimit(1...4)
-                        .focused($composerFocused)
-                        .submitLabel(.send)
-                        .onSubmit { send() }
-                        .padding(12)
-                        .nagisenGlass(in: RoundedRectangle(cornerRadius: 16), tint: Theme.surface.opacity(0.18))
-                    Button { send() } label: {
-                        Image(systemName: "arrow.up")
-                            .font(.headline)
-                            .frame(width: 42, height: 42)
-                            .background(Theme.red, in: Circle())
-                            .foregroundStyle(.white)
-                    }
-                    .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || chat.isSending)
-                }
-                .padding(14)
-                .background(Theme.paper)
+                composer
             }
             .padding(.bottom, bottomMenuVisible ? 90 : 0)
             .background(NagisenBackdrop())
@@ -237,48 +204,167 @@ struct DeepSeekChatView: View {
                     Button("Done") { composerFocused = false }
                 }
             }
-            .sheet(isPresented: $showingSettings) { settings }
-            .onAppear { if !chat.hasKey { showingSettings = true } }
+            .sheet(isPresented: $showingSettings, onDismiss: { hasKey = chat.hasKey }) { settings }
+            .onAppear { hasKey = chat.hasKey }
         }
     }
 
-    private var welcome: some View {
-        Text("A little help for the journey")
-            .font(.system(size: 27, design: .serif))
-            .foregroundStyle(Theme.ink)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 24)
-            .padding(.vertical, 28)
-            .background(Theme.surface.opacity(0.52))
+    private func headerButton(_ symbol: String, label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 16, weight: .medium))
+                .frame(width: 38, height: 38)
+                .nagisenGlass(in: Circle(), tint: Theme.surface.opacity(0.16))
+                .frame(width: 44, height: 44)
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(Theme.ink)
+        .accessibilityLabel(label)
     }
 
-    private var coachPrompts: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("YOUR COACH, ON CALL")
-                .font(.caption2.weight(.semibold)).tracking(2)
-                .foregroundStyle(Theme.muted)
-            if useContext {
-                Button("Review my day so far") {
-                    sendPrompt("Review my food and activity so far today. Give me one useful observation and one practical next step. Be clear about missing logs.")
-                }
-                Button("Plan my next workout") {
-                    sendPrompt("Based on my recent workouts and activity, suggest a fun hybrid workout for my next session, with an easier option too.")
-                }
-                Button("Help me hit my goals") {
-                    sendPrompt("Using my logged nutrition and daily goals, suggest a practical next meal or snack. Do not assume I ate nothing when the diary is empty.")
-                }
-            } else {
-                Text("Turn on personal coaching in Chat settings to let me use a short summary of your NAGISEN logs.")
+    // MARK: - Empty state
+
+    private var emptyState: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("What's on your mind?")
+                    .font(.system(.title, design: .serif))
+                Text(useContext ? "I can see today's logs, goals and recent training."
+                                : "Ask about food, training, recovery or anything else.")
                     .font(.subheadline).foregroundStyle(Theme.muted)
-                Button("Set up personal coaching") { showingSettings = true }
-                    .font(.subheadline.weight(.semibold))
+            }
+            .padding(.top, 18)
+
+            if !hasKey {
+                quietCard(symbol: "key", title: "Connect DeepSeek",
+                          detail: "Add your API key once. It stays in this iPhone's Keychain.") {
+                    showingSettings = true
+                }
+            }
+            if useContext {
+                suggestion("sun.horizon", "Review my day so far", hint: "One observation, one next step",
+                           prompt: "Review my food and activity so far today. Give me one useful observation and one practical next step. Be clear about missing logs.")
+                suggestion("figure.run", "Plan my next workout", hint: "Built from your recent sessions",
+                           prompt: "Based on my recent workouts and activity, suggest a fun hybrid workout for my next session, with an easier option too.")
+                suggestion("fork.knife", "Help me hit my goals", hint: "A practical next meal or snack",
+                           prompt: "Using my logged nutrition and daily goals, suggest a practical next meal or snack. Do not assume I ate nothing when the diary is empty.")
+            } else if hasKey {
+                quietCard(symbol: "sparkles", title: "Let your coach see today",
+                          detail: "Each message would include a short summary of today's food, goals, workouts and steps, sent to DeepSeek.") {
+                    useContext = true
+                }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .foregroundStyle(Theme.accentText)
-        .padding(.horizontal, 24)
-        .padding(.vertical, 24)
-        .background(Theme.surface.opacity(0.52))
+        .foregroundStyle(Theme.ink)
+    }
+
+    private func suggestion(_ symbol: String, _ title: String, hint: String, prompt: String) -> some View {
+        quietCard(symbol: symbol, title: title, detail: hint) { sendPrompt(prompt) }
+    }
+
+    private func quietCard(symbol: String, title: String, detail: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                Image(systemName: symbol)
+                    .font(.system(size: 18, weight: .light))
+                    .foregroundStyle(Theme.accentText)
+                    .frame(width: 28)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title).font(.body.weight(.medium)).foregroundStyle(Theme.ink)
+                    Text(detail).font(.caption).foregroundStyle(Theme.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "arrow.up.right")
+                    .font(.caption.weight(.semibold)).foregroundStyle(Theme.muted)
+            }
+            .multilineTextAlignment(.leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .softCardStyle()
+    }
+
+    // MARK: - Messages
+
+    private func userMessage(_ message: CoachMessage) -> some View {
+        HStack {
+            Spacer(minLength: 48)
+            Text(message.content)
+                .font(.body)
+                .foregroundStyle(Theme.ink)
+                .padding(.horizontal, 16).padding(.vertical, 12)
+                .nagisenGlass(in: RoundedRectangle(cornerRadius: 20), tint: Theme.accent.opacity(0.22))
+                .textSelection(.enabled)
+        }
+    }
+
+    private func coachMessage(_ message: CoachMessage) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Circle().fill(Theme.fat).frame(width: 6, height: 6)
+                Text("NAGISEN").font(.caption2.weight(.semibold)).tracking(2)
+            }
+            .foregroundStyle(Theme.muted)
+            Text(Self.rendered(message.content))
+                .font(.body)
+                .lineSpacing(4)
+                .foregroundStyle(Theme.ink)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    /// Shows the bold, italics, code and links the model writes in Markdown, keeping its line breaks.
+    static func rendered(_ text: String) -> AttributedString {
+        (try? AttributedString(markdown: text,
+                               options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(text)
+    }
+
+    // MARK: - Composer
+
+    private var composer: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if useContext {
+                Label("Using today's NAGISEN data", systemImage: "sparkles")
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(Theme.accentText)
+                    .padding(.horizontal, 8)
+            }
+            HStack(alignment: .bottom, spacing: 8) {
+                TextField("Ask anything", text: $draft, axis: .vertical)
+                    .lineLimit(1...5)
+                    .focused($composerFocused)
+                    .submitLabel(.send)
+                    .onSubmit { send() }
+                    .padding(.vertical, 10)
+                    .padding(.leading, 6)
+                Button { send() } label: {
+                    Image(systemName: "arrow.up")
+                        .font(.system(size: 15, weight: .semibold))
+                        .frame(width: 34, height: 34)
+                        .background(canSend ? Theme.accent : Theme.muted.opacity(0.25), in: Circle())
+                        .foregroundStyle(canSend ? .white : Theme.muted)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .disabled(!canSend)
+                .animation(.easeOut(duration: 0.15), value: canSend)
+                .accessibilityLabel("Send")
+            }
+            .padding(.leading, 12).padding(.trailing, 2).padding(.vertical, 2)
+            .nagisenGlass(in: RoundedRectangle(cornerRadius: 24), tint: Theme.surface.opacity(0.22))
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 14)
+        .padding(.bottom, 10)
+        .background {
+            LinearGradient(colors: [Theme.paper.opacity(0), Theme.paper.opacity(0.85)],
+                           startPoint: .top, endPoint: .bottom)
+                .allowsHitTesting(false)
+        }
     }
 
     private var settings: some View {
@@ -293,14 +379,14 @@ struct DeepSeekChatView: View {
                         .frame(minHeight: 54)
                     Divider()
                     Button("Save key on this iPhone") {
-                        if chat.setKey(keyInput) { keyInput = ""; showingSettings = false }
+                        if chat.setKey(keyInput) { keyInput = ""; hasKey = true; showingSettings = false }
                     }
                     .disabled(keyInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     .foregroundStyle(Theme.accentText)
                     .frame(minHeight: 54)
                     if chat.hasKey {
                         Divider()
-                        Button("Remove saved key", role: .destructive) { chat.removeKey() }
+                        Button("Remove saved key", role: .destructive) { chat.removeKey(); hasKey = false }
                             .frame(minHeight: 54)
                     }
                     }
@@ -369,5 +455,28 @@ struct DeepSeekChatView: View {
         }
         if !recentTraining.isEmpty { parts.append("Recent NAGISEN workouts: \(recentTraining).") }
         return parts.joined(separator: " ")
+    }
+}
+
+/// Three dots that breathe while the coach writes; still when Reduce Motion is on.
+private struct ThinkingDots: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var breathing = false
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(0..<3, id: \.self) { index in
+                Circle()
+                    .fill(Theme.accentText)
+                    .frame(width: 6, height: 6)
+                    .opacity(reduceMotion ? 0.6 : (breathing ? 1 : 0.25))
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.7).repeatForever().delay(Double(index) * 0.2),
+                               value: breathing)
+            }
+        }
+        .padding(.vertical, 6)
+        .onAppear { breathing = true }
+        .accessibilityElement()
+        .accessibilityLabel("Your coach is writing")
     }
 }
