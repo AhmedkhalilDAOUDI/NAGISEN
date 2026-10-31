@@ -59,7 +59,7 @@ struct PostCommentsView: View {
                 comments = await feed.comments(on: post) ?? []
                 loading = false
             }
-            .sheet(item: $viewingMember) { MemberCardView(member: $0) }
+            .sheet(item: $viewingMember) { MemberPageView(member: $0) }
             .confirmationDialog("Delete this comment?", isPresented: Binding(
                 get: { deleting != nil }, set: { if !$0 { deleting = nil } }
             )) {

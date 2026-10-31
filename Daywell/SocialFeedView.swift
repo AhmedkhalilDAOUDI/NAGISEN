@@ -97,7 +97,7 @@ struct SocialFeedView: View {
                 }
             }
             .sheet(item: $commentingPost) { PostCommentsView(post: $0) }
-            .sheet(item: $viewingMember) { MemberCardView(member: $0) }
+            .sheet(item: $viewingMember) { MemberPageView(member: $0) }
             .confirmationDialog("Delete this post for everyone?", isPresented: Binding(
                 get: { deletingPost != nil }, set: { if !$0 { deletingPost = nil } }
             )) {
