@@ -221,7 +221,7 @@ struct GroceryPlannerView: View {
                         .padding(.horizontal, 20)
                 } else {
                     NagisenPageHeading(kicker: "NAGISEN LAB", title: "Kitchen",
-                                       subtitle: "Your kitchen. Your plan.", accent: Theme.gold)
+                                       subtitle: "Your kitchen. Your plan.")
                         .padding(.horizontal, 20)
                 }
                 finderPanel
