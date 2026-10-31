@@ -1,49 +1,24 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>NAGISEN</title>
-  <meta name="description" content="NAGISEN is a quiet iPhone companion for food, training and the habits between them.">
-  <link rel="icon" href="icon.png">
-  <link rel="stylesheet" href="style.css">
+  <meta name="description" content="NAGISEN: a quiet companion for food, training and the habits between them.">
+  <meta name="theme-color" content="#242427">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="NAGISEN">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon-192.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="stylesheet" href="app.css">
+  <script type="importmap">{ "imports": { "preact": "./vendor/preact.js" } }</script>
+  <script type="module" src="js/main.js"></script>
 </head>
 <body>
-  <div class="page">
-    <nav>
-      <a class="brand" href="./"><img src="icon.png" alt="">NAGISEN</a>
-      <a href="privacy.html">Privacy</a>
-      <a href="support.html">Support</a>
-    </nav>
-
-    <main>
-      <img class="mark" src="icon.png" alt="The NAGISEN mark: a burgundy sun over two horizon lines">
-      <p class="kicker">Progress in stillness</p>
-      <h1>The art of quiet progress.</h1>
-      <p class="lead">A calm iPhone companion for what you eat, how you train and the habits between them.</p>
-      <p class="muted">NAGISEN is in development and not on the App Store yet.</p>
-
-      <ul class="features">
-        <li><strong>Food, without the noise</strong>
-          <span>Log meals by search, barcode, a photo of the package, voice or by hand, with calories, protein, carbs and fat for each day.</span></li>
-        <li><strong>Targets that fit you</strong>
-          <span>A few questions on first launch set your calorie, macro and water targets with the Mifflin–St Jeor estimate. You can change them any time.</span></li>
-        <li><strong>Water, caffeine and cost</strong>
-          <span>Track water, see how much caffeine is still with you at bedtime, and keep the prices of the foods you buy.</span></li>
-        <li><strong>Training</strong>
-          <span>Personal records, a weekly split, daily side quests and trophies, with steps, workouts and weight from Apple Health.</span></li>
-        <li><strong>A streak worth keeping</strong>
-          <span>Check off the day when you're done logging and watch the week fill in.</span></li>
-        <li><strong>Feed</strong>
-          <span>An optional community: share photos, videos and stories, follow people, like and comment.</span></li>
-        <li><strong>A coach, everywhere</strong>
-          <span>Ask NAGISEN AI anything from any screen. It uses your own DeepSeek key, and only sees your day if you allow it.</span></li>
-      </ul>
-    </main>
-
-    <footer>
-      NAGISEN · <a href="privacy.html">Privacy policy</a> · <a href="support.html">Support</a>
-    </footer>
-  </div>
+  <div id="app"></div>
+  <noscript><p style="padding:24px">NAGISEN needs JavaScript. <a href="about.html">About NAGISEN</a></p></noscript>
 </body>
 </html>
