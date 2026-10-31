@@ -97,7 +97,9 @@ final class FeedService: ObservableObject {
         guard let raw = bundle.object(forInfoDictionaryKey: "SupabaseURL") as? String,
               let key = bundle.object(forInfoDictionaryKey: "SupabaseAnonKey") as? String,
               !key.isEmpty, !key.contains("$("),
-              let url = URL(string: raw), url.scheme == "https", url.host != nil else { return nil }
+              let parsed = URL(string: raw), parsed.scheme == "https", let host = parsed.host,
+              // Dashboards sometimes show the REST endpoint (…/rest/v1/); the client wants the bare project URL.
+              let url = URL(string: "https://\(host)") else { return nil }
         return SupabaseClient(supabaseURL: url, supabaseKey: key,
                               options: SupabaseClientOptions(auth: .init(emitLocalSessionAsInitialSession: true)))
     }
