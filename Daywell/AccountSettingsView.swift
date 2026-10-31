@@ -100,13 +100,11 @@ struct AccountSettingsView: View {
 
     private var profile: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack {
+            HStack(spacing: 14) {
                 Text("Username").foregroundStyle(Theme.muted)
-                Spacer()
                 TextField("username", text: $username)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
-                    .multilineTextAlignment(.trailing)
             }
             .frame(minHeight: 52)
             Divider().overlay(Theme.line)
