@@ -16,15 +16,16 @@ enum Theme {
     static let ink = adaptive(0x2F322C, 0xF0E8DB)
     static let muted = adaptive(0x716F69, 0xB8B0A7)
     static let line = adaptive(0xE2D9CC, 0x555258)
-    static let red = adaptive(0xB85A2B, 0x74243A)
-    static let accent = adaptive(0xB85A2B, 0x8B2B49)
-    // Deep wine stays on filled controls; warm copper carries readable accent text in dark mode.
-    static let accentText = adaptive(0xB85A2B, 0xE4AA82)
+    static let red = adaptive(0x8B2B49, 0x74243A)
+    static let accent = adaptive(0x8B2B49, 0x8B2B49)
+    // Burgundy everywhere in light mode; in dark mode wine stays on filled controls and warm copper
+    // carries readable accent text.
+    static let accentText = adaptive(0x8B2B49, 0xE4AA82)
     static let moss = adaptive(0x777174, 0xAAA3A8)
-    static let workout = adaptive(0xB85A2B, 0xB86677)
+    static let workout = adaptive(0x8B2B49, 0xB86677)
     static let gold = adaptive(0xB98654, 0xD6A875)
     /// Destructive actions: a muted rose instead of the system's alarm red.
-    static let danger = adaptive(0xA8432F, 0xD27885)
+    static let danger = adaptive(0xA3364F, 0xD27885)
     static let slate = adaptive(0x6E858B, 0xA9BFC5)
     static let protein = adaptive(0x377F77, 0x80C9BC)
     static let carbs = adaptive(0xB57726, 0xE1B76E)
