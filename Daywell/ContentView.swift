@@ -2011,8 +2011,8 @@ private struct LaunchIntroView: UIViewRepresentable {
         private let longLine = CALayer()
         private let shortLine = CALayer()
         private let name = CATextLayer()
-        /// The sun's red from the app icon.
-        private let sunColor = UIColor(red: 0.70, green: 0.32, blue: 0.25, alpha: 1)
+        /// The sun's burgundy from the app icon.
+        private let sunColor = UIColor(red: 0x8B / 255, green: 0x2B / 255, blue: 0x49 / 255, alpha: 1)
 
         init(reduceMotion: Bool, onFinish: @escaping () -> Void) {
             self.reduceMotion = reduceMotion
