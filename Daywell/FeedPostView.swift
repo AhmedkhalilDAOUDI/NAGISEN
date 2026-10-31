@@ -116,6 +116,7 @@ struct FeedPostView: View {
     @State private var showingLikers = false
     @State private var viewingMember: FeedMember?
     @State private var confirmingDelete = false
+    @State private var editing = false
     @State private var reporting = false
     @State private var confirmingBlock = false
     @State private var captionExpanded = false
@@ -164,6 +165,7 @@ struct FeedPostView: View {
             PeopleListView(title: "Likes") { await feed.likers(of: post) }
         }
         .sheet(item: $viewingMember) { MemberPageView(member: $0) }
+        .sheet(isPresented: $editing) { EditPostView(post: post) { post = $0 } }
         .confirmationDialog("Delete this post?", isPresented: $confirmingDelete) {
             Button("Delete post", role: .destructive) {
                 Task { await feed.delete(post); onRemoved?() }
@@ -196,6 +198,7 @@ struct FeedPostView: View {
             Spacer()
             Menu {
                 if feed.isMine(post) {
+                    Button("Edit post", systemImage: "pencil") { editing = true }
                     Button("Delete post", systemImage: "trash", role: .destructive) { confirmingDelete = true }
                 } else {
                     if feed.isFollowing(post.author) {
@@ -240,8 +243,17 @@ struct FeedPostView: View {
                 }
                 .accessibilityLabel("Photo by @\(post.username)")
             } else {
-                QuoteCard(text: post.body)
-                    .aspectRatio(4.0 / 5.0, contentMode: .fit)
+                // Text on the page itself, set like the comments view, rather than a card.
+                Text(post.body)
+                    .font(.system(size: 19, design: .serif))
+                    .lineSpacing(3)
+                    .lineLimit(captionExpanded ? nil : 10)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 14)
+                    .padding(.top, 4).padding(.bottom, 6)
+                    .contentShape(Rectangle())
+                    .onTapGesture { withAnimation(.smooth(duration: 0.2)) { captionExpanded = true } }
             }
         }
         .frame(maxWidth: .infinity)
@@ -298,7 +310,7 @@ struct FeedPostView: View {
     }
 }
 
-/// A text-only post, shown at the same shape as photos so feeds and grids stay even.
+/// A text-only post as a profile grid tile, the same shape as photos so the grid stays even.
 struct QuoteCard: View {
     let text: String
     var compact = false
@@ -313,6 +325,67 @@ struct QuoteCard: View {
                 .lineLimit(compact ? 5 : 12)
                 .minimumScaleFactor(0.7)
                 .padding(compact ? 10 : 32)
+        }
+    }
+}
+
+/// Edits the text of one of your posts. Photos and videos stay as posted.
+struct EditPostView: View {
+    let post: FeedPost
+    let onSaved: (FeedPost) -> Void
+    @EnvironmentObject private var feed: FeedService
+    @Environment(\.dismiss) private var dismiss
+    @State private var text: String
+
+    init(post: FeedPost, onSaved: @escaping (FeedPost) -> Void) {
+        self.post = post
+        self.onSaved = onSaved
+        _text = State(initialValue: post.body)
+    }
+
+    private var canSave: Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed != post.body && trimmed.count <= FeedRules.maxBodyLength &&
+            (!trimmed.isEmpty || post.mediaPath != nil) && !feed.isBusy
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    TextEditor(text: $text)
+                        .font(.system(size: 19, design: .serif))
+                        .lineSpacing(3)
+                        .scrollContentBackground(.hidden)
+                        .frame(minHeight: 180, maxHeight: 360)
+                    HStack {
+                        Rectangle().fill(Theme.ink.opacity(0.10)).frame(height: 0.5)
+                        Text("\(text.count) / \(FeedRules.maxBodyLength.formatted())")
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(text.count > FeedRules.maxBodyLength ? Theme.accentText : Theme.muted)
+                            .fixedSize()
+                    }
+                    if post.mediaPath != nil {
+                        Text("The \(post.mediaKind == .video ? "video" : "photo") stays as posted.")
+                            .font(.caption).foregroundStyle(Theme.muted)
+                    }
+                    if let message = feed.message {
+                        Text(message).font(.subheadline).foregroundStyle(Theme.accentText)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .foregroundStyle(Theme.ink)
+                .padding(.horizontal, 22).padding(.top, 12)
+            }
+            .scrollDismissesKeyboard(.interactively)
+            .background(NagisenBackdrop())
+            .nagisenSheetBar("Edit post", onClose: { dismiss() }, actionTitle: "Save", actionEnabled: canSave,
+                             busy: feed.isBusy) {
+                Task {
+                    if let saved = await feed.edit(post, text: text) { onSaved(saved); dismiss() }
+                }
+            }
+            .onAppear { feed.message = nil }
         }
     }
 }

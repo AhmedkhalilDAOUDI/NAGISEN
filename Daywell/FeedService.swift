@@ -667,6 +667,29 @@ final class FeedService: ObservableObject {
         }
     }
 
+    /// Saves new text for one of your posts. Returns the post as stored, or nil when it couldn't be saved.
+    func edit(_ post: FeedPost, text: String) async -> FeedPost? {
+        guard let client, isMine(post) else { return nil }
+        let body = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard body.count <= FeedRules.maxBodyLength, !body.isEmpty || post.mediaPath != nil else {
+            message = "A post without a photo or video needs some text."
+            return nil
+        }
+        isBusy = true
+        defer { isBusy = false }
+        struct Change: Encodable { let body: String }
+        do {
+            try await client.from("posts").update(Change(body: body)).eq("id", value: post.id).execute()
+            let saved: FeedPost = try await selectPosts(client).eq("id", value: post.id).single().execute().value
+            if let index = posts.firstIndex(where: { $0.id == post.id }) { posts[index] = saved }
+            message = nil
+            return saved
+        } catch {
+            message = Self.describe(error, doing: "save the post")
+            return nil
+        }
+    }
+
     func delete(_ post: FeedPost) async {
         guard let client, isMine(post) else { return }
         do {

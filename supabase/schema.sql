@@ -110,6 +110,12 @@ create policy "posts insert own" on public.posts
 drop policy if exists "posts delete own" on public.posts;
 create policy "posts delete own" on public.posts
     for delete to authenticated using (author_id = auth.uid());
+-- Authors can edit the text of their own posts; media, author and dates stay as posted.
+drop policy if exists "posts update own" on public.posts;
+create policy "posts update own" on public.posts
+    for update to authenticated using (author_id = auth.uid()) with check (author_id = auth.uid());
+revoke update on public.posts from authenticated;
+grant update (body) on public.posts to authenticated;
 
 -- Reports: insert only, never readable through the app.
 drop policy if exists "reports insert" on public.reports;
