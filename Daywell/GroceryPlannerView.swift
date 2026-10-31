@@ -181,6 +181,8 @@ struct GroceryPlannerView: View {
     @EnvironmentObject private var store: NutritionStore
     @Environment(\.dismiss) private var dismiss
     @State private var search = ""
+    @State private var editingPicks = false
+    @AppStorage(QuickPicks.storageKey) private var hiddenPicks = Data()
     @State private var dayCount = 3
     @State private var selectedDay = 0
     @State private var selectedFood: Food?
@@ -199,14 +201,21 @@ struct GroceryPlannerView: View {
     @State private var livePlan: GroceryPlan?
     @State private var hasRefreshedPlan = false
 
+    /// With no search: your usual foods, minus any you removed. While searching: everything you've
+    /// created or logged that matches.
     private var suggestions: [Food] {
-        let candidates = store.recentFoods() + store.allFoods
-        var seen = Set<String>()
-        return candidates.filter { food in
-            let key = "\(food.name.lowercased())|\(food.serving.lowercased())"
-            return seen.insert(key).inserted &&
-                (search.isEmpty || food.name.localizedCaseInsensitiveContains(search) || food.brand.localizedCaseInsensitiveContains(search))
-        }.prefix(search.isEmpty ? 8 : 20).map { $0 }
+        guard search.isEmpty else {
+            return store.myFoods.filter {
+                $0.name.localizedCaseInsensitiveContains(search) || $0.brand.localizedCaseInsensitiveContains(search)
+            }.prefix(20).map { $0 }
+        }
+        return store.frequentFoods(limit: 8, excluding: QuickPicks.hidden(in: hiddenPicks))
+    }
+
+    private func removeQuickPick(_ food: Food) {
+        var hidden = QuickPicks.hidden(in: hiddenPicks)
+        hidden.insert(NutritionStore.foodKey(food))
+        withAnimation(.smooth(duration: 0.2)) { hiddenPicks = QuickPicks.encode(hidden) }
     }
 
     private var moroccanMatches: [Food] { MoroccanFoodCatalog.search(search) }
@@ -417,15 +426,54 @@ struct GroceryPlannerView: View {
                     }
                 }
             }
-            if !suggestions.isEmpty {
+            if !suggestions.isEmpty || (search.isEmpty && !QuickPicks.hidden(in: hiddenPicks).isEmpty) {
                 Rectangle().fill(Theme.line).frame(height: 1)
-                Text(search.isEmpty ? "QUICK PICKS" : "ON THIS IPHONE")
-                    .font(.caption2.weight(.semibold)).tracking(1.8).foregroundStyle(Theme.muted)
-                ForEach(suggestions.prefix(search.isEmpty ? 5 : 8)) { food in
-                    Button { select(food) } label: {
-                        labResultRow(food, detail: "\(food.serving) · \(food.calories) kcal")
+                HStack {
+                    Text(search.isEmpty ? "QUICK PICKS" : "ON THIS IPHONE")
+                        .font(.caption2.weight(.semibold)).tracking(1.8).foregroundStyle(Theme.muted)
+                    Spacer()
+                    if search.isEmpty {
+                        Button(editingPicks ? "Done" : "Edit") {
+                            withAnimation(.smooth(duration: 0.2)) { editingPicks.toggle() }
+                        }
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Theme.accentText)
+                        .frame(minHeight: 44)
                     }
-                    .buttonStyle(.plain)
+                }
+                if search.isEmpty && suggestions.isEmpty {
+                    Text("No quick picks left. Foods you log often will show up here.")
+                        .font(.caption).foregroundStyle(Theme.muted)
+                }
+                ForEach(suggestions.prefix(search.isEmpty ? 5 : 8)) { food in
+                    HStack(spacing: 10) {
+                        if editingPicks && search.isEmpty {
+                            Button { removeQuickPick(food) } label: {
+                                Image(systemName: "minus.circle.fill")
+                                    .font(.title3)
+                                    .symbolRenderingMode(.palette)
+                                    .foregroundStyle(.white, Theme.accent)
+                                    .frame(width: 44, height: 44)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Remove \(food.name) from quick picks")
+                            .transition(.move(edge: .leading).combined(with: .opacity))
+                        }
+                        Button { select(food) } label: {
+                            labResultRow(food, detail: "\(food.serving) · \(food.calories) kcal")
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(editingPicks && search.isEmpty)
+                    }
+                }
+                if editingPicks && search.isEmpty && !QuickPicks.hidden(in: hiddenPicks).isEmpty {
+                    Button("Restore removed (\(QuickPicks.hidden(in: hiddenPicks).count))") {
+                        withAnimation(.smooth(duration: 0.2)) { hiddenPicks = QuickPicks.encode([]) }
+                    }
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Theme.accentText)
+                    .frame(minHeight: 44)
                 }
             }
         }
@@ -634,16 +682,26 @@ struct GroceryPlannerView: View {
                     .font(.caption).foregroundStyle(Theme.accentText)
             }
             if !logged.isEmpty {
-                Text("ALREADY EATEN")
-                    .font(.caption2.weight(.semibold)).tracking(1.5).foregroundStyle(Theme.muted)
-                ForEach(logged) { entry in
+                VStack(alignment: .leading, spacing: 10) {
                     HStack {
-                        Text(entry.food.name)
+                        Label("ALREADY EATEN", systemImage: "checkmark.circle")
+                            .font(.caption2.weight(.semibold)).tracking(1.5)
+                            .foregroundStyle(Theme.muted)
                         Spacer()
-                        Text("\(entry.calories) kcal")
+                        Text("\(eatenCalories) kcal")
+                            .font(.caption.weight(.semibold))
                     }
-                    .font(.caption).foregroundStyle(Theme.muted)
+                    ForEach(logged) { entry in
+                        HStack(alignment: .firstTextBaseline) {
+                            Text(entry.food.name).font(.subheadline)
+                                .lineLimit(2)
+                            Spacer(minLength: 12)
+                            Text("\(entry.calories) kcal")
+                                .font(.caption).foregroundStyle(Theme.muted)
+                        }
+                    }
                 }
+                .softCardStyle()
             }
             if day.meals.isEmpty {
                 Text("No meals remain to plan from your available groceries.")
