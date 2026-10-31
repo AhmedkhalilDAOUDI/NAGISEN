@@ -95,7 +95,8 @@ struct ContentView: View {
     @State private var selectedDate = Date.now
     @State private var section: MainSection = .launchSection
     @State private var showingCoach = MainSection.launchOpensCoach
-    @AppStorage("nagisen.intro.played") private var introPlayed = false
+    @State private var showingIntro = true
+    @Environment(\.scenePhase) private var scenePhase
     @State private var slideDirection: CGFloat = 1
     @State private var keyboardVisible = false
 
@@ -127,8 +128,10 @@ struct ContentView: View {
             }
         }
         .overlay {
-            if !introPlayed { LaunchIntroView { introPlayed = true } }
+            if showingIntro { LaunchIntroView { showingIntro = false } }
         }
+        // Leaving the app arms the intro, so it plays again on the way back in.
+        .onChange(of: scenePhase) { _, phase in if phase == .background { showingIntro = true } }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
             keyboardVisible = true
         }
@@ -1646,7 +1649,7 @@ struct NagisenPrimaryButton: View {
     }
 }
 
-/// The logo drawing itself on first launch: the horizon spreads, the sun rises behind it,
+/// The logo drawing itself each time the app opens: the horizon spreads, the sun rises behind it,
 /// then the name appears and everything fades into the app.
 private struct LaunchIntroView: View {
     let onFinish: () -> Void
