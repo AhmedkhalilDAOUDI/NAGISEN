@@ -128,7 +128,6 @@ struct WorkoutMusicView: View {
         store.workouts.filter { Calendar.current.isDateInToday($0.date) }
     }
 
-    private var todayMinutes: Int { todayWorkouts.reduce(0) { $0 + $1.minutes } }
     private var challenge: ChallengePlan? { store.challengePlans[store.dayKey(.now)] }
     private var todaysQuests: [ChallengeQuest] {
         challenge?.activeQuests(for: store.dayKey(.now)) ?? []
@@ -144,7 +143,14 @@ struct WorkoutMusicView: View {
     }
     private var challengeComplete: Bool { !todaysQuests.isEmpty && todaysQuests.allSatisfy { completedQuestIDs.contains($0.id) } }
     private var leftQuestsToday: Bool { leftQuestDay == store.dayKey(.now) }
-    private var recent: [WorkoutEntry] { store.workouts.sorted { $0.date > $1.date } }
+    private var featuredRecord: StrengthRecord? {
+        guard let exercise = store.strengthRecords.max(by: { $0.date < $1.date })?.exercise else { return nil }
+        return store.strengthRecords.filter { $0.exercise == exercise }
+            .max { left, right in
+                left.kilograms == right.kilograms ? left.reps < right.reps : left.kilograms < right.kilograms
+            }
+    }
+    private var trackedLiftCount: Int { Set(store.strengthRecords.map { $0.exercise.lowercased() }).count }
 
     private func shufflePack() {
         let key = store.dayKey(.now)
@@ -282,18 +288,52 @@ struct WorkoutMusicView: View {
 
                     SpotifyMusicCard()
 
-                    HStack(spacing: 23) {
-                        ActivityRings(move: min(CGFloat(todayMinutes) / 30, 1),
-                                      session: min(CGFloat(todayWorkouts.count), 1),
-                                      challenge: CGFloat(completedQuestIDs.count) / CGFloat(max(todaysQuests.count, 1)))
-                            .frame(width: 150, height: 150)
-                        VStack(alignment: .leading, spacing: 14) {
-                            ringLabel("MOVE", value: "\(todayMinutes) / 30 min", color: Theme.workout)
-                            ringLabel("SESSIONS", value: "\(todayWorkouts.count) / 1", color: Theme.gold)
-                            ringLabel("SIDE QUESTS", value: "\(completedQuestIDs.count) / \(todaysQuests.count)", color: Theme.slate)
+                    NavigationLink {
+                        PersonalRecordsView()
+                    } label: {
+                        HStack(spacing: 14) {
+                            Image(systemName: "dumbbell.fill")
+                                .font(.title2)
+                                .foregroundStyle(Theme.workout)
+                                .frame(width: 32)
+                            VStack(alignment: .leading, spacing: 5) {
+                                Text("PERSONAL RECORDS")
+                                    .font(.caption2.weight(.semibold)).tracking(1.6)
+                                    .foregroundStyle(Theme.muted)
+                                if let featuredRecord {
+                                    Text("\(featuredRecord.exercise) · \(featuredRecord.kilograms.formatted(.number.precision(.fractionLength(0...1)))) kg × \(featuredRecord.reps)")
+                                        .font(.system(size: 19, design: .serif))
+                                        .lineLimit(2)
+                                    Text("\(trackedLiftCount) lifts tracked")
+                                        .font(.caption)
+                                        .foregroundStyle(Theme.muted)
+                                } else {
+                                    Text("Track your best lifts")
+                                        .font(.system(size: 19, design: .serif))
+                                    Text("Add your first PR")
+                                        .font(.caption)
+                                        .foregroundStyle(Theme.muted)
+                                }
+                            }
+                            Spacer(minLength: 0)
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(Theme.muted)
                         }
+                        .foregroundStyle(Theme.ink)
+                        .padding(18)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .nagisenGlass(in: RoundedRectangle(cornerRadius: 20), tint: Theme.gold.opacity(0.10))
                     }
-                    .accentCardStyle(Theme.workout)
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Personal records, \(trackedLiftCount) lifts tracked")
+
+                    NavigationLink {
+                        WorkoutSplitEditorView()
+                    } label: {
+                        workoutSplitCard
+                    }
+                    .buttonStyle(.plain)
 
                     VStack(alignment: .leading, spacing: 15) {
                         HStack {
@@ -362,26 +402,6 @@ struct WorkoutMusicView: View {
                             .foregroundStyle(.white)
                     }
 
-                    NavigationLink {
-                        PersonalRecordsView()
-                    } label: {
-                        HStack(spacing: 14) {
-                            Image(systemName: "dumbbell.fill")
-                                .font(.title2).foregroundStyle(Theme.workout)
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Personal records")
-                                    .font(.system(size: 22, design: .serif))
-                                Text(store.strengthRecords.isEmpty ? "Track your best lifts" :
-                                     "\(Set(store.strengthRecords.map { $0.exercise.lowercased() }).count) lifts tracked")
-                                    .font(.caption).foregroundStyle(Theme.muted)
-                            }
-                            Spacer()
-                            Image(systemName: "chevron.right").font(.caption).foregroundStyle(Theme.muted)
-                        }
-                        .cardStyle()
-                    }
-                    .buttonStyle(.plain)
-
                     VStack(alignment: .leading, spacing: 15) {
                         HStack {
                             Text("TROPHY SHELF")
@@ -414,45 +434,6 @@ struct WorkoutMusicView: View {
                         }
                     }
                     .accentCardStyle(Theme.gold)
-
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("RECENT WORKOUTS")
-                            .font(.caption2.weight(.semibold)).tracking(2)
-                            .foregroundStyle(Theme.muted)
-                        if recent.isEmpty {
-                            Text("Log your first workout to start earning trophies.")
-                                .font(.subheadline).foregroundStyle(Theme.muted)
-                        } else {
-                            ScrollView(.vertical) {
-                                LazyVStack(spacing: 0) {
-                                    ForEach(recent) { workout in
-                                        Divider().overlay(Theme.line)
-                                        HStack(spacing: 10) {
-                                            Image(systemName: "figure.run").foregroundStyle(Theme.accentText)
-                                            VStack(alignment: .leading, spacing: 3) {
-                                                Text(workout.activity)
-                                                if let detail = workout.detail, !detail.isEmpty {
-                                                    Text(detail).font(.caption).foregroundStyle(Theme.muted).lineLimit(1)
-                                                }
-                                                Text(workout.date.formatted(date: .abbreviated, time: .omitted))
-                                                    .font(.caption).foregroundStyle(Theme.muted)
-                                            }
-                                            Spacer(minLength: 4)
-                                            Text("\(workout.minutes) min").foregroundStyle(Theme.muted)
-                                            Button(role: .destructive) {
-                                                store.workouts.removeAll { $0.id == workout.id }
-                                            } label: { Image(systemName: "trash").font(.caption) }
-                                                .accessibilityLabel("Delete \(workout.activity) workout")
-                                        }
-                                        .frame(height: 88)
-                                    }
-                                }
-                            }
-                            .frame(height: CGFloat(min(recent.count, 3)) * 88)
-                            .scrollIndicators(recent.count > 3 ? .visible : .hidden)
-                        }
-                    }
-                    .cardStyle()
 
                     NavigationLink {
                         HealthView()
@@ -521,14 +502,55 @@ struct WorkoutMusicView: View {
         }
     }
 
-    private func ringLabel(_ name: String, value: String, color: Color) -> some View {
-        HStack(spacing: 8) {
-            Circle().fill(color).frame(width: 9, height: 9)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(name).font(.caption2.weight(.semibold)).foregroundStyle(Theme.muted)
-                Text(value).font(.subheadline.weight(.medium))
+    private var workoutSplitCard: some View {
+        let split = store.workoutSplit
+        return VStack(alignment: .leading, spacing: 13) {
+            HStack {
+                Label("WORKOUT SPLIT", systemImage: "calendar")
+                    .font(.caption2.weight(.semibold)).tracking(1.5)
+                    .foregroundStyle(Theme.muted)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(Theme.muted)
+            }
+            if let split, split.days.count == 7 {
+                HStack(alignment: .firstTextBaseline, spacing: 7) {
+                    Text(split.focus(on: .now))
+                        .font(.system(size: 25, design: .serif))
+                        .foregroundStyle(Theme.ink)
+                    Text("today")
+                        .font(.caption)
+                        .foregroundStyle(Theme.muted)
+                }
+                HStack(spacing: 4) {
+                    ForEach(0..<7, id: \.self) { index in
+                        let isToday = index == (Calendar.current.component(.weekday, from: .now) + 5) % 7
+                        VStack(spacing: 4) {
+                            Text(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][index])
+                                .font(.caption2.weight(isToday ? .bold : .medium))
+                            Text(split.days[index])
+                                .font(.system(size: 10, weight: isToday ? .semibold : .regular))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.65)
+                        }
+                        .foregroundStyle(isToday ? Theme.accentText : Theme.muted)
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+            } else {
+                Text("Plan your training week")
+                    .font(.system(size: 23, design: .serif))
+                    .foregroundStyle(Theme.ink)
+                Text("Choose a split or set your own days")
+                    .font(.caption)
+                    .foregroundStyle(Theme.muted)
             }
         }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .nagisenGlass(in: RoundedRectangle(cornerRadius: 20), tint: Theme.workout.opacity(0.10))
+        .accessibilityLabel(split == nil ? "Set up workout split" : "Workout split, \(split?.focus(on: .now) ?? "") today")
     }
 }
 
@@ -618,6 +640,110 @@ private struct TrophyCelebrationView: View {
             soundPlayer?.play()
         } catch {
             // The visual and haptic celebration still work when audio is unavailable.
+        }
+    }
+
+
+}
+
+private struct WorkoutSplitEditorView: View {
+    @EnvironmentObject private var store: NutritionStore
+    @Environment(\.dismiss) private var dismiss
+    @State private var draft = WorkoutSplitTemplate.pushPullLegs.split
+    @FocusState private var focusedDay: Int?
+
+    private let dayNames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 22) {
+                NagisenHeader("Workout split", subtitle: "A rhythm you can change any time.", onBack: { dismiss() })
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("START WITH A SPLIT")
+                        .font(.caption2.weight(.semibold)).tracking(1.8)
+                        .foregroundStyle(Theme.muted)
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 9) {
+                            ForEach(WorkoutSplitTemplate.allCases) { template in
+                                Button(template.rawValue) {
+                                    focusedDay = nil
+                                    draft = template.split
+                                }
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(draft.name == template.rawValue ? Theme.accentText : Theme.ink)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 10)
+                                .nagisenGlass(in: Capsule(), tint: draft.name == template.rawValue ? Theme.workout.opacity(0.18) : .clear)
+                            }
+                        }
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("YOUR WEEK")
+                        .font(.caption2.weight(.semibold)).tracking(1.8)
+                        .foregroundStyle(Theme.muted)
+                        .padding(.bottom, 7)
+                    ForEach(0..<7, id: \.self) { index in
+                        HStack(spacing: 12) {
+                            Text(dayNames[index])
+                                .font(.subheadline.weight(.medium))
+                                .frame(width: 94, alignment: .leading)
+                            TextField("Rest or training focus", text: Binding(
+                                get: { draft.days[index] },
+                                set: { draft.days[index] = $0; draft.name = "Custom" }
+                            ))
+                            .textInputAutocapitalization(.words)
+                            .submitLabel(index == 6 ? .done : .next)
+                            .focused($focusedDay, equals: index)
+                            .onSubmit { focusedDay = index == 6 ? nil : index + 1 }
+                            .multilineTextAlignment(.trailing)
+                        }
+                        .padding(.vertical, 12)
+                        if index < 6 { Divider().overlay(Theme.line) }
+                    }
+                }
+                .foregroundStyle(Theme.ink)
+                .padding(18)
+                .nagisenGlass(in: RoundedRectangle(cornerRadius: 20), tint: Theme.surface.opacity(0.18))
+
+                Button("Save split") {
+                    draft.days = draft.days.map { String($0.trimmingCharacters(in: .whitespacesAndNewlines).prefix(40)) }
+                    store.workoutSplit = draft
+                    focusedDay = nil
+                    dismiss()
+                }
+                .font(.headline)
+                .frame(maxWidth: .infinity, minHeight: 52)
+                .foregroundStyle(.white)
+                .background(Theme.accent, in: RoundedRectangle(cornerRadius: 15))
+                .disabled(draft.days.count != 7 || draft.days.contains { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty })
+
+                if store.workoutSplit != nil {
+                    Button("Remove split", role: .destructive) {
+                        store.workoutSplit = nil
+                        dismiss()
+                    }
+                    .font(.subheadline)
+                    .frame(maxWidth: .infinity)
+                }
+            }
+            .padding(24)
+            .padding(.bottom, 80)
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .background(NagisenBackdrop())
+        .tint(Theme.accentText)
+        .toolbar(.hidden, for: .navigationBar)
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") { focusedDay = nil }
+            }
+        }
+        .onAppear {
+            if let saved = store.workoutSplit, saved.days.count == 7 { draft = saved }
         }
     }
 }
@@ -727,35 +853,6 @@ private struct SakuraPetalRain: View {
                 }
             }
         }
-    }
-}
-
-private struct ActivityRings: View {
-    let move: CGFloat
-    let session: CGFloat
-    let challenge: CGFloat
-
-    var body: some View {
-        ZStack {
-            ring(move, color: Theme.workout, size: 150)
-            ring(session, color: Theme.gold, size: 112)
-            ring(challenge, color: Theme.slate, size: 74)
-            Image(systemName: "figure.run")
-                .font(.title3)
-                .foregroundStyle(Theme.ink)
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Activity rings")
-    }
-
-    private func ring(_ progress: CGFloat, color: Color, size: CGFloat) -> some View {
-        ZStack {
-            Circle().stroke(color.opacity(0.2), lineWidth: 11)
-            Circle().trim(from: 0, to: progress)
-                .stroke(color, style: StrokeStyle(lineWidth: 11, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-        }
-        .frame(width: size, height: size)
     }
 }
 

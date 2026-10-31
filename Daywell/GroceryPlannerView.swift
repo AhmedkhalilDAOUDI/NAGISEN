@@ -3,7 +3,7 @@ import PhotosUI
 import Vision
 import UIKit
 
-private enum GroceryPlanner {
+enum GroceryPlanner {
     private enum Role {
         case breakfast, protein, starch, vegetable, fruit, snack, flexible
     }
@@ -30,7 +30,11 @@ private enum GroceryPlanner {
     }
 
     static func make(stock: [GroceryStock], count: Int, start: Date,
-                     goalsForDate: (Date) -> NutritionGoals, avoiding: [String]) -> GroceryPlan? {
+                     goalsForDate: (Date) -> NutritionGoals, avoiding: [String],
+                     diary: [DiaryEntry] = [], anchorEntryIDs: [UUID]? = nil,
+                     createdAt: Date = .now) -> GroceryPlan? {
+        let anchors = Set(anchorEntryIDs ?? diary.map(\.id))
+        let newEntries = diary.filter { !anchors.contains($0.id) }
         let usable = stock.filter { item in
             !avoiding.contains { term in
                 let trimmed = term.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -39,11 +43,22 @@ private enum GroceryPlanner {
         }
         guard (1...7).contains(count), !usable.isEmpty else { return nil }
         var remaining = Dictionary(uniqueKeysWithValues: usable.map { ($0.id, $0.servings) })
+        // A logged food consumes stock only when it was logged after this plan began.
+        // Match barcodes first, then the same normalized name, brand and serving.
+        for entry in newEntries {
+            guard let item = usable.first(where: { sameFood($0.food, entry.food) }) else { continue }
+            remaining[item.id, default: 0] = max(0, remaining[item.id, default: 0] - entry.servings)
+        }
         var days: [GroceryPlanDay] = []
         let startDay = Calendar.current.startOfDay(for: start)
         for dayIndex in 0..<count {
             guard let date = Calendar.current.date(byAdding: .day, value: dayIndex, to: startDay) else { return nil }
-            let goal = goalsForDate(date).balanced
+            var goal = goalsForDate(date).balanced
+            let eaten = diary.filter { Calendar.current.isDate($0.date, inSameDayAs: date) }
+            goal.calories = max(0, goal.calories - eaten.reduce(0) { $0 + $1.calories })
+            goal.protein = max(0, goal.protein - Int(eaten.reduce(0.0) { $0 + $1.protein }.rounded()))
+            goal.carbs = max(0, goal.carbs - Int(eaten.reduce(0.0) { $0 + $1.carbs }.rounded()))
+            goal.fat = max(0, goal.fat - Int(eaten.reduce(0.0) { $0 + $1.fat }.rounded()))
             let daysLeft = Double(count - dayIndex)
             // Reserve an even share of each grocery for later days. The optimizer can
             // leave food unused if adding it would move the plan further from the goals.
@@ -119,7 +134,22 @@ private enum GroceryPlanner {
             }
             days.append(GroceryPlanDay(date: date, meals: meals))
         }
-        return GroceryPlan(createdAt: .now, days: days, stockSnapshot: usable)
+        let availableStock = usable.map { item -> GroceryStock in
+            var copy = item
+            copy.servings = max(0, item.servings - newEntries.filter { sameFood(item.food, $0.food) }
+                .reduce(0.0) { $0 + $1.servings })
+            return copy
+        }
+        return GroceryPlan(createdAt: createdAt, days: days, stockSnapshot: availableStock,
+                           anchorEntryIDs: Array(anchors))
+    }
+
+    private static func sameFood(_ left: Food, _ right: Food) -> Bool {
+        if let leftCode = left.barcode, let rightCode = right.barcode,
+           !leftCode.isEmpty, leftCode == rightCode { return true }
+        return left.name.localizedCaseInsensitiveCompare(right.name) == .orderedSame &&
+            left.brand.localizedCaseInsensitiveCompare(right.brand) == .orderedSame &&
+            left.serving.localizedCaseInsensitiveCompare(right.serving) == .orderedSame
     }
 }
 
@@ -166,6 +196,8 @@ struct GroceryPlannerView: View {
     @State private var photoStatus: String?
     @State private var correctingFood: Food?
     @State private var showingRegenerate = false
+    @State private var livePlan: GroceryPlan?
+    @State private var hasRefreshedPlan = false
 
     private var suggestions: [Food] {
         let candidates = store.recentFoods() + store.allFoods
@@ -179,7 +211,7 @@ struct GroceryPlannerView: View {
 
     private var moroccanMatches: [Food] { MoroccanFoodCatalog.search(search) }
 
-    private var plan: GroceryPlan? { store.groceryPlan }
+    private var plan: GroceryPlan? { hasRefreshedPlan ? livePlan : store.groceryPlan }
 
     var body: some View {
         ScrollView {
@@ -211,7 +243,18 @@ struct GroceryPlannerView: View {
         .background(NagisenBackdrop())
         .foregroundStyle(Theme.ink)
         .toolbar(.hidden, for: .navigationBar)
-        .onAppear { if let count = store.groceryPlan?.days.count { dayCount = count } }
+        .onAppear {
+            if let count = store.groceryPlan?.days.count { dayCount = count }
+            refreshPlan()
+        }
+        .onChange(of: store.entries.map { "\($0.id):\($0.servings):\($0.date.timeIntervalSince1970)" }) { _, _ in refreshPlan() }
+        .onChange(of: store.groceryStock.map { "\($0.id):\($0.servings):\($0.food.id)" }) { _, _ in refreshPlan() }
+        .onChange(of: "\(store.goals.calories):\(store.goals.protein):\(store.goals.fat):\(store.goals.carbs)") { _, _ in refreshPlan() }
+        .onChange(of: store.foodsToAvoid) { _, _ in refreshPlan() }
+        .onChange(of: store.weekdayGoals.keys.sorted().compactMap { key -> String? in
+            guard let value = store.weekdayGoals[key] else { return nil }
+            return "\(key):\(value.calories):\(value.protein):\(value.fat):\(value.carbs)"
+        }) { _, _ in refreshPlan() }
         .onChange(of: photoItem) { _, item in
             guard let item else { return }
             Task {
@@ -562,25 +605,48 @@ struct GroceryPlannerView: View {
             }
             let day = plan.days[min(selectedDay, plan.days.count - 1)]
             let goal = store.goals(on: day.date)
+            let logged = store.entries(on: day.date)
+            let eatenCalories = logged.reduce(0) { $0 + $1.calories }
+            let eatenProtein = logged.reduce(0.0) { $0 + $1.protein }
+            let eatenCarbs = logged.reduce(0.0) { $0 + $1.carbs }
+            let eatenFat = logged.reduce(0.0) { $0 + $1.fat }
             HStack(alignment: .firstTextBaseline) {
                 Text(day.date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
                     .font(.system(size: 22, design: .serif))
                 Spacer()
-                Text("\(day.calories) / \(goal.calories) kcal")
+                Text("\(day.calories + eatenCalories) / \(goal.calories) kcal")
                     .font(.subheadline.weight(.semibold)).foregroundStyle(Theme.accentText)
             }
-            HStack(spacing: 14) {
-                planMacro("Protein", grams: day.protein, target: goal.protein, color: Theme.protein)
-                planMacro("Carbs", grams: day.carbs, target: goal.carbs, color: Theme.carbs)
-                planMacro("Fat", grams: day.fat, target: goal.fat, color: Theme.fat)
+            if !logged.isEmpty {
+                Text("\(eatenCalories) eaten · \(day.calories) still planned")
+                    .font(.caption).foregroundStyle(Theme.muted)
             }
-            if day.calories < goal.calories * 9 / 10 || day.protein < Double(goal.protein) * 0.9 ||
-                day.fat < Double(goal.fat) * 0.9 || day.carbs < Double(goal.carbs) * 0.9 {
+            HStack(spacing: 14) {
+                planMacro("Protein", grams: day.protein + eatenProtein, target: goal.protein, color: Theme.protein)
+                planMacro("Carbs", grams: day.carbs + eatenCarbs, target: goal.carbs, color: Theme.carbs)
+                planMacro("Fat", grams: day.fat + eatenFat, target: goal.fat, color: Theme.fat)
+            }
+            if day.calories + eatenCalories < goal.calories * 9 / 10 ||
+                day.protein + eatenProtein < Double(goal.protein) * 0.9 ||
+                day.fat + eatenFat < Double(goal.fat) * 0.9 ||
+                day.carbs + eatenCarbs < Double(goal.carbs) * 0.9 {
                 Label("Your available groceries cannot fully meet these targets. Add more food and make a new plan.", systemImage: "info.circle")
                     .font(.caption).foregroundStyle(Theme.accentText)
             }
+            if !logged.isEmpty {
+                Text("ALREADY EATEN")
+                    .font(.caption2.weight(.semibold)).tracking(1.5).foregroundStyle(Theme.muted)
+                ForEach(logged) { entry in
+                    HStack {
+                        Text(entry.food.name)
+                        Spacer()
+                        Text("\(entry.calories) kcal")
+                    }
+                    .font(.caption).foregroundStyle(Theme.muted)
+                }
+            }
             if day.meals.isEmpty {
-                Text("No groceries remain for this day. Add more food and make a new plan.")
+                Text("No meals remain to plan from your available groceries.")
                     .font(.subheadline).foregroundStyle(Theme.muted)
             }
             ForEach(day.meals) { meal in
@@ -803,20 +869,40 @@ struct GroceryPlannerView: View {
         } else {
             store.groceryStock.append(GroceryStock(food: food, servings: amount))
         }
-        store.groceryPlan = nil
         selectedFood = nil
     }
 
     private func remove(_ id: UUID) {
         store.groceryStock.removeAll { $0.id == id }
-        store.groceryPlan = nil
     }
 
     private func generate() {
         store.groceryPlan = GroceryPlanner.make(stock: store.groceryStock, count: dayCount,
                                                 start: .now, goalsForDate: { store.goals(on: $0) },
-                                                avoiding: store.foodsToAvoid)
+                                                avoiding: store.foodsToAvoid, diary: store.entries)
+        livePlan = store.groceryPlan
+        hasRefreshedPlan = true
         selectedDay = 0
+    }
+
+    private func refreshPlan() {
+        hasRefreshedPlan = true
+        guard var base = store.groceryPlan else { livePlan = nil; return }
+        guard !store.groceryStock.isEmpty else {
+            livePlan = nil
+            store.groceryPlan = nil
+            return
+        }
+        if base.anchorEntryIDs == nil {
+            base.anchorEntryIDs = store.entries.map(\.id)
+            store.groceryPlan = base
+        }
+        livePlan = GroceryPlanner.make(stock: store.groceryStock, count: base.days.count,
+                                       start: base.days.first?.date ?? .now,
+                                       goalsForDate: { store.goals(on: $0) },
+                                       avoiding: store.foodsToAvoid, diary: store.entries,
+                                       anchorEntryIDs: base.anchorEntryIDs,
+                                       createdAt: base.createdAt)
     }
 }
 

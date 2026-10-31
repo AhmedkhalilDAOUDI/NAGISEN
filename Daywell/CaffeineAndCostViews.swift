@@ -503,9 +503,6 @@ private struct CostDetailView: View {
 
     private var prices: some View {
         let foods = store.costFoods
-        let recent = store.unpricedFoods(limit: 8).filter { food in
-            !foods.contains { FoodCost.key(for: $0) == FoodCost.key(for: food) }
-        }
         return VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Your food prices")
@@ -516,19 +513,12 @@ private struct CostDetailView: View {
             Text("Tap a food to set what you paid. Search above for anything else.")
                 .font(.caption).foregroundStyle(Theme.muted)
 
-            if foods.isEmpty && recent.isEmpty {
+            if foods.isEmpty {
                 Text("Search for a food to add its price.")
                     .font(.caption).foregroundStyle(Theme.muted)
             } else {
                 ForEach(foods) { food in
                     PriceRow(food: food) { store.removeCostFood(food) }
-                }
-                if !recent.isEmpty {
-                    Divider()
-                    Text("RECENTLY EATEN · NEED A PRICE")
-                        .font(.caption2.weight(.semibold)).tracking(1.4)
-                        .foregroundStyle(Theme.muted)
-                    ForEach(recent) { food in PriceRow(food: food) }
                 }
             }
         }

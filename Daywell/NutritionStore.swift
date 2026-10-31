@@ -157,6 +157,9 @@ struct GroceryPlan: Codable {
     var createdAt: Date
     var days: [GroceryPlanDay]
     var stockSnapshot: [GroceryStock]
+    /// Entries already present when the plan was made do not consume newly entered stock.
+    /// Optional so plans saved by earlier builds still decode.
+    var anchorEntryIDs: [UUID]? = nil
 }
 
 struct GoalAdjustment: Codable, Identifiable {
@@ -281,6 +284,45 @@ struct StrengthRecord: Identifiable, Codable {
     var date: Date
 }
 
+struct WorkoutSplit: Codable, Equatable {
+    var name: String
+    /// Monday through Sunday. A plain label allows mixed training styles and custom days.
+    var days: [String]
+
+    var isWellFormed: Bool {
+        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        days.count == 7 && days.allSatisfy {
+            let focus = $0.trimmingCharacters(in: .whitespacesAndNewlines)
+            return !focus.isEmpty && focus.count <= 40
+        }
+    }
+
+    func focus(on date: Date, calendar: Calendar = .current) -> String {
+        guard days.count == 7 else { return "Rest" }
+        let weekday = calendar.component(.weekday, from: date)
+        return days[(weekday + 5) % 7]
+    }
+}
+
+enum WorkoutSplitTemplate: String, CaseIterable, Identifiable {
+    case pushPullLegs = "Push / Pull / Legs"
+    case upperLower = "Upper / Lower"
+    case fullBody = "Full Body"
+    case boxingStrength = "Boxing + Strength"
+
+    var id: Self { self }
+    var split: WorkoutSplit {
+        let days: [String]
+        switch self {
+        case .pushPullLegs: days = ["Push", "Pull", "Legs", "Push", "Pull", "Legs", "Rest"]
+        case .upperLower: days = ["Upper", "Lower", "Rest", "Upper", "Lower", "Cardio", "Rest"]
+        case .fullBody: days = ["Full Body", "Rest", "Full Body", "Rest", "Full Body", "Cardio", "Rest"]
+        case .boxingStrength: days = ["Boxing", "Upper", "Conditioning", "Lower", "Boxing", "Full Body", "Rest"]
+        }
+        return WorkoutSplit(name: rawValue, days: days)
+    }
+}
+
 struct ChallengeQuest: Identifiable, Codable, Hashable {
     var id: String
     var category: String
@@ -338,6 +380,7 @@ final class NutritionStore: ObservableObject {
     @Published var completedLoggingDays: Set<String> = [] { didSet { persist("completedLoggingDays", completedLoggingDays) } }
     @Published var workouts: [WorkoutEntry] = [] { didSet { persist("workouts", workouts) } }
     @Published var strengthRecords: [StrengthRecord] = [] { didSet { persist("strengthRecords", strengthRecords) } }
+    @Published var workoutSplit: WorkoutSplit? = nil { didSet { persist("workoutSplit", workoutSplit) } }
     @Published var challengePlans: [String: ChallengePlan] = [:] { didSet { persist("challengePlans", challengePlans) } }
     @Published var questSeenIDs: [String] = [] { didSet { persist("questSeenIDs", questSeenIDs) } }
     @Published var trophyNames: [String: String] = [:] { didSet { persist("trophyNames", trophyNames) } }
@@ -372,6 +415,7 @@ final class NutritionStore: ObservableObject {
         var completedLoggingDays: Set<String>?
         var workouts: [WorkoutEntry]?
         var strengthRecords: [StrengthRecord]?
+        var workoutSplit: WorkoutSplit?
         var challengePlans: [String: ChallengePlan]?
         var questSeenIDs: [String]?
         var trophyNames: [String: String]?
@@ -416,6 +460,9 @@ final class NutritionStore: ObservableObject {
             completedLoggingDays = vault?.read("completedLoggingDays") ?? []
             workouts = vault?.read("workouts") ?? []
             strengthRecords = vault?.read("strengthRecords") ?? []
+            if let savedSplit: WorkoutSplit = vault?.read("workoutSplit"), savedSplit.isWellFormed {
+                workoutSplit = savedSplit
+            }
             challengePlans = vault?.read("challengePlans") ?? [:]
             questSeenIDs = vault?.read("questSeenIDs") ?? []
             trophyNames = vault?.read("trophyNames") ?? [:]
@@ -455,6 +502,7 @@ final class NutritionStore: ObservableObject {
         completedLoggingDays = saved.completedLoggingDays ?? []
         workouts = saved.workouts ?? []
         strengthRecords = saved.strengthRecords ?? []
+        workoutSplit = saved.workoutSplit?.isWellFormed == true ? saved.workoutSplit : nil
         challengePlans = saved.challengePlans ?? [:]
         questSeenIDs = saved.questSeenIDs ?? []
         trophyNames = saved.trophyNames ?? [:]
@@ -497,6 +545,7 @@ final class NutritionStore: ObservableObject {
             vault.write("completedLoggingDays", value: completedLoggingDays) &&
             vault.write("workouts", value: workouts) &&
             vault.write("strengthRecords", value: strengthRecords) &&
+            vault.write("workoutSplit", value: workoutSplit) &&
             vault.write("challengePlans", value: challengePlans) &&
             vault.write("questSeenIDs", value: questSeenIDs) &&
             vault.write("trophyNames", value: trophyNames) &&
@@ -527,6 +576,7 @@ final class NutritionStore: ObservableObject {
                               creatineTakenDays: creatineTakenDays,
                               completedLoggingDays: completedLoggingDays, workouts: workouts,
                               strengthRecords: strengthRecords,
+                              workoutSplit: workoutSplit,
                               challengePlans: challengePlans, questSeenIDs: questSeenIDs, trophyNames: trophyNames,
                               goalAdjustments: goalAdjustments, weekdayGoals: weekdayGoals,
                               foodsToAvoid: foodsToAvoid, savedRecipes: savedRecipes,
@@ -637,6 +687,7 @@ final class NutritionStore: ObservableObject {
                               creatineTakenDays: creatineTakenDays,
                               completedLoggingDays: completedLoggingDays, workouts: workouts,
                               strengthRecords: strengthRecords,
+                              workoutSplit: workoutSplit,
                               challengePlans: challengePlans, questSeenIDs: questSeenIDs, trophyNames: trophyNames,
                               goalAdjustments: goalAdjustments, weekdayGoals: weekdayGoals,
                               foodsToAvoid: foodsToAvoid, savedRecipes: savedRecipes,
@@ -657,7 +708,7 @@ final class NutritionStore: ObservableObject {
         "entries", "customFoods", "goals", "profile", "dietPreferences", "weights",
         "waterEntries", "waterGoalML", "caffeineEntries", "caffeineHalfLifeHours",
         "caffeineBedtimeHour", "foodPrices", "costFoods", "appearance", "creatineTakenDays",
-        "completedLoggingDays", "workouts", "strengthRecords", "challengePlans",
+        "completedLoggingDays", "workouts", "strengthRecords", "workoutSplit", "challengePlans",
         "questSeenIDs", "trophyNames", "goalAdjustments", "weekdayGoals", "foodsToAvoid",
         "savedRecipes", "groceryStock", "groceryPlan", "legacyStreak",
         "longestStreakRecorded", "loseItImports", "schemaVersion"
@@ -730,6 +781,7 @@ final class NutritionStore: ObservableObject {
               (saved.weights?.count ?? 0) < 100_000 else { return false }
         // A malformed achievement invalidates the whole file rather than applying half of it.
         if let legacy = saved.legacyStreak, !legacy.isWellFormed { return false }
+        if let split = saved.workoutSplit, !split.isWellFormed { return false }
         _ = backupNow()
         entries = saved.entries
         customFoods = saved.customFoods
@@ -749,6 +801,7 @@ final class NutritionStore: ObservableObject {
         completedLoggingDays = saved.completedLoggingDays ?? []
         workouts = saved.workouts ?? []
         strengthRecords = saved.strengthRecords ?? []
+        workoutSplit = saved.workoutSplit
         challengePlans = saved.challengePlans ?? [:]
         questSeenIDs = saved.questSeenIDs ?? []
         trophyNames = saved.trophyNames ?? [:]
@@ -901,20 +954,6 @@ final class NutritionStore: ObservableObject {
 
     func proteinCost(on date: Date) -> Double? {
         FoodCost.costPerGramOfProtein(entries: entries, prices: foodPrices, on: date)
-    }
-
-    /// Recently eaten foods that still have no price, newest first, so pricing stays a short list.
-    func unpricedFoods(limit: Int = 40) -> [Food] {
-        var seen: Set<String> = []
-        var result: [Food] = []
-        for entry in entries.sorted(by: { $0.date > $1.date }) {
-            let key = FoodCost.key(for: entry.food)
-            guard !seen.contains(key) else { continue }
-            seen.insert(key)
-            if price(for: entry.food) == nil { result.append(entry.food) }
-            if result.count >= limit { break }
-        }
-        return result
     }
 
     func dayKey(_ date: Date) -> String {

@@ -54,16 +54,13 @@ struct ProgressViewScreen: View {
                             Text("Weight")
                                 .font(.system(size: 23, weight: .semibold))
                             Spacer()
-                            Menu {
-                                Button("View history", systemImage: "list.bullet") { showingWeightHistory = true }
-                                Button("Log weight", systemImage: "plus") { showingAddWeight = true }
-                            } label: {
-                                Image(systemName: "ellipsis")
+                            Button { showingWeightHistory = true } label: {
+                                Image(systemName: "clock.arrow.circlepath")
                                     .font(.title3.weight(.semibold))
                                     .foregroundStyle(Theme.muted)
                                     .frame(width: 44, height: 44)
                             }
-                            .accessibilityLabel("Weight options")
+                            .accessibilityLabel("View weight history")
                         }
                         HStack(alignment: .bottom, spacing: 14) {
                             VStack(alignment: .leading, spacing: 3) {
@@ -102,42 +99,6 @@ struct ProgressViewScreen: View {
                     }
                     .buttonStyle(.plain)
                     .softCardStyle()
-                    NavigationLink {
-                        GroceryPlannerView()
-                    } label: {
-                        HStack(spacing: 14) {
-                            Image(systemName: "basket.fill").foregroundStyle(Theme.accentText)
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text("Lab").font(.system(size: 21, design: .serif))
-                                Text("Make a 1–7 day plan from what you bought")
-                                    .font(.caption).foregroundStyle(Theme.muted)
-                            }
-                            Spacer()
-                            Image(systemName: "chevron.right").font(.caption).foregroundStyle(Theme.muted)
-                        }
-                        .foregroundStyle(Theme.ink)
-                    }
-                    .buttonStyle(.plain)
-                    .softCardStyle()
-                    NavigationLink {
-                        DietPlanView()
-                    } label: {
-                        HStack(spacing: 14) {
-                            Image(systemName: "fork.knife")
-                                .foregroundStyle(Theme.accentText)
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text("Your food plan")
-                                    .font(.system(size: 21, design: .serif))
-                                Text("Seven days of meals for your goal")
-                                    .font(.caption).foregroundStyle(Theme.muted)
-                            }
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.caption).foregroundStyle(Theme.muted)
-                        }
-                        .foregroundStyle(Theme.ink)
-                    }
-                    .cardStyle()
                     VStack(alignment: .leading, spacing: 18) {
                         Text("DAILY CALORIES")
                             .font(.caption2.weight(.semibold)).tracking(2.2)

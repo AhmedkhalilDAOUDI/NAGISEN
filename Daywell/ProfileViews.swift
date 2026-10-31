@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 
 struct ProfileView: View {
     @EnvironmentObject private var store: NutritionStore
+    @EnvironmentObject private var community: CommunityCloud
     @Environment(\.dismiss) private var dismiss
     @State private var exportFile: DataExportFile?
     @State private var showingImporter = false
@@ -11,6 +12,7 @@ struct ProfileView: View {
     @State private var restoreError = false
     @State private var showingAutomaticRestore = false
     @State private var showingLoseItImport = false
+    @State private var showingCloudChoice = false
 
     private var latestWeight: WeightEntry? {
         store.weights.max { $0.date < $1.date }
@@ -64,6 +66,26 @@ struct ProfileView: View {
                     }
                     .softCardStyle()
 
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label("iCloud sync", systemImage: "icloud")
+                            .font(.system(size: 21, design: .serif))
+                        Text(community.accountMessage)
+                            .font(.subheadline).foregroundStyle(Theme.muted)
+                        Text(community.syncMessage)
+                            .font(.subheadline).foregroundStyle(Theme.muted)
+                        HStack(spacing: 22) {
+                            Button("Sync now") { Task { await community.sync(store) } }
+                            if community.hasConflict {
+                                Button("Choose a copy") { showingCloudChoice = true }
+                            }
+                        }
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Theme.accentText)
+                        .disabled(!community.accountReady || community.isBusy)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .softCardStyle()
+
                     Button(action: exportData) {
                         MenuRow(symbol: "square.and.arrow.up", title: "Export my data",
                                 detail: "Save a copy of your NAGISEN history")
@@ -94,7 +116,7 @@ struct ProfileView: View {
                         .softCardStyle()
                     }
 
-                    Text("Your history is saved in a local database with rotating backups. iPhone backup can include app data when enabled. Online food search uses Open Food Facts.")
+                    Text("Your history stays on this iPhone and in your private iCloud backup when connected. Feed posts are public. Online food search uses Open Food Facts.")
                         .font(.footnote).foregroundStyle(Theme.muted)
                 }
                 .foregroundStyle(Theme.ink)
@@ -141,6 +163,14 @@ struct ProfileView: View {
             } message: {
                 Text("Choose a NAGISEN JSON backup created by Export my data.")
             }
+            .confirmationDialog("Which history should NAGISEN keep?", isPresented: $showingCloudChoice) {
+                Button("Keep this iPhone") { Task { await community.keepThisPhone(store) } }
+                Button("Use iCloud copy") { Task { await community.useICloud(store) } }
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text("Both versions changed. The replaced iPhone history is saved to a local backup first.")
+            }
+            .task { await community.connect(); await community.sync(store) }
         }
     }
 
