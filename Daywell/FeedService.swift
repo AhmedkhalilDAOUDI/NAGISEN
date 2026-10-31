@@ -376,6 +376,9 @@ final class FeedService: ObservableObject {
             message = nil
             await refresh()
             return true
+        } catch let error as PostgrestError where error.code == "23514" {
+            // The database's username rule (letters, numbers, underscores, 3 to 20) refused it.
+            message = "Use 3 to 20 letters, numbers or underscores."
         } catch let error as PostgrestError where error.code == "23505" {
             message = "That username is taken. Try another."
         } catch {
@@ -450,6 +453,9 @@ final class FeedService: ObservableObject {
             message = nil
             await refresh()
             return true
+        } catch let error as PostgrestError where error.code == "23514" {
+            // The database's username rule (letters, numbers, underscores, 3 to 20) refused it.
+            message = "Use 3 to 20 letters, numbers or underscores."
         } catch let error as PostgrestError where error.code == "23505" {
             message = "That username is taken. Try another."
         } catch {
