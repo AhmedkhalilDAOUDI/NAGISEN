@@ -94,6 +94,7 @@ struct ContentView: View {
     @State private var addContext: AddContext?
     @State private var selectedDate = Date.now
     @State private var section: MainSection = .launchSection
+    @State private var showingCoach = MainSection.launchOpensCoach
     @State private var slideDirection: CGFloat = 1
     @State private var keyboardVisible = false
 
@@ -120,7 +121,7 @@ struct ContentView: View {
                         .frame(height: 130)
                         .ignoresSafeArea(edges: .bottom)
                         .allowsHitTesting(false)
-                    BottomGlassMenu(section: section, onSelect: selectSection)
+                    BottomGlassMenu(section: section, onSelect: selectSection, onOpenCoach: { showingCoach = true })
                 }
             }
         }
@@ -134,6 +135,10 @@ struct ContentView: View {
         .toolbarBackground(.hidden, for: .navigationBar)
         .tint(Theme.accentText)
         .preferredColorScheme(store.appearance.colorScheme)
+        .sheet(isPresented: $showingCoach) {
+            DeepSeekChatView(bottomMenuVisible: false, onClose: { showingCoach = false })
+                .presentationDragIndicator(.visible)
+        }
         .sheet(item: $addContext) { context in
             NavigationStack {
                 FoodSearchView(date: context.date, initialMeal: context.meal)
@@ -144,7 +149,7 @@ struct ContentView: View {
     @ViewBuilder private var selectedSectionView: some View {
         switch section {
         case .dashboard:
-            HomeView(date: $selectedDate, onOpenAI: { selectSection(.ai) }) { meal in
+            HomeView(date: $selectedDate) { meal in
                 addContext = AddContext(date: selectedDate, meal: meal)
             }
         case .grocery:
@@ -153,8 +158,6 @@ struct ContentView: View {
             WorkoutMusicView()
         case .feed:
             SocialFeedView()
-        case .ai:
-            DeepSeekChatView(bottomMenuVisible: !keyboardVisible)
         }
     }
 
@@ -173,14 +176,49 @@ struct ContentView: View {
 private struct BottomGlassMenu: View {
     let section: MainSection
     let onSelect: (MainSection) -> Void
+    let onOpenCoach: () -> Void
     @Namespace private var selectionAnimation
 
-    /// The AI coach opens from Dashboard, so Dashboard stays highlighted while it is on screen.
-    private func isCurrent(_ item: MainSection) -> Bool {
-        section == item || (section == .ai && item == .dashboard)
-    }
+    private func isCurrent(_ item: MainSection) -> Bool { section == item }
 
     var body: some View {
+        HStack(spacing: 8) {
+            tabs
+            coachButton
+        }
+        .padding(.horizontal, 12)
+        .padding(.bottom, 8)
+    }
+
+    /// The AI coach, one tap away from every screen; it opens over whatever you're doing.
+    private var coachButton: some View {
+        Button(action: onOpenCoach) {
+            Image(systemName: "sparkles")
+                .font(.system(size: 21, weight: .regular))
+                .foregroundStyle(Theme.accentText)
+                .frame(width: 71, height: 71)
+                .background { glass(Circle()) }
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("NAGISEN AI coach")
+    }
+
+    @ViewBuilder
+    private func glass<S: InsettableShape>(_ shape: S) -> some View {
+        if #available(iOS 26.0, *) {
+            Color.clear
+                .glassEffect(.regular.tint(Theme.paper.opacity(0.30)), in: shape)
+                .overlay(shape.strokeBorder(.white.opacity(0.20), lineWidth: 0.7))
+        } else {
+            shape
+                .fill(.ultraThinMaterial)
+                .overlay(shape.fill(Theme.paper.opacity(0.30)))
+                .overlay(shape.strokeBorder(.white.opacity(0.18), lineWidth: 0.7))
+        }
+    }
+
+    private var tabs: some View {
         HStack(spacing: 2) {
             ForEach(MainSection.bottomSections) { item in
                 Button {
@@ -216,30 +254,17 @@ private struct BottomGlassMenu: View {
         .padding(.horizontal, 5)
         .padding(.top, 5)
         .padding(.bottom, 5)
-        .background {
-            if #available(iOS 26.0, *) {
-                Color.clear
-                    .glassEffect(.regular.tint(Theme.paper.opacity(0.30)), in: Capsule())
-                    .overlay(Capsule().strokeBorder(.white.opacity(0.20), lineWidth: 0.7))
-            } else {
-                Capsule()
-                    .fill(.ultraThinMaterial)
-                    .overlay(Capsule().fill(Theme.paper.opacity(0.30)))
-                    .overlay(Capsule().strokeBorder(.white.opacity(0.18), lineWidth: 0.7))
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.bottom, 8)
+        .background { glass(Capsule()) }
     }
 }
 
 private enum MainSection: String, CaseIterable, Identifiable {
-    case dashboard, grocery, workouts, feed, ai
+    case dashboard, grocery, workouts, feed
     var id: Self { self }
     static let bottomSections: [MainSection] = [.dashboard, .grocery, .workouts, .feed]
 
-    /// Dashboard. Debug builds launched with `-NAGISENSection feed` (or grocery, workouts, ai)
-    /// open on that tab instead, so screens can be captured without tapping.
+    /// Dashboard. Debug builds launched with `-NAGISENSection feed` (or grocery, workouts)
+    /// open on that tab instead, so screens can be captured without tapping; `ai` opens the coach.
     static var launchSection: MainSection {
         #if DEBUG
         let arguments = ProcessInfo.processInfo.arguments
@@ -250,13 +275,22 @@ private enum MainSection: String, CaseIterable, Identifiable {
         #endif
         return .dashboard
     }
+
+    static var launchOpensCoach: Bool {
+        #if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        if let index = arguments.firstIndex(of: "-NAGISENSection"), index + 1 < arguments.count {
+            return arguments[index + 1] == "ai"
+        }
+        #endif
+        return false
+    }
     var name: String {
         switch self {
         case .dashboard: "Dashboard"
         case .grocery: "Lab"
         case .workouts: "Workouts"
         case .feed: "Feed"
-        case .ai: "AI"
         }
     }
     var symbol: String {
@@ -265,7 +299,6 @@ private enum MainSection: String, CaseIterable, Identifiable {
         case .grocery: "basket"
         case .workouts: "figure.run"
         case .feed: "person.2"
-        case .ai: "sparkles"
         }
     }
 }
@@ -278,7 +311,6 @@ private struct HomeView: View {
     @State private var showingCalendar = false
     @State private var showingProfile = false
     @Binding var date: Date
-    let onOpenAI: () -> Void
     let onAdd: (Meal) -> Void
 
     var body: some View {
@@ -339,15 +371,6 @@ private struct HomeView: View {
                                         .contentShape(Circle())
                                 }
                                 .accessibilityLabel(colorScheme == .dark ? "Turn off dark mode" : "Turn on dark mode")
-                                Button(action: onOpenAI) {
-                                    Image(systemName: "sparkles")
-                                        .font(.system(size: 16, weight: .medium))
-                                        .frame(width: 34, height: 34)
-                                        .nagisenGlass(in: Circle(), tint: Theme.surface.opacity(0.16))
-                                        .frame(width: 44, height: 44)
-                                        .contentShape(Circle())
-                                }
-                                .accessibilityLabel("Open AI coach")
                                 Button { showingProfile = true } label: {
                                     Image(systemName: "person.crop.circle")
                                         .font(.system(size: 16, weight: .medium))

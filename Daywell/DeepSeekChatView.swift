@@ -130,6 +130,8 @@ final class DeepSeekChat: ObservableObject {
 
 struct DeepSeekChatView: View {
     var bottomMenuVisible = true
+    /// Set when the coach opens as a sheet over another screen.
+    var onClose: (() -> Void)? = nil
     @EnvironmentObject private var store: NutritionStore
     @EnvironmentObject private var health: HealthManager
     @AppStorage("daywell.chat.useContext") private var useContext = false
@@ -156,6 +158,9 @@ struct DeepSeekChatView: View {
                         }
                     }
                     headerButton("slider.horizontal.3", label: "Chat settings") { showingSettings = true }
+                    if let onClose {
+                        headerButton("xmark", label: "Close") { composerFocused = false; onClose() }
+                    }
                 }
                 .padding(.horizontal, 20).padding(.top, 18).padding(.bottom, 4)
 
