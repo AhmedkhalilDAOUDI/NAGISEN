@@ -87,7 +87,9 @@ struct SocialFeedView: View {
             .softTopScrollEdgeEffect()
             .background(NagisenBackdrop())
             .toolbar(.hidden, for: .navigationBar)
-            .sheet(isPresented: $showingComposer, onDismiss: clearAttachment) { composer }
+            .sheet(isPresented: $showingComposer, onDismiss: clearAttachment) {
+                composer.onAppear { feed.message = nil }
+            }
             .sheet(isPresented: $showingAccount) { FeedAccountView(openedSignedIn: feed.state == .ready) }
             .confirmationDialog("Delete this post for everyone?", isPresented: Binding(
                 get: { deletingPost != nil }, set: { if !$0 { deletingPost = nil } }
@@ -303,6 +305,11 @@ struct SocialFeedView: View {
                     .nagisenGlass(in: RoundedRectangle(cornerRadius: 15), tint: Theme.surface.opacity(0.18))
                 Text("\(text.count)/1,000 · Visible to signed-in members in Feed.")
                     .font(.caption).foregroundStyle(Theme.muted)
+                if let message = feed.message {
+                    Text(message)
+                        .font(.subheadline).foregroundStyle(Theme.accentText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 attachmentRow
                 Button("Save private draft") { saveDraft() }
                     .font(.subheadline).foregroundStyle(Theme.accentText)
@@ -355,7 +362,16 @@ struct SocialFeedView: View {
         }
     }
 
+    @ViewBuilder
     private var postButton: some View {
+        if feed.isBusy {
+            ProgressView()
+        } else {
+            sendButton
+        }
+    }
+
+    private var sendButton: some View {
         Button("Post") {
             Task {
                 if await feed.publish(text, attachment: attachment) {
