@@ -12,14 +12,14 @@ final class FeedTests: XCTestCase {
         XCTAssertTrue(FeedRules.isValidUsername("run_2026"))
         XCTAssertFalse(FeedRules.isValidUsername("ab"), "too short")
         XCTAssertFalse(FeedRules.isValidUsername(String(repeating: "a", count: 21)), "too long")
-        XCTAssertFalse(FeedRules.isValidUsername("Khalil"), "uppercase")
+        XCTAssertTrue(FeedRules.isValidUsername("Khalil_D"), "capitals are allowed")
         XCTAssertFalse(FeedRules.isValidUsername("kha lil"), "space")
         XCTAssertFalse(FeedRules.isValidUsername("khalil!"), "symbol")
         XCTAssertFalse(FeedRules.isValidUsername("nagisén"), "accent")
     }
 
-    func testUsernamesAreTrimmedAndLowercasedBeforeChecking() {
-        XCTAssertEqual(FeedRules.normalizedUsername("  Khalil_D "), "khalil_d")
+    func testUsernamesAreTrimmedBeforeChecking() {
+        XCTAssertEqual(FeedRules.normalizedUsername("  Khalil_D "), "Khalil_D", "trimmed, capitals kept")
     }
 
     func testTheMediaFolderMatchesTheLowercaseIDTheStoragePolicyChecks() {

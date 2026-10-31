@@ -95,6 +95,7 @@ struct ContentView: View {
     @State private var selectedDate = Date.now
     @State private var section: MainSection = .launchSection
     @State private var showingCoach = MainSection.launchOpensCoach
+    @AppStorage("nagisen.intro.played") private var introPlayed = false
     @State private var slideDirection: CGFloat = 1
     @State private var keyboardVisible = false
 
@@ -124,6 +125,9 @@ struct ContentView: View {
                     BottomGlassMenu(section: section, onSelect: selectSection, onOpenCoach: { showingCoach = true })
                 }
             }
+        }
+        .overlay {
+            if !introPlayed { LaunchIntroView { introPlayed = true } }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
             keyboardVisible = true
@@ -827,10 +831,15 @@ private struct CalorieCard: View {
             Rectangle().fill(Theme.line).frame(height: 1)
             VStack(alignment: .leading, spacing: 12) {
                 let streak = store.streakSnapshot(asOf: date)
-                HStack(alignment: .firstTextBaseline) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Image(systemName: streak.activeStreak > 0 ? "flame.fill" : "flame")
+                        .foregroundStyle(streak.activeStreak > 0 ? Theme.accentText : Theme.muted)
+                        .symbolEffect(.bounce, value: streak.activeStreak)
+                        .accessibilityHidden(true)
                     Text("\(streak.activeStreak.formatted(.number.grouping(.automatic)))-day streak")
                         .font(.title3.weight(.semibold))
                         .foregroundStyle(Theme.ink)
+                        .contentTransition(.numericText(value: Double(streak.activeStreak)))
                     Spacer()
                     Button("Verify") { showingStreakAudit = true }
                         .font(.caption.weight(.semibold))
@@ -848,6 +857,8 @@ private struct CalorieCard: View {
                 .tint(Theme.accentText)
                 .disabled(Calendar.current.startOfDay(for: date) > Calendar.current.startOfDay(for: .now))
             }
+            .animation(.snappy, value: store.streakSnapshot(asOf: date).activeStreak)
+            .sensoryFeedback(.success, trigger: store.streakSnapshot(asOf: date).activeStreak) { old, new in new > old }
         }
         .sheet(isPresented: $showingStreakAudit) {
             StreakAuditView().environmentObject(store)
@@ -1632,5 +1643,64 @@ struct NagisenPrimaryButton: View {
         }
         .buttonStyle(.plain)
         .disabled(!enabled)
+    }
+}
+
+/// The logo drawing itself on first launch: the horizon spreads, the sun rises behind it,
+/// then the name appears and everything fades into the app.
+private struct LaunchIntroView: View {
+    let onFinish: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var horizon = false
+    @State private var sunrise = false
+    @State private var name = false
+    @State private var leaving = false
+    /// The sun's red from the app icon.
+    private let sun = Color(red: 0.70, green: 0.32, blue: 0.25)
+
+    var body: some View {
+        ZStack {
+            Theme.paper.ignoresSafeArea()
+            VStack(spacing: 30) {
+                ZStack {
+                    Circle().fill(sun)
+                        .frame(width: 84, height: 84)
+                        .offset(y: sunrise ? -18 : 70)
+                        .frame(width: 160, height: 160)
+                        // Only above the horizon, so the sun comes up from behind it.
+                        .mask(alignment: .top) { Rectangle().frame(height: 128) }
+                    VStack(spacing: 9) {
+                        Capsule().frame(width: horizon ? 128 : 0, height: 2.5)
+                        Capsule().frame(width: horizon ? 76 : 0, height: 1.5)
+                    }
+                    .offset(y: 50)
+                }
+                .frame(width: 160, height: 160)
+                Text("NAGISEN")
+                    .font(.system(size: 15, weight: .semibold))
+                    .tracking(name ? 7 : 2)
+                    .opacity(name ? 1 : 0)
+            }
+            .foregroundStyle(Theme.ink)
+        }
+        .opacity(leaving ? 0 : 1)
+        .accessibilityElement()
+        .accessibilityLabel("NAGISEN")
+        .task {
+            if reduceMotion {
+                horizon = true; sunrise = true; name = true
+                try? await Task.sleep(for: .seconds(1.2))
+            } else {
+                withAnimation(.easeOut(duration: 0.7)) { horizon = true }
+                try? await Task.sleep(for: .seconds(0.35))
+                withAnimation(.spring(response: 1.0, dampingFraction: 0.9)) { sunrise = true }
+                try? await Task.sleep(for: .seconds(0.9))
+                withAnimation(.easeOut(duration: 0.6)) { name = true }
+                try? await Task.sleep(for: .seconds(1.1))
+            }
+            withAnimation(.easeIn(duration: 0.45)) { leaving = true }
+            try? await Task.sleep(for: .seconds(0.45))
+            onFinish()
+        }
     }
 }
