@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 
 struct ProfileView: View {
     @EnvironmentObject private var store: NutritionStore
+    @AppStorage(AppLanguage.storageKey) private var languageCode = AppLanguage.system.rawValue
     @EnvironmentObject private var community: CommunityCloud
     @EnvironmentObject private var feed: FeedService
     @Environment(\.dismiss) private var dismiss
@@ -205,6 +206,11 @@ struct ProfileView: View {
                         }
                     }
                     .softCardStyle()
+
+                    NagisenPicker("Language", selection: Binding(get: { AppLanguage.current }, set: { $0.apply(); languageCode = $0.rawValue }),
+                                  options: AppLanguage.allCases.map { ($0, $0.label) })
+                        .frame(minHeight: 52)
+                        .softCardStyle()
 
                     VStack(alignment: .leading, spacing: 12) {
                         Label("iCloud sync", systemImage: "icloud")

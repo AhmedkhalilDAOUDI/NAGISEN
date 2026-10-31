@@ -12,11 +12,20 @@ struct DaywellApp: App {
     #endif
     @State private var syncTask: Task<Void, Never>?
     @AppStorage("nagisen.health.autoImport") private var autoImportHealth = false
+    @AppStorage(AppLanguage.storageKey) private var languageCode = AppLanguage.system.rawValue
+
+    init() {
+        LanguageBundle.use(AppLanguage.current)
+    }
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
+            let language = AppLanguage(rawValue: languageCode) ?? .system
             ContentView()
+                .id(language)
+                .environment(\.locale, language.locale)
+                .environment(\.layoutDirection, language.layoutDirection)
                 .environmentObject(store)
                 .environmentObject(spotify)
                 .environmentObject(health)
