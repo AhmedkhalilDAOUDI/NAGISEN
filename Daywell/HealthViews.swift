@@ -418,11 +418,8 @@ struct HealthView: View {
         .navigationTitle("Health")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { health.refresh() }
-        .alert("Apple Health", isPresented: Binding(get: { health.errorMessage != nil }, set: { if !$0 { health.errorMessage = nil } })) {
-            Button("OK", role: .cancel) { health.errorMessage = nil }
-        } message: {
-            Text(health.errorMessage ?? "")
-        }
+        .nagisenDialog("Apple Health", isPresented: Binding(get: { health.errorMessage != nil }, set: { if !$0 { health.errorMessage = nil } }),
+                       message: health.errorMessage, cancelTitle: "OK")
     }
 
     private func metric(_ title: String, value: String?, unit: String, symbol: String) -> some View {

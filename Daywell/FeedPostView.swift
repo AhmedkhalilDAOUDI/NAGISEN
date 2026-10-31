@@ -167,22 +167,20 @@ struct FeedPostView: View {
         }
         .sheet(item: $viewingMember) { MemberPageView(member: $0) }
         .sheet(isPresented: $editing) { EditPostView(post: post) { post = $0 } }
-        .confirmationDialog("Delete this post?", isPresented: $confirmingDelete) {
-            Button("Delete post", role: .destructive) {
+        .nagisenDialog("Delete this post?", isPresented: $confirmingDelete, message: "This can't be undone.") {
+            [NagisenAction(title: "Delete post", destructive: true) {
                 Task { await feed.delete(post); onRemoved?() }
+            }]
+        }
+        .nagisenDialog("Why are you reporting this post?", isPresented: $reporting,
+                       message: "The post will be hidden from your feed and sent for review.") {
+            FeedRules.reportReasons.map { reason in
+                NagisenAction(title: reason) { Task { await feed.report(post, reason: reason); onRemoved?() } }
             }
         }
-        .confirmationDialog("Why are you reporting this post?", isPresented: $reporting, titleVisibility: .visible) {
-            ForEach(FeedRules.reportReasons, id: \.self) { reason in
-                Button(reason) { Task { await feed.report(post, reason: reason); onRemoved?() } }
-            }
-        } message: {
-            Text("The post will be hidden from your feed and sent for review.")
-        }
-        .confirmationDialog("Block @\(post.username)?", isPresented: $confirmingBlock, titleVisibility: .visible) {
-            Button("Block", role: .destructive) { Task { await feed.block(post); onRemoved?() } }
-        } message: {
-            Text("You won’t see their posts, comments or stories anymore. They aren’t told.")
+        .nagisenDialog("Block @\(post.username)?", isPresented: $confirmingBlock,
+                       message: "You won’t see their posts, comments or stories anymore. They aren’t told.") {
+            [NagisenAction(title: "Block", destructive: true) { Task { await feed.block(post); onRemoved?() } }]
         }
     }
 

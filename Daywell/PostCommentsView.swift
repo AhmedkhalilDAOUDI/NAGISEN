@@ -53,48 +53,41 @@ struct PostCommentsView: View {
                 loading = false
             }
             .sheet(item: $viewingMember) { MemberPageView(member: $0) }
-            .confirmationDialog("Delete this comment?", isPresented: Binding(
+            .nagisenDialog("Delete this comment?", isPresented: Binding(
                 get: { deleting != nil }, set: { if !$0 { deleting = nil } }
             )) {
-                Button("Delete comment", role: .destructive) {
-                    guard let comment = deleting else { return }
-                    deleting = nil
+                guard let comment = deleting else { return [] }
+                return [NagisenAction(title: "Delete comment", destructive: true) {
                     Task {
                         if await feed.deleteComment(comment, on: post) {
                             comments.removeAll { $0.id == comment.id }
                         }
                     }
-                }
+                }]
             }
-            .confirmationDialog("Why are you reporting this comment?", isPresented: Binding(
+            .nagisenDialog("Why are you reporting this comment?", isPresented: Binding(
                 get: { reporting != nil }, set: { if !$0 { reporting = nil } }
-            ), titleVisibility: .visible) {
-                ForEach(FeedRules.reportReasons, id: \.self) { reason in
-                    Button(reason) {
-                        guard let comment = reporting else { return }
-                        reporting = nil
+            ), message: "The comment will be hidden for you and sent for review.") {
+                guard let comment = reporting else { return [] }
+                return FeedRules.reportReasons.map { reason in
+                    NagisenAction(title: reason) {
                         comments.removeAll { $0.id == comment.id }
                         Task { await feed.report(comment, reason: reason) }
                     }
                 }
-            } message: {
-                Text("The comment will be hidden for you and sent for review.")
             }
-            .confirmationDialog("Block @\(blocking?.username ?? "member")?", isPresented: Binding(
+            .nagisenDialog("Block @\(blocking?.username ?? "member")?", isPresented: Binding(
                 get: { blocking != nil }, set: { if !$0 { blocking = nil } }
-            ), titleVisibility: .visible) {
-                Button("Block", role: .destructive) {
-                    guard let comment = blocking else { return }
-                    blocking = nil
+            ), message: "You won’t see their posts or comments anymore. They aren’t told.") {
+                guard let comment = blocking else { return [] }
+                return [NagisenAction(title: "Block", destructive: true) {
                     Task {
                         guard await feed.block(authorID: comment.authorID) else { return }
                         comments.removeAll { $0.authorID == comment.authorID }
                         // Blocking the post's author hides the post itself.
                         if comment.authorID == post.authorID { dismiss() }
                     }
-                }
-            } message: {
-                Text("You won’t see their posts or comments anymore. They aren’t told.")
+                }]
             }
         }
     }

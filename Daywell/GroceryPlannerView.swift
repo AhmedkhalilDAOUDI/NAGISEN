@@ -325,10 +325,9 @@ struct GroceryPlannerView: View {
                 }
             }
         }
-        .confirmationDialog("Replace this plan?", isPresented: $showingRegenerate) {
-            Button("Generate new plan") { generate() }
-        } message: {
-            Text("The current plan will be replaced. Foods you already logged stay in your diary.")
+        .nagisenDialog("Replace this plan?", isPresented: $showingRegenerate,
+                       message: "The current plan will be replaced. Foods you already logged stay in your diary.") {
+            [NagisenAction(title: "Generate new plan") { generate() }]
         }
     }
 
