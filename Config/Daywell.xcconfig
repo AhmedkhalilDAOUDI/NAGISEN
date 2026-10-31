@@ -1,0 +1,7 @@
+// Base build settings for the Daywell app target.
+// Supabase settings come from Secrets.xcconfig, which is not committed.
+// Without it the app still builds and Feed explains that it isn't set up.
+SUPABASE_URL =
+SUPABASE_ANON_KEY =
+
+#include? "Secrets.xcconfig"

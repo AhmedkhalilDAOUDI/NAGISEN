@@ -23,6 +23,7 @@
 		A0000000000000000000001D /* SpotifyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000002C /* SpotifyManager.swift */; };
 		A0000000000000000000001E /* DeepSeekChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000002E /* DeepSeekChatView.swift */; };
 		A0000000000000000000001F /* ConfettiSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = A00000000000000000000092 /* ConfettiSwiftUI */; };
+		A00000000000000000000096 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = A00000000000000000000095 /* Supabase */; };
 		A00000000000000000000033 /* HealthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000035 /* HealthManager.swift */; };
 		A00000000000000000000034 /* HealthViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000036 /* HealthViews.swift */; };
 		A0000000000000000000003A /* DietPlanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000003B /* DietPlanView.swift */; };
@@ -58,6 +59,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		A00000000000000000000097 /* Daywell.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Daywell.xcconfig; sourceTree = "<group>"; };
 		A00000000000000000000020 /* Daywell.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Daywell.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A00000000000000000000021 /* DaywellApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaywellApp.swift; sourceTree = "<group>"; };
 		A00000000000000000000022 /* NutritionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionStore.swift; sourceTree = "<group>"; };
@@ -115,7 +117,7 @@
 /* Begin PBXGroup section */
 		A00000000000000000000030 = {
 			isa = PBXGroup;
-			children = (A00000000000000000000031 /* Daywell */, B00000000000000000000020 /* DaywellWidgets */, F00000000000000000000003 /* DaywellTests */, A00000000000000000000032 /* Products */);
+			children = (A00000000000000000000031 /* Daywell */, B00000000000000000000020 /* DaywellWidgets */, F00000000000000000000003 /* DaywellTests */, A00000000000000000000098 /* Config */, A00000000000000000000032 /* Products */);
 			sourceTree = "<group>";
 		};
 		A00000000000000000000031 /* Daywell */ = {
@@ -137,6 +139,7 @@
 			path = DaywellTests;
 			sourceTree = "<group>";
 		};
+		A00000000000000000000098 /* Config */ = {isa = PBXGroup; children = (A00000000000000000000097 /* Daywell.xcconfig */); path = Config; sourceTree = "<group>"; };
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -150,7 +153,7 @@
 			productName = Daywell;
 			productReference = A00000000000000000000020 /* Daywell.app */;
 			productType = "com.apple.product-type.application";
-			packageProductDependencies = (A00000000000000000000091 /* SpotifyiOS */, A00000000000000000000092 /* ConfettiSwiftUI */);
+			packageProductDependencies = (A00000000000000000000091 /* SpotifyiOS */, A00000000000000000000092 /* ConfettiSwiftUI */, A00000000000000000000095 /* Supabase */);
 		};
 		B00000000000000000000030 /* DaywellWidgets */ = {isa = PBXNativeTarget; buildConfigurationList = B00000000000000000000040; buildPhases = (B00000000000000000000031 /* Sources */, B00000000000000000000032 /* Frameworks */, B00000000000000000000033 /* Resources */); buildRules = (); dependencies = (); name = DaywellWidgets; productName = DaywellWidgets; productReference = B00000000000000000000015 /* DaywellWidgets.appex */; productType = "com.apple.product-type.app-extension"; };
 		F00000000000000000000001 /* DaywellTests */ = {
@@ -197,7 +200,7 @@
 			productRefGroup = A00000000000000000000032;
 			projectDirPath = "";
 			projectRoot = "";
-			packageReferences = (A00000000000000000000090 /* Spotify iOS SDK */, A00000000000000000000093 /* ConfettiSwiftUI */);
+			packageReferences = (A00000000000000000000090 /* Spotify iOS SDK */, A00000000000000000000093 /* ConfettiSwiftUI */, A00000000000000000000094 /* supabase-swift */);
 			targets = (A00000000000000000000040 /* Daywell */, B00000000000000000000030 /* DaywellWidgets */, F00000000000000000000001 /* DaywellTests */);
 		};
 /* End PBXProject section */
@@ -209,7 +212,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		A00000000000000000000051 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (A0000000000000000000001C /* SpotifyiOS in Frameworks */, A0000000000000000000001F /* ConfettiSwiftUI in Frameworks */, C00000000000000000000003 /* libsqlite3.tbd in Frameworks */); runOnlyForDeploymentPostprocessing = 0; };
+		A00000000000000000000051 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (A0000000000000000000001C /* SpotifyiOS in Frameworks */, A0000000000000000000001F /* ConfettiSwiftUI in Frameworks */, A00000000000000000000096 /* Supabase in Frameworks */, C00000000000000000000003 /* libsqlite3.tbd in Frameworks */); runOnlyForDeploymentPostprocessing = 0; };
 		B00000000000000000000032 /* Widget Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 		F00000000000000000000032 /* Test Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXFrameworksBuildPhase section */
@@ -228,11 +231,13 @@
 /* Begin XCRemoteSwiftPackageReference section */
 		A00000000000000000000090 /* Spotify iOS SDK */ = {isa = XCRemoteSwiftPackageReference; repositoryURL = "https://github.com/spotify/ios-sdk.git"; requirement = {kind = exactVersion; version = 5.0.1; }; };
 		A00000000000000000000093 /* ConfettiSwiftUI */ = {isa = XCRemoteSwiftPackageReference; repositoryURL = "https://github.com/simibac/ConfettiSwiftUI.git"; requirement = {kind = exactVersion; version = 3.0.0; }; };
+		A00000000000000000000094 /* supabase-swift */ = {isa = XCRemoteSwiftPackageReference; repositoryURL = "https://github.com/supabase/supabase-swift.git"; requirement = {kind = exactVersion; version = 2.55.6; }; };
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
 		A00000000000000000000091 /* SpotifyiOS */ = {isa = XCSwiftPackageProductDependency; package = A00000000000000000000090 /* Spotify iOS SDK */; productName = SpotifyiOS; };
 		A00000000000000000000092 /* ConfettiSwiftUI */ = {isa = XCSwiftPackageProductDependency; package = A00000000000000000000093 /* ConfettiSwiftUI */; productName = ConfettiSwiftUI; };
+		A00000000000000000000095 /* Supabase */ = {isa = XCSwiftPackageProductDependency; package = A00000000000000000000094 /* supabase-swift */; productName = Supabase; };
 /* End XCSwiftPackageProductDependency section */
 
 /* Begin XCBuildConfiguration section */
@@ -248,6 +253,7 @@
 		};
 		A00000000000000000000072 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = A00000000000000000000097 /* Daywell.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -281,6 +287,7 @@
 		};
 		A00000000000000000000073 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = A00000000000000000000097 /* Daywell.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
