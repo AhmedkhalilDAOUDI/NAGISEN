@@ -54,20 +54,6 @@ struct ReceiptPriceView: View {
                 .padding(.vertical, 16)
             }
             .background(NagisenBackdrop())
-            .nagisenActions(isPresented: Binding(get: { choosingFoodFor != nil }, set: { if !$0 { choosingFoodFor = nil } }),
-                            title: "Which food is this?") {
-                guard let index = rows.firstIndex(where: { $0.id == choosingFoodFor }) else { return [] }
-                let line = rows[index].line
-                return candidates(for: line).map { candidate in
-                    NagisenAction(title: candidate.name, selected: rows[index].food?.id == candidate.id) {
-                        rows[index].food = candidate
-                        rows[index].price = ReceiptMatcher.price(for: line, food: candidate)
-                    }
-                } + [NagisenAction(title: "Not a food I track", selected: rows[index].food == nil) {
-                    rows[index].food = nil
-                    rows[index].price = nil
-                }]
-            }
             .nagisenSheetBar("Receipt prices", onClose: { dismiss() }, actionTitle: "Save",
                              actionEnabled: !rows.filter { $0.include && $0.food != nil && $0.price != nil }.isEmpty,
                              onAction: save)
@@ -170,6 +156,20 @@ struct ReceiptPriceView: View {
                             .foregroundStyle(Theme.ink)
                         }
                         .buttonStyle(.plain)
+                        .nagisenActions(isPresented: Binding(get: { choosingFoodFor == row.id },
+                                                             set: { if !$0 { choosingFoodFor = nil } }),
+                                        title: "Which food is this?") {
+                            let line = row.line
+                            return candidates(for: line).map { candidate in
+                                NagisenAction(title: candidate.name, selected: row.food?.id == candidate.id) {
+                                    row.food = candidate
+                                    row.price = ReceiptMatcher.price(for: line, food: candidate)
+                                }
+                            } + [NagisenAction(title: "Not a food I track", selected: row.food == nil) {
+                                row.food = nil
+                                row.price = nil
+                            }]
+                        }
 
                         Spacer()
 

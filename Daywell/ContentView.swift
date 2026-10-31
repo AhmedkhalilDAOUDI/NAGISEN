@@ -1564,7 +1564,7 @@ struct NagisenAction: Identifiable {
     let run: () -> Void
 }
 
-/// NAGISEN's own action sheet, used instead of the system menu popup: paper, hairlines, quiet icons.
+/// NAGISEN's own action menu, opened beside the button that asked for it: paper, hairlines, quiet icons.
 struct NagisenActionSheet: View {
     let title: String
     let actions: [NagisenAction]
@@ -1590,12 +1590,12 @@ struct NagisenActionSheet: View {
             }
             .scrollBounceBehavior(.basedOnSize)
         }
-        .padding(.horizontal, 24)
-        .padding(.top, 28)
-        .presentationDetents([.height(min(CGFloat(78 + actions.count * 57), 560))])
-        .presentationBackground(Theme.paper)
-        .presentationCornerRadius(30)
-        .presentationDragIndicator(.visible)
+        .padding(.horizontal, 20)
+        .padding(.top, 18)
+        .padding(.bottom, 6)
+        .frame(width: 290, height: min(CGFloat(48 + actions.count * 57), 440))
+        .presentationCompactAdaptation(.popover)
+        .presentationBackground(Theme.surface)
     }
 
     private func row(_ action: NagisenAction) -> some View {
@@ -1604,8 +1604,8 @@ struct NagisenActionSheet: View {
             HStack(spacing: 16) {
                 if let symbol = action.symbol {
                     Image(systemName: symbol)
-                        .font(.system(size: 14, weight: .regular))
-                        .frame(width: 36, height: 36)
+                        .font(.system(size: 13, weight: .regular))
+                        .frame(width: 32, height: 32)
                         .overlay(Circle().strokeBorder(tint.opacity(0.3), lineWidth: 0.5))
                 }
                 Text(action.title).font(.body).lineLimit(2)
@@ -1631,12 +1631,19 @@ private struct NagisenActionsModifier: ViewModifier {
     @State private var pending: (() -> Void)?
 
     func body(content: Content) -> some View {
-        content.sheet(isPresented: $isPresented, onDismiss: { pending?(); pending = nil }) {
-            NagisenActionSheet(title: title, actions: actions()) { action in
-                pending = action.run
-                isPresented = false
+        content
+            .popover(isPresented: $isPresented, arrowEdge: .top) {
+                NagisenActionSheet(title: title, actions: actions()) { action in
+                    pending = action.run
+                    isPresented = false
+                }
             }
-        }
+            .onChange(of: isPresented) { _, open in
+                guard !open, let run = pending else { return }
+                pending = nil
+                // Wait for the popover to leave, so the action can present a dialog or sheet.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { run() }
+            }
     }
 }
 

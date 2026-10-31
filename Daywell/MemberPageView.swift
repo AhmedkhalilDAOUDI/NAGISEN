@@ -52,12 +52,13 @@ struct MemberPageView: View {
                             .buttonStyle(.plain)
                             .padding(.trailing, 12).padding(.top, 4)
                             .accessibilityLabel("More for @\(member.username)")
+                            .nagisenActions(isPresented: $showingActions, title: "@\(member.username)") {
+                                [NagisenAction(title: "Block @\(member.username)", symbol: "hand.raised",
+                                               destructive: true) { confirmingBlock = true }]
+                            }
                         }
                     }
                     .background(Theme.paper)
-            }
-            .nagisenActions(isPresented: $showingActions, title: "@\(member.username)") {
-                [NagisenAction(title: "Block @\(member.username)", symbol: "hand.raised", destructive: true) { confirmingBlock = true }]
             }
             .task { feed.message = nil; await load() }
             .onChange(of: feed.isFollowing(member)) { _, _ in Task { counts = await feed.counts(for: member) } }
