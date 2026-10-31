@@ -145,6 +145,36 @@ final class FeedTests: XCTestCase {
         XCTAssertEqual(post.commentCount, 2)
     }
 
+    // MARK: - Activity
+
+    private func member(_ name: String) -> FeedMember {
+        FeedMember(id: UUID(), username: name, avatarPath: nil, borderTier: .none, bio: "")
+    }
+
+    func testActivityMergesCommentsAndMarksNewestFirst() throws {
+        let comment = try PostgrestClient.Configuration.jsonDecoder.decode(FeedComment.self, from: Data("""
+        {"id": "3f2504e0-4f89-41d3-9a0c-0305e82c3301", "post_id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
+         "author_id": "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed", "body": "Strong",
+         "created_at": "2026-10-31T10:00:00+00:00", "profiles": {"username": "sara"}}
+        """.utf8))
+        let older = FeedActivity(id: "a", member: member("omar"), postID: UUID(),
+                                 date: comment.createdAt.addingTimeInterval(-60), kind: .appreciation)
+        let newer = FeedActivity(id: "b", member: member("lina"), postID: UUID(),
+                                 date: comment.createdAt.addingTimeInterval(60), kind: .appreciation)
+        let merged = FeedActivity.merged(comments: [comment], marks: [older, newer])
+        XCTAssertEqual(merged.map(\.member.username), ["lina", "sara", "omar"])
+        XCTAssertEqual(merged[1].kind, .comment("Strong"))
+    }
+
+    func testOnlyActivityAfterTheLastVisitIsNew() {
+        let now = Date()
+        let items = [FeedActivity(id: "a", member: member("sara"), postID: UUID(), date: now, kind: .appreciation)]
+        XCTAssertTrue(FeedActivity.hasNew(items, since: nil))
+        XCTAssertTrue(FeedActivity.hasNew(items, since: now.addingTimeInterval(-1)))
+        XCTAssertFalse(FeedActivity.hasNew(items, since: now))
+        XCTAssertFalse(FeedActivity.hasNew([], since: nil))
+    }
+
     // MARK: - Media limits
 
     func testVideosUpToAMinuteAreAccepted() throws {
