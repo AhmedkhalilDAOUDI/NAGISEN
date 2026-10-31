@@ -173,13 +173,10 @@ create policy "comments delete own or on own post" on public.comments
 alter table public.reports alter column post_id drop not null;
 alter table public.reports add column if not exists
     comment_id uuid references public.comments (id) on delete cascade;
-alter table public.reports drop constraint if exists reports_one_target;
-alter table public.reports add constraint reports_one_target
-    check ((post_id is null) <> (comment_id is null));
+-- Which target a report points at is checked further down, once stories exist.
 
--- Appreciation: a quiet mark on a post. Members see only their own marks; a post's author
--- sees every mark on it. Counting through these rules gives the author the full number and
--- everyone else 0 or 1.
+-- Likes (stored as appreciations, the table's original name). Every signed-in member can see
+-- likes on posts they can see, so counts are public; members like and unlike for themselves.
 create table if not exists public.appreciations (
     post_id uuid not null references public.posts (id) on delete cascade,
     member_id uuid not null default auth.uid() references public.profiles (id) on delete cascade,
@@ -189,23 +186,97 @@ create table if not exists public.appreciations (
 alter table public.appreciations enable row level security;
 
 drop policy if exists "appreciations visible to giver and author" on public.appreciations;
-create policy "appreciations visible to giver and author" on public.appreciations
-    for select to authenticated using (
-        member_id = auth.uid() or
-        exists (select 1 from public.posts p where p.id = post_id and p.author_id = auth.uid())
-    );
+drop policy if exists "likes visible on visible posts" on public.appreciations;
+create policy "likes visible on visible posts" on public.appreciations
+    for select to authenticated using (exists (select 1 from public.posts p where p.id = post_id));
 drop policy if exists "appreciations give on others' visible posts" on public.appreciations;
-create policy "appreciations give on others' visible posts" on public.appreciations
+drop policy if exists "likes given on visible posts" on public.appreciations;
+create policy "likes given on visible posts" on public.appreciations
     for insert to authenticated with check (
-        member_id = auth.uid() and
-        exists (select 1 from public.posts p where p.id = post_id and p.author_id <> auth.uid())
+        member_id = auth.uid() and exists (select 1 from public.posts p where p.id = post_id)
     );
 drop policy if exists "appreciations take back own" on public.appreciations;
 create policy "appreciations take back own" on public.appreciations
     for delete to authenticated using (member_id = auth.uid());
 
+-- Video posts carry a poster frame for profile grids.
+alter table public.posts add column if not exists poster_path text;
+
+-- Follows: public (counts and lists are visible to members); members follow and unfollow for themselves.
+create table if not exists public.follows (
+    follower_id uuid not null default auth.uid() references public.profiles (id) on delete cascade,
+    followee_id uuid not null references public.profiles (id) on delete cascade,
+    created_at timestamptz not null default now(),
+    primary key (follower_id, followee_id),
+    check (follower_id <> followee_id)
+);
+create index if not exists follows_followee_idx on public.follows (followee_id);
+alter table public.follows enable row level security;
+drop policy if exists "follows visible to members" on public.follows;
+create policy "follows visible to members" on public.follows
+    for select to authenticated using (true);
+drop policy if exists "follows own" on public.follows;
+create policy "follows own" on public.follows
+    for insert to authenticated with check (follower_id = auth.uid());
+drop policy if exists "unfollow own" on public.follows;
+create policy "unfollow own" on public.follows
+    for delete to authenticated using (follower_id = auth.uid());
+
+-- Stories: one photo or video, visible for 24 hours, hidden from people who blocked the author.
+create table if not exists public.stories (
+    id uuid primary key default gen_random_uuid(),
+    author_id uuid not null default auth.uid() references public.profiles (id) on delete cascade,
+    media_path text not null,
+    media_kind text not null check (media_kind in ('photo', 'video')),
+    poster_path text,
+    created_at timestamptz not null default now(),
+    expires_at timestamptz not null default now() + interval '24 hours'
+);
+create index if not exists stories_live_idx on public.stories (expires_at desc);
+alter table public.stories enable row level security;
+drop policy if exists "stories live and not blocked" on public.stories;
+create policy "stories live and not blocked" on public.stories
+    for select to authenticated using (
+        (expires_at > now() or author_id = auth.uid()) and
+        not exists (select 1 from public.blocks b
+                    where b.blocker_id = auth.uid() and b.blocked_id = stories.author_id)
+    );
+drop policy if exists "stories insert own" on public.stories;
+create policy "stories insert own" on public.stories
+    for insert to authenticated with check (author_id = auth.uid());
+drop policy if exists "stories delete own" on public.stories;
+create policy "stories delete own" on public.stories
+    for delete to authenticated using (author_id = auth.uid());
+
+-- Who saw a story: the viewer records it; the viewer and the story's author can read it.
+create table if not exists public.story_views (
+    story_id uuid not null references public.stories (id) on delete cascade,
+    viewer_id uuid not null default auth.uid() references public.profiles (id) on delete cascade,
+    created_at timestamptz not null default now(),
+    primary key (story_id, viewer_id)
+);
+alter table public.story_views enable row level security;
+drop policy if exists "story views insert own" on public.story_views;
+create policy "story views insert own" on public.story_views
+    for insert to authenticated with check (
+        viewer_id = auth.uid() and exists (select 1 from public.stories s where s.id = story_id)
+    );
+drop policy if exists "story views readable by viewer and author" on public.story_views;
+create policy "story views readable by viewer and author" on public.story_views
+    for select to authenticated using (
+        viewer_id = auth.uid() or
+        exists (select 1 from public.stories s where s.id = story_id and s.author_id = auth.uid())
+    );
+
+-- Reports can point at a post, a comment or a story: exactly one.
+alter table public.reports add column if not exists
+    story_id uuid references public.stories (id) on delete cascade;
+alter table public.reports drop constraint if exists reports_one_target;
+alter table public.reports add constraint reports_one_target
+    check (num_nonnulls(post_id, comment_id, story_id) = 1);
+
 -- Account deletion (App Store guideline 5.1.1(v)). The app removes the member's media
--- folder first; deleting the auth user cascades to profile, posts, comments, appreciations, reports and blocks.
+-- folder first; deleting the auth user cascades to profile, posts, comments, likes, follows, stories, reports and blocks.
 create or replace function public.delete_my_account()
 returns void
 language sql

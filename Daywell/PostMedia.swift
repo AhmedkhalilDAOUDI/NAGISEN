@@ -103,7 +103,25 @@ enum PostMedia {
         }
         let bytes = (try? output.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
         try checkSize(bytes)
-        return PostAttachment(kind: .video, fileURL: output)
+        return PostAttachment(kind: .video, fileURL: output, posterURL: await posterFrame(for: output))
+    }
+
+    /// The video's first frame as a JPEG (up to 1080 px), for grids and story circles.
+    static func posterFrame(for video: URL) async -> URL? {
+        let generator = AVAssetImageGenerator(asset: AVURLAsset(url: video))
+        generator.appliesPreferredTrackTransform = true
+        generator.maximumSize = CGSize(width: 1080, height: 1080)
+        guard let frame = try? await generator.image(at: .zero).image,
+              let jpeg = UIImage(cgImage: frame).jpegData(compressionQuality: 0.8) else { return nil }
+        let url = temporaryURL(extension: "jpg")
+        return (try? jpeg.write(to: url)) != nil ? url : nil
+    }
+
+    /// Width ÷ height a post's media is shown at: its own shape, but never taller than 4:5
+    /// or wider than 1.91:1, so one post never takes over the screen.
+    static func feedAspectRatio(width: CGFloat, height: CGFloat) -> CGFloat {
+        guard width > 0, height > 0 else { return 4.0 / 5.0 }
+        return min(max(width / height, 4.0 / 5.0), 1.91)
     }
 
     static func temporaryURL(extension ext: String) -> URL {

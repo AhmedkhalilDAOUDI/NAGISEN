@@ -15,7 +15,7 @@ struct ActivityView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Quiet for now")
                                 .font(.system(size: 23, design: .serif))
-                            Text("When members comment on or appreciate your posts, it shows here.")
+                            Text("When members follow you, or like or comment on your posts, it shows here.")
                                 .font(.subheadline).foregroundStyle(Theme.muted)
                         }
                     } else {
@@ -42,7 +42,7 @@ struct ActivityView: View {
                 await feed.loadActivity()
                 feed.markActivitySeen()
             }
-            .sheet(item: $openingPost) { PostCommentsView(post: $0) }
+            .sheet(item: $openingPost) { PostDetailView(post: $0) }
             .sheet(item: $viewingMember) { MemberPageView(member: $0) }
         }
     }
@@ -55,7 +55,11 @@ struct ActivityView: View {
             }
             .buttonStyle(.plain)
             Button {
-                Task { openingPost = await feed.post(id: item.postID) }
+                if let postID = item.postID {
+                    Task { openingPost = await feed.post(id: postID) }
+                } else {
+                    viewingMember = item.member
+                }
             } label: {
                 VStack(alignment: .leading, spacing: 4) {
                     switch item.kind {
@@ -63,8 +67,11 @@ struct ActivityView: View {
                         (Text("@\(item.member.username)").fontWeight(.semibold) + Text(" commented"))
                             .font(.subheadline)
                         Text(text).font(.subheadline).foregroundStyle(Theme.muted).lineLimit(2)
-                    case .appreciation:
-                        (Text("@\(item.member.username)").fontWeight(.semibold) + Text(" appreciated your post"))
+                    case .like:
+                        (Text("@\(item.member.username)").fontWeight(.semibold) + Text(" liked your post"))
+                            .font(.subheadline)
+                    case .follow:
+                        (Text("@\(item.member.username)").fontWeight(.semibold) + Text(" started following you"))
                             .font(.subheadline)
                     }
                     Text(item.date, style: .relative)

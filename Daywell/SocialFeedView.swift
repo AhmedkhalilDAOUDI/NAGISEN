@@ -19,10 +19,6 @@ struct SocialFeedView: View {
     @State private var attachment: PostAttachment?
     @State private var preparingMedia = false
     @State private var mediaError: String?
-    @State private var deletingPost: FeedPost?
-    @State private var reportingPost: FeedPost?
-    @State private var blockingPost: FeedPost?
-    @State private var commentingPost: FeedPost?
     @State private var viewingMember: FeedMember?
     @State private var showingActivity = false
 
@@ -33,274 +29,175 @@ struct SocialFeedView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 22) {
-                    NagisenPageHeading(kicker: "NAGISEN COMMUNITY", title: "Feed",
-                                       subtitle: "The people who keep you moving.")
-                    accountCard
-
-                    if let message = feed.message {
-                        Text(message).font(.subheadline).foregroundStyle(Theme.accentText)
-                    }
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    topBar
                     if feed.state == .ready {
+                        StoriesBar().padding(.vertical, 10)
+                        modePicker
+                        if let message = feed.message {
+                            Text(message).font(.subheadline).foregroundStyle(Theme.accentText)
+                                .padding(.horizontal, 16).padding(.vertical, 8)
+                        }
                         if feed.posts.isEmpty {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("The first page is yours to write")
-                                    .font(.system(size: 23, design: .serif))
-                                Text("Share a workout, a meal you made, or a small win.")
-                                    .font(.subheadline).foregroundStyle(Theme.muted)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .accentCardStyle(Theme.slate)
+                            emptyFeed
                         } else {
-                            ForEach(feed.posts) { post in postCard(post) }
-                            if feed.canLoadMore {
-                                Button("Load more posts") { Task { await feed.loadMore() } }
-                                    .font(.subheadline.weight(.semibold))
+                            ForEach(feed.posts) { post in
+                                FeedPostView(post: post)
+                                    .onAppear {
+                                        if post.id == feed.posts.last?.id { Task { await feed.loadMore() } }
+                                    }
+                            }
+                        }
+                        draftsSection
+                        if feed.blockedCount > 0 {
+                            HStack {
+                                Text(feed.blockedCount == 1 ? "1 person blocked" : "\(feed.blockedCount) people blocked")
+                                Spacer()
+                                Button("Unblock all") { Task { await feed.unblockEveryone() } }
                                     .foregroundStyle(Theme.accentText)
                             }
+                            .font(.caption).foregroundStyle(Theme.muted)
+                            .padding(16)
                         }
-                    }
-                    if !drafts.isEmpty {
-                        Text("YOUR PRIVATE DRAFTS")
-                            .font(.caption2.weight(.semibold)).tracking(2)
-                            .foregroundStyle(Theme.muted)
-                        ForEach(drafts) { draft in
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text(draft.text).font(.subheadline)
-                                HStack(spacing: 22) {
-                                    Button("Edit") { text = draft.text; showingComposer = true }
-                                    Button("Delete", role: .destructive) { deleteDraft(draft) }
-                                }
-                                .font(.caption.weight(.semibold))
-                            }
-                            .accentCardStyle(Theme.slate)
-                        }
+                    } else {
+                        signedOutCard.padding(16)
                     }
                 }
                 .foregroundStyle(Theme.ink)
-                .padding(18)
-                .padding(.bottom, 100)
+                .padding(.bottom, 110)
             }
             .refreshable { await feed.refresh() }
             .task { await feed.refresh() }
-            .scrollClipDisabled()
+            .onChange(of: feed.mode) { _, _ in Task { await feed.refresh() } }
             .softTopScrollEdgeEffect()
             .background(NagisenBackdrop())
             .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showingComposer, onDismiss: clearAttachment) {
                 composer.onAppear { feed.message = nil }
             }
-            .sheet(isPresented: $showingAccount) {
-                if feed.state == .ready {
-                    NavigationStack { AccountSettingsView(inSheet: true) }
-                } else {
-                    FeedAccountView()
-                }
-            }
-            .sheet(item: $commentingPost) { PostCommentsView(post: $0) }
+            .sheet(isPresented: $showingAccount) { FeedAccountView() }
             .sheet(item: $viewingMember) { MemberPageView(member: $0) }
             .sheet(isPresented: $showingActivity) { ActivityView() }
-            .confirmationDialog("Delete this post for everyone?", isPresented: Binding(
-                get: { deletingPost != nil }, set: { if !$0 { deletingPost = nil } }
-            )) {
-                Button("Delete post", role: .destructive) {
-                    guard let post = deletingPost else { return }
-                    deletingPost = nil
-                    Task { await feed.delete(post) }
-                }
-            }
-            .confirmationDialog("Why are you reporting this post?", isPresented: Binding(
-                get: { reportingPost != nil }, set: { if !$0 { reportingPost = nil } }
-            ), titleVisibility: .visible) {
-                ForEach(FeedRules.reportReasons, id: \.self) { reason in
-                    Button(reason) {
-                        guard let post = reportingPost else { return }
-                        reportingPost = nil
-                        Task { await feed.report(post, reason: reason) }
-                    }
-                }
-            } message: {
-                Text("The post will be hidden from your feed and sent for review.")
-            }
-            .confirmationDialog("Block @\(blockingPost?.username ?? "member")?", isPresented: Binding(
-                get: { blockingPost != nil }, set: { if !$0 { blockingPost = nil } }
-            ), titleVisibility: .visible) {
-                Button("Block", role: .destructive) {
-                    guard let post = blockingPost else { return }
-                    blockingPost = nil
-                    Task { await feed.block(post) }
-                }
-            } message: {
-                Text("You won’t see their posts anymore. They aren’t told.")
-            }
         }
     }
 
-    // MARK: - Account card
+    // MARK: - Top
 
-    private var accountCard: some View {
+    private var topBar: some View {
+        HStack(spacing: 4) {
+            Text("Feed").font(.system(size: 30, design: .serif))
+            Spacer()
+            if feed.state == .ready {
+                iconButton("plus.square", label: "New post") { showingComposer = true }
+                iconButton("bell", label: feed.hasNewActivity ? "Activity, new" : "Activity") { showingActivity = true }
+                    .overlay(alignment: .topTrailing) {
+                        if feed.hasNewActivity {
+                            Circle().fill(Theme.red).frame(width: 8, height: 8).offset(x: -10, y: 10)
+                                .allowsHitTesting(false)
+                        }
+                    }
+                Button { viewingMember = feed.me } label: {
+                    AvatarView(url: feed.avatarURL(feed.avatarPath), username: feed.username ?? "",
+                               tier: feed.borderTier, special: feed.specialBorder, size: 30)
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Your profile")
+            }
+        }
+        .padding(.leading, 16).padding(.trailing, 8).padding(.top, 8)
+    }
+
+    private func iconButton(_ symbol: String, label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol).font(.system(size: 21)).frame(width: 44, height: 44)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+    }
+
+    private var modePicker: some View {
+        HStack(spacing: 0) {
+            ForEach(FeedService.FeedMode.allCases, id: \.self) { mode in
+                Button { feed.mode = mode } label: {
+                    VStack(spacing: 8) {
+                        Text(mode.rawValue)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(feed.mode == mode ? Theme.ink : Theme.muted)
+                        Rectangle().fill(feed.mode == mode ? Theme.ink : Theme.line)
+                            .frame(height: feed.mode == mode ? 1.5 : 0.5)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(feed.mode == mode ? .isSelected : [])
+            }
+        }
+        .padding(.bottom, 6)
+    }
+
+    @ViewBuilder
+    private var emptyFeed: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if feed.mode == .following {
+                Text("Your feed is quiet")
+                    .font(.system(size: 23, design: .serif))
+                Text("Follow people to see their moments here, or share your own.")
+                    .font(.subheadline).foregroundStyle(Theme.muted)
+                NagisenPrimaryButton("Explore members") { feed.mode = .explore }
+            } else {
+                Text("The first page is yours to write")
+                    .font(.system(size: 23, design: .serif))
+                Text("Share a workout, a meal you made, or a small win.")
+                    .font(.subheadline).foregroundStyle(Theme.muted)
+                NagisenPrimaryButton("Share a moment") { showingComposer = true }
+            }
+        }
+        .cardStyle()
+        .padding(16)
+    }
+
+    private var signedOutCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            switch feed.state {
-            case .notConfigured:
+            if feed.state == .notConfigured {
                 Label("Feed isn’t set up in this build.", systemImage: "person.crop.circle")
                     .font(.subheadline)
-            case .signedOut, .needsUsername:
+            } else {
                 Text(feed.state == .signedOut ? "Create an account to share workouts, meals and small wins with NAGISEN members."
                                               : "Choose a username to finish setting up your account.")
                     .font(.subheadline)
                 NagisenPrimaryButton(feed.state == .signedOut ? "Sign in or create an account" : "Choose a username") {
                     showingAccount = true
                 }
-            case .ready:
-                HStack {
-                    Button { viewingMember = feed.me } label: {
-                        HStack(spacing: 10) {
-                            AvatarView(url: feed.avatarURL(feed.avatarPath), username: feed.username ?? "",
-                                       tier: feed.borderTier, special: feed.specialBorder, size: 34)
-                            Text("@\(feed.username ?? "")").font(.subheadline.weight(.semibold))
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityHint("Opens your member page")
-                    Spacer()
-                    Button { showingActivity = true } label: {
-                        Image(systemName: "bell")
-                            .font(.subheadline)
-                            .overlay(alignment: .topTrailing) {
-                                if feed.hasNewActivity {
-                                    Circle().fill(Theme.accent).frame(width: 7, height: 7).offset(x: 3, y: -2)
-                                }
-                            }
-                            .frame(width: 32, height: 28)
-                            .contentShape(Rectangle())
-                    }
-                    .foregroundStyle(Theme.ink)
-                    .accessibilityLabel(feed.hasNewActivity ? "Activity, new" : "Activity")
-                    Button("Account") { showingAccount = true }
-                        .font(.subheadline).foregroundStyle(Theme.accentText)
-                }
-                Button { showingComposer = true } label: {
-                    HStack {
-                        Text("Share a moment")
-                        Spacer()
-                        Image(systemName: "square.and.pencil")
-                    }
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .padding(16)
-                    .background(Theme.accent, in: RoundedRectangle(cornerRadius: 13))
-                }
-                .buttonStyle(.plain)
-                if feed.blockedCount > 0 {
-                    HStack {
-                        Text(feed.blockedCount == 1 ? "1 person blocked" : "\(feed.blockedCount) people blocked")
-                        Spacer()
-                        Button("Unblock all") { Task { await feed.unblockEveryone() } }
-                            .foregroundStyle(Theme.accentText)
-                    }
-                    .font(.caption)
-                    .foregroundStyle(Theme.muted)
-                }
             }
             Text("Posts are visible to signed-in NAGISEN members. Your food and workout history stays on this iPhone and in your private iCloud backup.")
                 .font(.caption).foregroundStyle(Theme.muted)
         }
-        .accentCardStyle(Theme.protein)
+        .cardStyle()
     }
 
-    // MARK: - Posts
-
-    private func postCard(_ post: FeedPost) -> some View {
-        VStack(alignment: .leading, spacing: 13) {
-            HStack {
-                Button { viewingMember = post.author } label: {
-                    HStack(spacing: 10) {
-                        AvatarView(url: feed.avatarURL(post.author.avatarPath), username: post.username,
-                                   tier: post.author.borderTier, special: post.author.special, size: 34)
-                        Text("@\(post.username)").font(.subheadline.weight(.semibold))
-                    }
-                }
-                .buttonStyle(.plain)
-                Spacer()
-                Text(post.createdAt, style: .relative)
-                    .font(.caption).foregroundStyle(Theme.muted)
-            }
-            if !post.body.isEmpty {
-                Text(post.body).font(.body)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            if let url = feed.mediaURL(for: post) {
-                switch post.mediaKind {
-                case .photo:
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image.resizable().scaledToFit()
-                        case .failure:
-                            Label("Photo unavailable", systemImage: "photo")
-                                .font(.caption).foregroundStyle(Theme.muted)
-                                .frame(maxWidth: .infinity, minHeight: 120)
-                        default:
-                            ProgressView().frame(maxWidth: .infinity, minHeight: 220)
+    @ViewBuilder
+    private var draftsSection: some View {
+        if !drafts.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("YOUR PRIVATE DRAFTS")
+                    .font(.caption2.weight(.semibold)).tracking(2)
+                    .foregroundStyle(Theme.muted)
+                ForEach(drafts) { draft in
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text(draft.text).font(.subheadline)
+                        HStack(spacing: 22) {
+                            Button("Edit") { text = draft.text; showingComposer = true }
+                            Button("Delete", role: .destructive) { deleteDraft(draft) }
                         }
+                        .font(.caption.weight(.semibold))
                     }
-                    .frame(maxHeight: 460)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-                case .video:
-                    FeedVideo(url: url)
-                        .frame(height: 300)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                case nil:
-                    EmptyView()
+                    .softCardStyle()
                 }
             }
-            if feed.isMine(post) && post.appreciationCount > 0 {
-                Label(post.appreciationCount == 1 ? "1 person appreciated this"
-                                                  : "\(post.appreciationCount) people appreciated this",
-                      systemImage: "seal.fill")
-                    .font(.caption).foregroundStyle(Theme.accentText)
-            }
-            HStack(spacing: 20) {
-                if !feed.isMine(post) {
-                    let marked = feed.hasAppreciated(post)
-                    Button { Task { await feed.toggleAppreciation(post) } } label: {
-                        Image(systemName: marked ? "seal.fill" : "seal")
-                            .foregroundStyle(marked ? Theme.accentText : Theme.ink)
-                            .contentTransition(.symbolEffect(.replace))
-                    }
-                    .accessibilityLabel(marked ? "Appreciated. Tap to take back" : "Appreciate")
-                    .sensoryFeedback(.selection, trigger: marked)
-                }
-                Button { commentingPost = post } label: {
-                    Label(post.commentCount == 0 ? "Comment" : "\(post.commentCount)", systemImage: "bubble.left")
-                }
-                .accessibilityLabel(post.commentCount == 1 ? "1 comment" : "\(post.commentCount) comments")
-                if !post.body.isEmpty {
-                    ShareLink(item: post.body) {
-                        Label("Share", systemImage: "square.and.arrow.up")
-                    }
-                }
-                if feed.isMine(post) {
-                    Button(role: .destructive) { deletingPost = post } label: {
-                        Label("Delete", systemImage: "trash")
-                    }
-                } else {
-                    Spacer()
-                    Menu {
-                        Button("Report post", systemImage: "flag") { reportingPost = post }
-                        Button("Block @\(post.username)", systemImage: "hand.raised",
-                               role: .destructive) { blockingPost = post }
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .frame(width: 32, height: 24)
-                            .contentShape(Rectangle())
-                    }
-                    .accessibilityLabel("More for this post")
-                }
-            }
-            .font(.caption.weight(.medium))
+            .padding(16)
         }
-        .accentCardStyle(Theme.slate)
     }
 
     // MARK: - Composer
@@ -464,6 +361,7 @@ struct SocialFeedView: View {
 
     private func clearAttachment() {
         if let attachment { try? FileManager.default.removeItem(at: attachment.fileURL) }
+        if let poster = attachment?.posterURL { try? FileManager.default.removeItem(at: poster) }
         attachment = nil
         mediaError = nil
     }
