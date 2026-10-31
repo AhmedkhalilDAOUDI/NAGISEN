@@ -12,6 +12,7 @@ struct AccountSettingsView: View {
     @State private var newPassword = ""
     @State private var pickedPhoto: PhotosPickerItem?
     @State private var confirmingDelete = false
+    @State private var pushEnabled = FeedPush.isEnabled
 
     private var profileChanged: Bool {
         FeedRules.normalizedUsername(username) != (feed.username ?? "") ||
@@ -30,6 +31,9 @@ struct AccountSettingsView: View {
                     picture
                     profile
                     signIn
+                    #if !NAGISEN_NO_ICLOUD
+                    notifications
+                    #endif
                     VStack(spacing: 14) {
                         NagisenPrimaryButton("Sign out", enabled: !feed.isBusy) {
                             Task { await feed.signOut(); dismiss() }
@@ -123,6 +127,33 @@ struct AccountSettingsView: View {
         .font(.body)
         .softCardStyle()
     }
+
+    #if !NAGISEN_NO_ICLOUD
+    private var notifications: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("NOTIFICATIONS")
+                .font(.caption2.weight(.semibold)).tracking(2).foregroundStyle(Theme.muted)
+            Toggle("Likes, comments and follows", isOn: Binding(get: { pushEnabled }, set: { on in
+                Task {
+                    if on {
+                        pushEnabled = await FeedPush.enable()
+                        if !pushEnabled { feed.message = "Allow NAGISEN notifications in iPhone Settings first." }
+                    } else {
+                        pushEnabled = false
+                        UserDefaults.standard.set(false, forKey: FeedPush.enabledKey)
+                        await feed.removePushToken()
+                        UIApplication.shared.unregisterForRemoteNotifications()
+                    }
+                }
+            }))
+            .tint(Theme.red)
+            .frame(minHeight: 44)
+            Text("Sent when someone likes or comments on your posts, or follows you.")
+                .font(.caption).foregroundStyle(Theme.muted)
+        }
+        .softCardStyle()
+    }
+    #endif
 
     private var signIn: some View {
         VStack(alignment: .leading, spacing: 14) {

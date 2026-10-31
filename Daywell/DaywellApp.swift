@@ -7,6 +7,9 @@ struct DaywellApp: App {
     @StateObject private var health = HealthManager()
     @StateObject private var community = CommunityCloud()
     @StateObject private var feed = FeedService()
+    #if !NAGISEN_NO_ICLOUD
+    @UIApplicationDelegateAdaptor(PushRelay.self) private var pushRelay
+    #endif
     @State private var syncTask: Task<Void, Never>?
     @AppStorage("nagisen.health.autoImport") private var autoImportHealth = false
     @Environment(\.scenePhase) private var scenePhase
@@ -56,6 +59,14 @@ struct DaywellApp: App {
                 }
                 .onChange(of: feed.state) { _, state in
                     if state == .ready { Task { await syncBorder() } }
+                    #if !NAGISEN_NO_ICLOUD
+                    if state == .ready {
+                        PushRelay.onToken = { token in Task { await feed.savePushToken(token) } }
+                        if let token = UserDefaults.standard.string(forKey: FeedPush.tokenKey), FeedPush.isEnabled {
+                            Task { await feed.savePushToken(token) }
+                        }
+                    }
+                    #endif
                 }
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active {

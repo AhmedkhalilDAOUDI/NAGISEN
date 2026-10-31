@@ -394,8 +394,24 @@ final class FeedService: ObservableObject {
         return false
     }
 
+    /// Keeps this iPhone's push token on the signed-in member, so Feed notifications reach them.
+    func savePushToken(_ token: String) async {
+        guard let client, let userID else { return }
+        struct Row: Encodable { let token: String; let member_id: UUID; let updated_at: Date }
+        // Before push.sql is run the table doesn't exist yet; nothing to do until then.
+        _ = try? await client.from("device_tokens")
+            .upsert(Row(token: token, member_id: userID, updated_at: .now), onConflict: "token").execute()
+    }
+
+    /// Stops Feed notifications for this iPhone.
+    func removePushToken() async {
+        guard let client, let token = UserDefaults.standard.string(forKey: FeedPush.tokenKey) else { return }
+        _ = try? await client.from("device_tokens").delete().eq("token", value: token).execute()
+    }
+
     func signOut() async {
         guard let client else { return }
+        await removePushToken()
         do { try await client.auth.signOut() } catch {
             message = Self.describe(error, doing: "sign out")
         }

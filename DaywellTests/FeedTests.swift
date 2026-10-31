@@ -57,6 +57,10 @@ final class FeedTests: XCTestCase {
         XCTAssertEqual(post.username, "khalil")
     }
 
+    func testAPushTokenIsSentAsLowercaseHex() {
+        XCTAssertEqual(FeedPush.hex(Data([0x0a, 0xff, 0x00, 0x7b])), "0aff007b")
+    }
+
     func testAPinnedPostCarriesItsPinTime() throws {
         let post = try decode("""
         {"id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d", "author_id": "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed",
