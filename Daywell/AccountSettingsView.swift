@@ -100,13 +100,11 @@ struct AccountSettingsView: View {
 
     private var profile: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 14) {
-                Text("Username").foregroundStyle(Theme.muted)
-                TextField("username", text: $username)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-            }
-            .frame(minHeight: 52)
+            TextField("Username", text: $username)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .accessibilityLabel("Username")
+                .frame(minHeight: 52)
             Divider().overlay(Theme.line)
             VStack(alignment: .leading, spacing: 6) {
                 TextField("A line about you", text: $bio, axis: .vertical)

@@ -128,7 +128,7 @@ struct FeedAccountView: View {
         VStack(alignment: .leading, spacing: 18) {
             Text("How should members see you?")
                 .font(.system(size: 25, design: .serif))
-            Text("3 to 20 letters, numbers or underscores. It is shown with every post.")
+            Text("Up to 30 letters, numbers, periods or underscores. It is shown with every post.")
                 .font(.subheadline).foregroundStyle(Theme.muted)
             TextField("username", text: $username)
                 .textInputAutocapitalization(.never)
