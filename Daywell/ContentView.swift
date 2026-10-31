@@ -93,7 +93,7 @@ struct ContentView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var addContext: AddContext?
     @State private var selectedDate = Date.now
-    @State private var section: MainSection = .dashboard
+    @State private var section: MainSection = .launchSection
     @State private var slideDirection: CGFloat = 1
     @State private var keyboardVisible = false
 
@@ -232,6 +232,19 @@ private enum MainSection: String, CaseIterable, Identifiable {
     case dashboard, grocery, workouts, feed, ai
     var id: Self { self }
     static let bottomSections: [MainSection] = [.dashboard, .grocery, .workouts, .feed]
+
+    /// Dashboard. Debug builds launched with `-NAGISENSection feed` (or grocery, workouts, ai)
+    /// open on that tab instead, so screens can be captured without tapping.
+    static var launchSection: MainSection {
+        #if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        if let index = arguments.firstIndex(of: "-NAGISENSection"), index + 1 < arguments.count,
+           let section = MainSection(rawValue: arguments[index + 1]) {
+            return section
+        }
+        #endif
+        return .dashboard
+    }
     var name: String {
         switch self {
         case .dashboard: "Dashboard"
@@ -280,8 +293,10 @@ private struct HomeView: View {
                                 Button { shiftDate(-1) } label: {
                                     Image(systemName: "chevron.left")
                                         .font(.system(size: 16, weight: .medium))
-                                        .frame(width: 30, height: 44)
+                                        .frame(width: 44, height: 44)
+                                        .contentShape(Rectangle())
                                 }
+                                .padding(.horizontal, -7)
                                 .accessibilityLabel("Previous day")
                                 Button { showingCalendar = true } label: {
                                     HStack(spacing: 7) {
@@ -294,8 +309,10 @@ private struct HomeView: View {
                                 Button { shiftDate(1) } label: {
                                     Image(systemName: "chevron.right")
                                         .font(.system(size: 16, weight: .medium))
-                                        .frame(width: 30, height: 44)
+                                        .frame(width: 44, height: 44)
+                                        .contentShape(Rectangle())
                                 }
+                                .padding(.horizontal, -7)
                                 .disabled(Calendar.current.isDateInToday(date))
                                 .accessibilityLabel("Next day")
                             }
@@ -304,54 +321,76 @@ private struct HomeView: View {
                                 .font(.subheadline).foregroundStyle(Theme.muted)
                         }
                         Spacer(minLength: 3)
-                        VStack(spacing: 10) {
-                            HStack(spacing: 5) {
+                        VStack(spacing: 4) {
+                            HStack(spacing: -5) {
                                 Button {
                                     store.appearance = colorScheme == .dark ? .light : .dark
                                 } label: {
                                     Image(systemName: colorScheme == .dark ? "moon.fill" : "sun.max.fill")
-                                        .font(.title3)
+                                        .font(.system(size: 17, weight: .regular))
                                         .frame(width: 34, height: 34)
                                         .nagisenGlass(in: Circle(), tint: Theme.surface.opacity(0.16))
+                                        .frame(width: 44, height: 44)
+                                        .contentShape(Circle())
                                 }
                                 .accessibilityLabel(colorScheme == .dark ? "Turn off dark mode" : "Turn on dark mode")
                                 Button(action: onOpenAI) {
                                     Image(systemName: "sparkles")
-                                        .font(.body.weight(.medium))
+                                        .font(.system(size: 16, weight: .medium))
                                         .frame(width: 34, height: 34)
                                         .nagisenGlass(in: Circle(), tint: Theme.surface.opacity(0.16))
+                                        .frame(width: 44, height: 44)
+                                        .contentShape(Circle())
                                 }
                                 .accessibilityLabel("Open AI coach")
                                 Button { showingProfile = true } label: {
                                     Image(systemName: "person.crop.circle")
-                                        .font(.body.weight(.medium))
+                                        .font(.system(size: 16, weight: .medium))
                                         .frame(width: 34, height: 34)
                                         .nagisenGlass(in: Circle(), tint: Theme.surface.opacity(0.16))
+                                        .frame(width: 44, height: 44)
+                                        .contentShape(Circle())
                                 }
                                 .accessibilityLabel("You")
                             }
                             NavigationLink {
                                 HealthView()
                             } label: {
-                                VStack(spacing: 2) {
-                                    Text(health.hasRequestedAccess ? (health.steps.map { $0.formatted() } ?? "—") : "Connect")
-                                        .font(.system(size: health.hasRequestedAccess ? 24 : 17, weight: .regular, design: .serif))
-                                        .foregroundStyle(Theme.ink)
-                                        .lineLimit(1)
-                                        .minimumScaleFactor(0.75)
-                                    Text("STEPS")
-                                        .font(.system(size: 10, weight: .medium))
-                                        .tracking(2)
-                                        .foregroundStyle(Theme.muted)
+                                Group {
+                                    if health.hasRequestedAccess {
+                                        VStack(spacing: 2) {
+                                            Text(health.steps.map { $0.formatted() } ?? "—")
+                                                .font(.system(size: 24, weight: .regular, design: .serif))
+                                                .foregroundStyle(Theme.ink)
+                                                .lineLimit(1)
+                                                .minimumScaleFactor(0.75)
+                                            Text("STEPS")
+                                                .font(.system(size: 10, weight: .medium))
+                                                .tracking(2)
+                                                .foregroundStyle(Theme.muted)
+                                        }
+                                    } else {
+                                        // Falls back to the icon alone when large text leaves no room for the words.
+                                        ViewThatFits(in: .horizontal) {
+                                            Label("Connect steps", systemImage: "figure.walk")
+                                                .lineLimit(1)
+                                            Image(systemName: "figure.walk")
+                                        }
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(Theme.accentText)
+                                        .frame(minHeight: 44)
+                                    }
                                 }
                                 .frame(maxWidth: .infinity)
                                 .contentShape(Rectangle())
                             }
                             .accessibilityLabel("Today’s steps: \(health.steps.map { $0.formatted() } ?? "connect Apple Health")")
                         }
-                        .frame(width: 112)
+                        .frame(width: 122)
                     }
                     .padding(.horizontal, 18)
+                    // The header keeps its shape at the largest text sizes; the cards below scale freely.
+                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                     VStack(alignment: .leading, spacing: 22) {
                         CalorieCard(date: date)
                         Rectangle().fill(Theme.line).frame(height: 1)
@@ -747,14 +786,16 @@ private struct CalorieCard: View {
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(overage > 0 ? "\(overage) calories over goal" : "\(eaten) of \(goal) calories eaten")
             }
-            HStack(alignment: .firstTextBaseline) {
-                Text("Bonus calories")
-                    .foregroundStyle(Theme.muted)
-                Spacer()
-                Text("\(bonus.formatted()) kcal")
-                    .foregroundStyle(Theme.ink)
+            if bonus > 0 {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Bonus calories")
+                        .foregroundStyle(Theme.muted)
+                    Spacer()
+                    Text("\(bonus.formatted()) kcal")
+                        .foregroundStyle(Theme.ink)
+                }
+                .font(.subheadline.weight(.medium))
             }
-            .font(.subheadline.weight(.medium))
             Rectangle().fill(Theme.line).frame(height: 1)
             VStack(alignment: .leading, spacing: 12) {
                 let streak = store.streakSnapshot(asOf: date)

@@ -272,8 +272,6 @@ struct WorkoutMusicView: View {
                                        subtitle: Date.now.formatted(.dateTime.weekday(.wide).month(.wide).day()),
                                        accent: Theme.workout)
 
-                    SpotifyMusicCard()
-
                     NavigationLink {
                         PersonalRecordsView()
                     } label: {
@@ -320,6 +318,8 @@ struct WorkoutMusicView: View {
                         workoutSplitCard
                     }
                     .buttonStyle(.plain)
+
+                    SpotifyMusicCard()
 
                     VStack(alignment: .leading, spacing: 15) {
                         HStack {
@@ -488,6 +488,14 @@ struct WorkoutMusicView: View {
         }
     }
 
+    /// Fits a day's focus in its narrow column at full size: long single words are shortened
+    /// ("Conditioning" → "Cond."); phrases may wrap onto two lines.
+    static func shortFocus(_ focus: String) -> String {
+        let trimmed = focus.trimmingCharacters(in: .whitespaces)
+        guard trimmed.count > 9, !trimmed.contains(" ") else { return trimmed }
+        return String(trimmed.prefix(4)) + "."
+    }
+
     private var workoutSplitCard: some View {
         let split = store.workoutSplit
         return VStack(alignment: .leading, spacing: 13) {
@@ -515,10 +523,10 @@ struct WorkoutMusicView: View {
                         VStack(spacing: 4) {
                             Text(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][index])
                                 .font(.caption2.weight(isToday ? .bold : .medium))
-                            Text(split.days[index])
+                            Text(Self.shortFocus(split.days[index]))
                                 .font(.system(size: 10, weight: isToday ? .semibold : .regular))
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.65)
+                                .lineLimit(2)
+                                .multilineTextAlignment(.center)
                         }
                         .foregroundStyle(isToday ? Theme.accentText : Theme.muted)
                         .frame(maxWidth: .infinity)
@@ -846,6 +854,40 @@ private struct SpotifyMusicCard: View {
     @EnvironmentObject private var spotify: SpotifyManager
 
     var body: some View {
+        Group {
+            if spotify.isConnected { player } else { connectRow }
+        }
+        .onAppear { spotify.connectIfAuthorized() }
+    }
+
+    private var connectRow: some View {
+        HStack(spacing: 14) {
+            Image(systemName: "music.note")
+                .font(.title3)
+                .foregroundStyle(Theme.accentText)
+                .frame(width: 32)
+            VStack(alignment: .leading, spacing: 3) {
+                Text("MUSIC")
+                    .font(.caption2.weight(.semibold)).tracking(1.6)
+                    .foregroundStyle(Theme.muted)
+                Text("See what's playing while you train")
+                    .font(.subheadline)
+            }
+            Spacer(minLength: 8)
+            Button(spotify.hasSavedAuthorization ? "Reconnect" : "Connect") {
+                if spotify.hasSavedAuthorization { spotify.authorizeAgain() }
+                else { spotify.connect() }
+            }
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(Theme.accentText)
+            .frame(minHeight: 44)
+            .disabled(!spotify.isConfigured)
+            .accessibilityLabel(spotify.hasSavedAuthorization ? "Reconnect Spotify" : "Connect Spotify")
+        }
+        .softCardStyle()
+    }
+
+    private var player: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("MUSIC")
                 .font(.caption2.weight(.semibold)).tracking(2.2)
@@ -886,24 +928,14 @@ private struct SpotifyMusicCard: View {
             .frame(maxWidth: .infinity)
             .multilineTextAlignment(.center)
             HStack {
-                if !spotify.isConnected {
-                    Button(spotify.hasSavedAuthorization ? "Reconnect Spotify" : "Connect Spotify") {
-                        if spotify.hasSavedAuthorization { spotify.authorizeAgain() }
-                        else { spotify.connect() }
-                    }
-                        .font(.subheadline.weight(.semibold))
-                        .disabled(!spotify.isConfigured)
-                } else {
-                    Label(spotify.status, systemImage: "waveform")
-                        .font(.caption).foregroundStyle(Theme.muted)
-                }
+                Label(spotify.status, systemImage: "waveform")
+                    .font(.caption).foregroundStyle(Theme.muted)
                 Spacer()
                 Link("Open Spotify", destination: URL(string: "https://open.spotify.com/")!)
                     .font(.subheadline.weight(.semibold))
             }
         }
         .cardStyle()
-        .onAppear { spotify.connectIfAuthorized() }
     }
 
     private func trackButton(_ symbol: String, label: String, action: @escaping () -> Void) -> some View {

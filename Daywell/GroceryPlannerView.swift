@@ -217,10 +217,10 @@ struct GroceryPlannerView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 if showBackButton {
-                    NagisenHeader("LET HIM COOK", subtitle: "Meals made with what you actually bought.", onBack: { dismiss() })
+                    NagisenHeader("Kitchen", subtitle: "Meals made with what you actually bought.", onBack: { dismiss() })
                         .padding(.horizontal, 20)
                 } else {
-                    NagisenPageHeading(kicker: "NAGISEN LAB", title: "LET HIM COOK",
+                    NagisenPageHeading(kicker: "NAGISEN LAB", title: "Kitchen",
                                        subtitle: "Your kitchen. Your plan.", accent: Theme.gold)
                         .padding(.horizontal, 20)
                 }
