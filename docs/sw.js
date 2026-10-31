@@ -1,6 +1,6 @@
 // Keeps NAGISEN working offline: the app's own files come from the network when there is one (so an
 // update shows at once) and from the cache when there isn't. Feed, food search and the coach are online only.
-const CACHE = "nagisen-v2";
+const CACHE = "nagisen-v3";
 const SHELL = ["./", "index.html", "app.css", "manifest.webmanifest", "icon-192.png", "icon-512.png", "apple-touch-icon.png",
   "config.js", "data/quests.json", "vendor/preact.js", "vendor/hooks.js", "vendor/htm.js", "vendor/supabase.js",
   "js/main.js", "js/lib.js", "js/math.js", "js/store.js", "js/ui.js", "js/region.js", "js/onboarding.js", "js/dashboard.js",

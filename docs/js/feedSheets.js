@@ -10,6 +10,11 @@ export function SignIn({ supabase, onClose }) {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState(null);
   const [busy, setBusy] = useState(false);
+  const reset = async () => {
+    if (!email.includes("@")) return setMessage("Type your email above first.");
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: location.origin + location.pathname });
+    setMessage(error ? describe(error, "send the reset link") : `If an account uses ${email.trim()}, a link to reset the password is on its way.`);
+  };
   const submit = async (e) => {
     e.preventDefault();
     setBusy(true); setMessage(null);
@@ -32,6 +37,7 @@ export function SignIn({ supabase, onClose }) {
         <button class="primary" disabled=${busy || !email.includes("@") || password.length < (mode === "signup" ? 8 : 1)}>
           ${busy ? "One moment…" : mode === "signin" ? "Sign in" : "Create account"}</button>
         ${message && html`<p class="accent small" style="margin:0">${message}</p>`}
+        ${mode === "signin" && html`<button type="button" class="small muted" onClick=${reset}>Forgot password?</button>`}
         <button type="button" class="link" onClick=${() => { setMode(mode === "signin" ? "signup" : "signin"); setMessage(null); }}>
           ${mode === "signin" ? "New here? Create an account" : "Already have an account? Sign in"}</button>
       </form>
@@ -272,5 +278,21 @@ export function Account({ session, onClose }) {
         <button class="list-row" onClick=${() => { supabase.auth.signOut(); onClose(); }}>Sign out</button>
         <button class="list-row danger" onClick=${deleteAccount}>Delete account</button>
       </div>
+    <//>`;
+}
+
+export function NewPassword({ session, onClose }) {
+  const [password, setPassword] = useState("");
+  const [message, setMessage] = useState(null);
+  const save = async () => {
+    const { error } = await session.supabase.auth.updateUser({ password });
+    error ? setMessage(describe(error, "change your password")) : onClose();
+  };
+  return html`
+    <${Sheet} title="New password" onClose=${onClose} action=${save} actionLabel="Save" actionEnabled=${password.length >= 8}>
+      <p class="muted" style="margin:0">Choose a password you haven't used here before. You stay signed in here.</p>
+      <input class="field" type="password" autocomplete="new-password" placeholder="New password (8 characters or more)"
+        value=${password} onInput=${(e) => setPassword(e.target.value)} aria-label="New password" />
+      ${message && html`<p class="accent small">${message}</p>`}
     <//>`;
 }

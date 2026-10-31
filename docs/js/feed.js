@@ -1,7 +1,7 @@
 import { html, useState, useEffect, useCallback, ago } from "./lib.js";
 import { Heading, Icon, Menu, Avatar, MemberName, confirmDialog } from "./ui.js";
-import { useSession, POST_FIELDS, PAGE, asPost, mediaURL, describe, REPORT_REASONS } from "./feedClient.js";
-import { SignIn, ChooseUsername, Composer, EditPost, Comments, MemberPage, Account } from "./feedSheets.js";
+import { useSession, POST_FIELDS, PAGE, asPost, mediaURL, describe, REPORT_REASONS, recovering, doneRecovering } from "./feedClient.js";
+import { SignIn, ChooseUsername, Composer, EditPost, Comments, MemberPage, Account, NewPassword } from "./feedSheets.js";
 
 export function Feed() {
   const session = useSession();
@@ -29,6 +29,7 @@ export function Feed() {
   }, [query]);
 
   useEffect(() => { if (session.state === "ready") load(0); }, [session.state, mode, load]);
+  useEffect(() => { if (recovering && session.supabase) setSheet({ kind: "password" }); }, [session.state]);
 
   const patch = (id, change) => setPosts((list) => list.map((p) => (p.id === id ? { ...p, ...change(p) } : p)));
   const remove = (id) => setPosts((list) => list.filter((p) => p.id !== id));
@@ -112,7 +113,8 @@ export function Feed() {
       onCount=${(n) => patch(sheet.post.id, () => ({ comments: n }))} />`}
     ${sheet?.kind === "member" && html`<${MemberPage} session=${session} author=${sheet.author} onClose=${() => setSheet(null)}
       onAccount=${() => setSheet({ kind: "account" })} actions=${actions} />`}
-    ${sheet?.kind === "account" && html`<${Account} session=${session} onClose=${() => setSheet(null)} />`}`;
+    ${sheet?.kind === "account" && html`<${Account} session=${session} onClose=${() => setSheet(null)} />`}
+    ${sheet?.kind === "password" && html`<${NewPassword} session=${session} onClose=${() => { doneRecovering(); setSheet(null); }} />`}`;
 }
 
 export function PostCard({ post, me, dev, actions }) {

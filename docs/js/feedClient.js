@@ -11,12 +11,25 @@ export const PAGE = 20;
 export const REPORT_REASONS = ["Spam", "Harassment or hate", "Sexual or violent content", "Something else"];
 
 let clientPromise = null;
+/** Set when a password-reset link signed the member in, so Feed asks for a new password. */
+export let recovering = false;
+export const doneRecovering = () => { recovering = false; };
 /** Loads supabase-js only when Feed is opened, so the rest of the app stays light. */
 export function client() {
   clientPromise ??= new Promise((resolve, reject) => {
     const script = document.createElement("script");
     script.src = "vendor/supabase.js";
-    script.onload = () => resolve(window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY));
+    script.onload = async () => {
+      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { detectSessionInUrl: false } });
+      // Finish a sign-in or password-reset link that opened the site (kept aside by main.js).
+      const pending = new URLSearchParams(sessionStorage.getItem("nagisen.authHash") || "");
+      sessionStorage.removeItem("nagisen.authHash");
+      if (pending.get("access_token") && pending.get("refresh_token")) {
+        await supabase.auth.setSession({ access_token: pending.get("access_token"), refresh_token: pending.get("refresh_token") });
+        if (pending.get("type") === "recovery") recovering = true;
+      }
+      resolve(supabase);
+    };
     script.onerror = () => { clientPromise = null; reject(new Error("Feed couldn't load. Check your connection.")); };
     document.head.appendChild(script);
   });

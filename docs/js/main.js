@@ -41,7 +41,11 @@ const Intro = () => html`
 function App() {
   const s = useStore();
   useTheme(s.appearance);
-  const [section, setSection] = useState(() => location.hash.slice(1) || "dashboard");
+  // A sign-in or password-reset link arrives as #access_token=…; keep it for Feed and open Feed.
+  const [section, setSection] = useState(() => {
+    if (location.hash.includes("access_token=")) { sessionStorage.setItem("nagisen.authHash", location.hash.slice(1)); return "feed"; }
+    return location.hash.slice(1) || "dashboard";
+  });
   const [coach, setCoach] = useState(false);
   useEffect(() => { if (location.hash !== `#${section}`) history.pushState(null, "", `#${section}`); window.scrollTo(0, 0); }, [section]);
   useEffect(() => {

@@ -23,6 +23,9 @@ struct DaywellApp: App {
                     spotify.handle(url: url)
                     feed.handle(url: url)
                 }
+                .sheet(isPresented: $feed.recoveringPassword) {
+                    NewPasswordView().environmentObject(feed)
+                }
                 .onReceive(health.$workouts) { _ in
                     if autoImportHealth { _ = store.importHealth(workouts: health.workouts, weights: health.weightSamples) }
                 }

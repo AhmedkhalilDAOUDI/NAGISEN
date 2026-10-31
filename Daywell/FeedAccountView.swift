@@ -108,6 +108,13 @@ struct FeedAccountView: View {
                     }
                 }
             }
+            if !creating {
+                Button("Forgot password?") { Task { await feed.sendPasswordReset(to: email) } }
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.muted)
+                    .frame(maxWidth: .infinity)
+                    .disabled(feed.isBusy)
+            }
             Button(creating ? "I already have an account" : "Create an account") {
                 creating.toggle()
                 feed.message = nil
@@ -148,5 +155,37 @@ struct FeedAccountView: View {
 
     private static func sha256(_ value: String) -> String {
         SHA256.hash(data: Data(value.utf8)).map { String(format: "%02x", $0) }.joined()
+    }
+}
+
+/// Opened by a password-reset link: the member is already signed in and picks a new password.
+struct NewPasswordView: View {
+    @EnvironmentObject private var feed: FeedService
+    @Environment(\.dismiss) private var dismiss
+    @State private var password = ""
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 18) {
+                Text("Choose a password you haven't used here before. You stay signed in on this iPhone.")
+                    .font(.subheadline).foregroundStyle(Theme.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                SecureField("New password (8 characters or more)", text: $password)
+                    .textContentType(.newPassword)
+                    .textFieldStyle(.nagisen)
+                if let message = feed.message {
+                    Text(message).font(.subheadline).foregroundStyle(Theme.accentText)
+                }
+                Spacer()
+            }
+            .padding(.horizontal, 22).padding(.top, 12)
+            .foregroundStyle(Theme.ink)
+            .background(NagisenBackdrop())
+            .nagisenSheetBar("New password", onClose: { dismiss() }, actionTitle: "Save",
+                             actionEnabled: password.count >= 8, busy: feed.isBusy) {
+                Task { if await feed.changePassword(to: password) { dismiss() } }
+            }
+            .onAppear { feed.message = nil }
+        }
     }
 }

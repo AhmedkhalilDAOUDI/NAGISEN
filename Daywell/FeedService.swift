@@ -212,6 +212,8 @@ final class FeedService: ObservableObject {
     @Published private(set) var canLoadMore = false
     @Published private(set) var blockedCount = 0
     @Published var isBusy = false
+    /// True after a password-reset link opened the app: the member is signed in to choose a new password.
+    @Published var recoveringPassword = false
     @Published private(set) var activity: [FeedActivity] = []
     @Published private(set) var hasNewActivity = false
     @Published var message: String?
@@ -270,7 +272,8 @@ final class FeedService: ObservableObject {
 
     private func observeAuth() async {
         guard let client else { return }
-        for await (_, session) in client.auth.authStateChanges {
+        for await (event, session) in client.auth.authStateChanges {
+            if event == .passwordRecovery { recoveringPassword = true }
             if let session, !session.isExpired {
                 email = session.user.email
                 await signedIn(as: session.user.id)
@@ -517,6 +520,24 @@ final class FeedService: ObservableObject {
         } catch {
             message = Self.describe(error, doing: "change your email")
             return false
+        }
+    }
+
+    /// Emails a link that opens NAGISEN signed in, ready to choose a new password.
+    func sendPasswordReset(to address: String) async {
+        guard let client else { return }
+        let trimmed = address.trimmingCharacters(in: .whitespaces)
+        guard trimmed.contains("@") else {
+            message = "Type your email above first."
+            return
+        }
+        isBusy = true
+        defer { isBusy = false }
+        do {
+            try await client.auth.resetPasswordForEmail(trimmed, redirectTo: Self.authRedirect)
+            message = "If an account uses \(trimmed), a link to reset the password is on its way."
+        } catch {
+            message = Self.describe(error, doing: "send the reset link")
         }
     }
 
