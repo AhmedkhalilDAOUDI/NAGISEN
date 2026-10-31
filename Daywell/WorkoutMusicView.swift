@@ -745,75 +745,35 @@ private struct WorkoutSplitEditorView: View {
     }
 }
 
-private struct JapaneseWavePattern: View {
-    let color: Color
-    let radius: CGFloat
-
-    var body: some View {
-        Canvas { context, size in
-            let rowHeight = radius * 0.87
-            let rows = Int(size.height / rowHeight) + 2
-            let columns = Int(size.width / (radius * 2)) + 3
-            for row in 0..<rows {
-                for column in 0..<columns {
-                    let x = CGFloat(column) * radius * 2 + (row.isMultiple(of: 2) ? 0 : radius) - radius
-                    let y = CGFloat(row) * rowHeight
-                    for inset in [CGFloat.zero, radius * 0.34, radius * 0.68] {
-                        var wave = Path()
-                        wave.addArc(center: CGPoint(x: x, y: y), radius: radius - inset,
-                                    startAngle: .degrees(180), endAngle: .degrees(360), clockwise: false)
-                        context.stroke(wave, with: .color(color), lineWidth: 1)
-                    }
-                }
-            }
-        }
-        .accessibilityHidden(true)
-    }
-}
-
+/// A trophy drawn like the logo: the sun over its two horizon lines, carrying the trophy's symbol.
 private struct JapaneseTrophySeal: View {
-    @Environment(\.colorScheme) private var colorScheme
     let symbol: String
     let earned: Bool
     let size: CGFloat
 
     var body: some View {
-        ZStack {
-            Circle()
-                .fill(earned ? Theme.red : Theme.line)
-            JapaneseWavePattern(color: (earned ? Theme.gold : Theme.muted).opacity(0.23), radius: size * 0.11)
-                .clipShape(Circle())
-            ForEach(0..<12, id: \.self) { ray in
-                Rectangle()
-                    .fill(earned ? Theme.gold.opacity(0.7) : Theme.muted.opacity(0.3))
-                    .frame(width: max(1, size * 0.006), height: size * 0.11)
-                    .offset(y: -size * 0.37)
-                    .rotationEffect(.degrees(Double(ray) * 30))
-            }
-            Circle()
-                .fill(earned ? Theme.paper : Theme.surface)
-                .frame(width: size * 0.64, height: size * 0.64)
-                .overlay {
-                    Circle().strokeBorder(earned ? Theme.gold : Theme.muted.opacity(0.5), lineWidth: max(1, size * 0.012))
+        VStack(spacing: size * 0.09) {
+            ZStack {
+                if earned {
+                    Circle().fill(Theme.red)
+                } else {
+                    Circle().strokeBorder(Theme.line, lineWidth: max(1, size * 0.02))
                 }
-            Circle()
-                .fill(earned ? Theme.gold.opacity(0.18) : Theme.line)
-                .frame(width: size * 0.52, height: size * 0.52)
-            Image(systemName: symbol)
-                .font(.system(size: size * 0.31, weight: .light))
-                .foregroundStyle(earned ? (colorScheme == .dark ? Theme.gold : Theme.red) : Theme.muted)
-                .symbolRenderingMode(.hierarchical)
-            Circle()
-                .strokeBorder(earned ? Theme.gold : Theme.muted.opacity(0.5), lineWidth: max(1, size * 0.013))
-            Circle()
-                .strokeBorder(Theme.paper.opacity(0.8), lineWidth: max(1, size * 0.006))
-                .padding(size * 0.035)
+                Image(systemName: symbol)
+                    .font(.system(size: size * 0.26, weight: .light))
+                    .foregroundStyle(earned ? .white : Theme.muted)
+            }
+            .frame(width: size * 0.62, height: size * 0.62)
+            VStack(spacing: size * 0.06) {
+                Capsule().frame(width: size * 0.9, height: max(1.5, size * 0.035))
+                Capsule().frame(width: size * 0.55, height: max(1, size * 0.022))
+            }
+            .foregroundStyle(earned ? Theme.ink : Theme.line)
         }
         .frame(width: size, height: size)
         .accessibilityHidden(true)
     }
 }
-
 private struct SpotifyMusicCard: View {
     @EnvironmentObject private var spotify: SpotifyManager
 

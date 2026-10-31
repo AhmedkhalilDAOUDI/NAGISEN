@@ -176,10 +176,10 @@ enum FeedRules {
     static let maxBioLength = 150
     static let reportReasons = ["Spam", "Harassment or hate", "Sexual or violent content", "Something else"]
 
-    /// Letters, digits and underscores, 3 to 20 characters, as the database enforces.
+    /// 1 to 30 letters (any language), numbers, periods or underscores, as the database enforces.
+    /// No spaces or emoji, so a name stays one word that can't break layouts.
     static func isValidUsername(_ name: String) -> Bool {
-        (3...20).contains(name.count) &&
-            name.unicodeScalars.allSatisfy { CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_").contains($0) }
+        (1...30).contains(name.count) && name.allSatisfy { $0.isLetter || $0.isNumber || $0 == "_" || $0 == "." }
     }
 
     static func normalizedUsername(_ name: String) -> String {
@@ -363,7 +363,7 @@ final class FeedService: ObservableObject {
         guard let client, let userID else { return false }
         let name = FeedRules.normalizedUsername(raw)
         guard FeedRules.isValidUsername(name) else {
-            message = "Use 3 to 20 letters, numbers or underscores."
+            message = "Use 1 to 30 letters, numbers, periods or underscores."
             return false
         }
         isBusy = true
@@ -377,8 +377,8 @@ final class FeedService: ObservableObject {
             await refresh()
             return true
         } catch let error as PostgrestError where error.code == "23514" {
-            // The database's username rule (letters, numbers, underscores, 3 to 20) refused it.
-            message = "Use 3 to 20 letters, numbers or underscores."
+            // The database's username rule refused it.
+            message = "Use 1 to 30 letters, numbers, periods or underscores."
         } catch let error as PostgrestError where error.code == "23505" {
             message = "That username is taken. Try another."
         } catch {
@@ -435,7 +435,7 @@ final class FeedService: ObservableObject {
         let name = FeedRules.normalizedUsername(raw)
         let newBio = rawBio.trimmingCharacters(in: .whitespacesAndNewlines)
         guard FeedRules.isValidUsername(name) else {
-            message = "Use 3 to 20 letters, numbers or underscores."
+            message = "Use 1 to 30 letters, numbers, periods or underscores."
             return false
         }
         guard newBio.count <= FeedRules.maxBioLength else {
@@ -454,8 +454,8 @@ final class FeedService: ObservableObject {
             await refresh()
             return true
         } catch let error as PostgrestError where error.code == "23514" {
-            // The database's username rule (letters, numbers, underscores, 3 to 20) refused it.
-            message = "Use 3 to 20 letters, numbers or underscores."
+            // The database's username rule refused it.
+            message = "Use 1 to 30 letters, numbers, periods or underscores."
         } catch let error as PostgrestError where error.code == "23505" {
             message = "That username is taken. Try another."
         } catch {

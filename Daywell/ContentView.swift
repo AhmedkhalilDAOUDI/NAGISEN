@@ -1660,60 +1660,111 @@ struct NagisenPrimaryButton: View {
 }
 
 /// The logo drawing itself each time the app opens: the horizon spreads, the sun rises behind it,
-/// then the name appears and everything fades into the app.
-private struct LaunchIntroView: View {
+/// then the name appears and everything fades into the app. Built on Core Animation so it plays
+/// in the render server at up to 120 fps, unaffected by launch work on the main thread.
+private struct LaunchIntroView: UIViewRepresentable {
     let onFinish: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var horizon = false
-    @State private var sunrise = false
-    @State private var name = false
-    @State private var leaving = false
-    /// The sun's red from the app icon.
-    private let sun = Color(red: 0.70, green: 0.32, blue: 0.25)
 
-    var body: some View {
-        ZStack {
-            Theme.paper.ignoresSafeArea()
-            VStack(spacing: 30) {
-                ZStack {
-                    Circle().fill(sun)
-                        .frame(width: 84, height: 84)
-                        .offset(y: sunrise ? -18 : 70)
-                        .frame(width: 160, height: 160)
-                        // Only above the horizon, so the sun comes up from behind it.
-                        .mask(alignment: .top) { Rectangle().frame(height: 128) }
-                    VStack(spacing: 9) {
-                        Capsule().frame(width: horizon ? 128 : 0, height: 2.5)
-                        Capsule().frame(width: horizon ? 76 : 0, height: 1.5)
-                    }
-                    .offset(y: 50)
-                }
-                .frame(width: 160, height: 160)
-                Text("NAGISEN")
-                    .font(.system(size: 15, weight: .semibold))
-                    .tracking(name ? 7 : 2)
-                    .opacity(name ? 1 : 0)
-            }
-            .foregroundStyle(Theme.ink)
+    func makeUIView(context: Context) -> IntroView { IntroView(reduceMotion: reduceMotion, onFinish: onFinish) }
+    func updateUIView(_ view: IntroView, context: Context) {}
+
+    final class IntroView: UIView {
+        private let reduceMotion: Bool
+        private let onFinish: () -> Void
+        private var started = false
+        private let sunClip = CALayer()
+        private let sun = CAShapeLayer()
+        private let longLine = CALayer()
+        private let shortLine = CALayer()
+        private let name = CATextLayer()
+        /// The sun's red from the app icon.
+        private let sunColor = UIColor(red: 0.70, green: 0.32, blue: 0.25, alpha: 1)
+
+        init(reduceMotion: Bool, onFinish: @escaping () -> Void) {
+            self.reduceMotion = reduceMotion
+            self.onFinish = onFinish
+            super.init(frame: .zero)
+            sunClip.masksToBounds = true
+            sunClip.addSublayer(sun)
+            [sunClip, longLine, shortLine, name].forEach(layer.addSublayer)
+            isAccessibilityElement = true
+            accessibilityLabel = "NAGISEN"
         }
-        .opacity(leaving ? 0 : 1)
-        .accessibilityElement()
-        .accessibilityLabel("NAGISEN")
-        .task {
-            if reduceMotion {
-                horizon = true; sunrise = true; name = true
-                try? await Task.sleep(for: .seconds(1.2))
-            } else {
-                withAnimation(.easeOut(duration: 0.7)) { horizon = true }
-                try? await Task.sleep(for: .seconds(0.35))
-                withAnimation(.spring(response: 1.0, dampingFraction: 0.9)) { sunrise = true }
-                try? await Task.sleep(for: .seconds(0.9))
-                withAnimation(.easeOut(duration: 0.6)) { name = true }
-                try? await Task.sleep(for: .seconds(1.1))
+
+        required init?(coder: NSCoder) { nil }
+
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            let ink = UIColor(Theme.ink).resolvedColor(with: traitCollection).cgColor
+            backgroundColor = UIColor(Theme.paper).resolvedColor(with: traitCollection)
+            let center = CGPoint(x: bounds.midX, y: bounds.midY - 24)
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            // Only the part above the horizon shows, so the sun comes up from behind it.
+            sunClip.frame = CGRect(x: center.x - 80, y: center.y - 80, width: 160, height: 128)
+            sun.path = UIBezierPath(ovalIn: CGRect(x: 0, y: 0, width: 84, height: 84)).cgPath
+            sun.fillColor = sunColor.cgColor
+            sun.bounds = CGRect(x: 0, y: 0, width: 84, height: 84)
+            sun.position = CGPoint(x: 80, y: 62)
+            for (line, width, height, dy) in [(longLine, 128.0, 2.5, 44.5), (shortLine, 76.0, 1.5, 55.5)] {
+                line.backgroundColor = ink
+                line.bounds = CGRect(x: 0, y: 0, width: width, height: height)
+                line.cornerRadius = height / 2
+                line.position = CGPoint(x: center.x, y: center.y + dy)
             }
-            withAnimation(.easeIn(duration: 0.45)) { leaving = true }
-            try? await Task.sleep(for: .seconds(0.45))
-            onFinish()
+            name.string = NSAttributedString(string: "NAGISEN", attributes: [
+                .font: UIFont.systemFont(ofSize: 15, weight: .semibold), .kern: 7,
+                .foregroundColor: UIColor(cgColor: ink)])
+            name.alignmentMode = .center
+            name.contentsScale = traitCollection.displayScale
+            name.frame = CGRect(x: 0, y: center.y + 110, width: bounds.width, height: 22)
+            CATransaction.commit()
+            if !started, bounds.width > 0 {
+                started = true
+                play()
+            }
+        }
+
+        private func play() {
+            let now = CACurrentMediaTime()
+            let fadeAt = reduceMotion ? 1.2 : 2.9
+            if !reduceMotion {
+                for line in [longLine, shortLine] {
+                    line.add(animation("transform.scale.x", from: 0, to: 1, at: now, duration: 0.7), forKey: "spread")
+                }
+                let rise = CASpringAnimation(keyPath: "position.y")
+                rise.fromValue = 62 + 88
+                rise.toValue = 62
+                rise.stiffness = 90
+                rise.damping = 17
+                rise.duration = rise.settlingDuration
+                sun.add(timed(rise, at: now + 0.35), forKey: "rise")
+                name.add(animation("opacity", from: 0, to: 1, at: now + 1.25, duration: 0.6), forKey: "appear")
+                name.add(animation("transform.translation.y", from: 6, to: 0, at: now + 1.25, duration: 0.6), forKey: "settle")
+            }
+            let fade = animation("opacity", from: 1, to: 0, at: now + fadeAt, duration: 0.45, easing: .easeIn)
+            fade.isRemovedOnCompletion = false
+            layer.add(fade, forKey: "leave")
+            DispatchQueue.main.asyncAfter(deadline: .now() + fadeAt + 0.45) { [onFinish] in onFinish() }
+        }
+
+        private func animation(_ keyPath: String, from: CGFloat, to: CGFloat, at time: CFTimeInterval,
+                               duration: CFTimeInterval, easing: CAMediaTimingFunctionName = .easeOut) -> CABasicAnimation {
+            let animation = CABasicAnimation(keyPath: keyPath)
+            animation.fromValue = from
+            animation.toValue = to
+            animation.duration = duration
+            animation.timingFunction = CAMediaTimingFunction(name: easing)
+            return timed(animation, at: time)
+        }
+
+        /// Starts at `time`, holds its first frame until then, and asks for ProMotion's full rate.
+        private func timed<T: CAAnimation>(_ animation: T, at time: CFTimeInterval) -> T {
+            animation.beginTime = time
+            animation.fillMode = .both
+            animation.preferredFrameRateRange = CAFrameRateRange(minimum: 80, maximum: 120, preferred: 120)
+            return animation
         }
     }
 }

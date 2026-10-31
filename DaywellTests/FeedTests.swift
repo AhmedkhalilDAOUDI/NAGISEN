@@ -10,12 +10,16 @@ final class FeedTests: XCTestCase {
     func testUsernamesFollowTheDatabaseRule() {
         XCTAssertTrue(FeedRules.isValidUsername("khalil"))
         XCTAssertTrue(FeedRules.isValidUsername("run_2026"))
-        XCTAssertFalse(FeedRules.isValidUsername("ab"), "too short")
-        XCTAssertFalse(FeedRules.isValidUsername(String(repeating: "a", count: 21)), "too long")
+        XCTAssertTrue(FeedRules.isValidUsername("k"), "one character is enough")
+        XCTAssertTrue(FeedRules.isValidUsername("khalil.daoudi"), "periods are allowed")
+        XCTAssertTrue(FeedRules.isValidUsername(String(repeating: "a", count: 30)))
+        XCTAssertFalse(FeedRules.isValidUsername(String(repeating: "a", count: 31)), "too long")
+        XCTAssertFalse(FeedRules.isValidUsername(""), "empty")
         XCTAssertTrue(FeedRules.isValidUsername("Khalil_D"), "capitals are allowed")
         XCTAssertFalse(FeedRules.isValidUsername("kha lil"), "space")
         XCTAssertFalse(FeedRules.isValidUsername("khalil!"), "symbol")
-        XCTAssertFalse(FeedRules.isValidUsername("nagisén"), "accent")
+        XCTAssertTrue(FeedRules.isValidUsername("nagisén"), "accented letters are allowed")
+        XCTAssertFalse(FeedRules.isValidUsername("run🔥"), "emoji")
     }
 
     func testUsernamesAreTrimmedBeforeChecking() {
