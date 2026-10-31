@@ -365,8 +365,8 @@ private struct LogoMark: View {
         GeometryReader { geometry in
             let size = geometry.size.width
             VStack(spacing: size * 0.09) {
-                // The sun's red from the app icon, as in the launch intro.
-                Circle().fill(Color(red: 0.70, green: 0.32, blue: 0.25)).frame(width: size * 0.62, height: size * 0.62)
+                // The sun's burgundy from the app icon, as in the launch intro.
+                Circle().fill(Color(red: 0x8B / 255, green: 0x2B / 255, blue: 0x49 / 255)).frame(width: size * 0.62, height: size * 0.62)
                 VStack(spacing: size * 0.06) {
                     Capsule().frame(width: size * 0.9, height: max(1.5, size * 0.035))
                     Capsule().frame(width: size * 0.55, height: max(1, size * 0.022))
