@@ -319,6 +319,8 @@ struct WorkoutMusicView: View {
 
                     SpotifyMusicCard()
 
+                    GymsNearbyCard()
+
                     VStack(alignment: .leading, spacing: 15) {
                         HStack {
                             Label("TODAY'S SIDE QUESTS", systemImage: "bolt.heart")

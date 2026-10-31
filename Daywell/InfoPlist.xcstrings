@@ -90,6 +90,24 @@
           }
         }
       }
+    },
+    "NSLocationWhenInUseUsageDescription": {
+      "comment": "Info.plist",
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trouvez des salles de sport près de vous. Votre position est envoyée uniquement pour les chercher sur la carte, et NAGISEN ne la conserve pas."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ابحث عن صالات رياضية قريبة منك. يُرسل موقعك فقط للبحث عنها على الخريطة، ولا يحتفظ به NAGISEN."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

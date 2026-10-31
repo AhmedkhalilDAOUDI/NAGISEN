@@ -23255,6 +23255,278 @@
           }
         }
       }
+    },
+    "Gym": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Salle de sport"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "صالة رياضية"
+          }
+        }
+      }
+    },
+    "Couldn't find where you are. Check that Location Services are on and try again.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible de vous localiser. Vérifiez que le service de localisation est activé et réessayez."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تعذّر تحديد موقعك. تأكد من تفعيل خدمات الموقع وحاول مجددًا."
+          }
+        }
+      }
+    },
+    "NEARBY": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "À PROXIMITÉ"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "بالقرب منك"
+          }
+        }
+      }
+    },
+    "Find a gym near you": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trouver une salle près de vous"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ابحث عن صالة قريبة منك"
+          }
+        }
+      }
+    },
+    "Finding where you are…": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Localisation en cours…"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "جارٍ تحديد موقعك…"
+          }
+        }
+      }
+    },
+    "Looking for gyms nearby…": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recherche de salles à proximité…"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "جارٍ البحث عن صالات قريبة…"
+          }
+        }
+      }
+    },
+    "Location is off for NAGISEN": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La localisation est désactivée pour NAGISEN"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الموقع متوقف لتطبيق NAGISEN"
+          }
+        }
+      }
+    },
+    "Allow location while using the app in iPhone Settings to see gyms near you.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autorisez la localisation pendant l'utilisation de l'app dans les Réglages pour voir les salles proches."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اسمح بالموقع أثناء استخدام التطبيق في إعدادات الآيفون لرؤية الصالات القريبة."
+          }
+        }
+      }
+    },
+    "Open Settings": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvrir les Réglages"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "افتح الإعدادات"
+          }
+        }
+      }
+    },
+    "Try again": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réessayer"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "حاول مجددًا"
+          }
+        }
+      }
+    },
+    "Gyms near you": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Salles près de vous"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "صالات قريبة منك"
+          }
+        }
+      }
+    },
+    "No gyms within 5 km": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucune salle à moins de 5 km"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لا صالات ضمن 5 كم"
+          }
+        }
+      }
+    },
+    "Directions to %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Itinéraire vers %@"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الاتجاهات إلى %@"
+          }
+        }
+      }
+    },
+    "The gym search didn't work right now. Try again in a moment.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La recherche de salles n'a pas fonctionné. Réessayez dans un instant."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لم ينجح البحث عن الصالات الآن. حاول بعد قليل."
+          }
+        }
+      }
+    },
+    "The map has no gyms or fitness centers listed close to you.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La carte ne référence aucune salle de sport près de vous."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لا تعرض الخريطة صالات رياضية أو مراكز لياقة قريبة منك."
+          }
+        }
+      }
+    },
+    "Your location is used only for this search, through Apple Maps. NAGISEN doesn't store it.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Votre position sert uniquement à cette recherche, via Plans. NAGISEN ne la conserve pas."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يُستخدم موقعك لهذا البحث فقط عبر خرائط Apple. لا يحتفظ به NAGISEN."
+          }
+        }
+      }
+    },
+    "Your location is sent to Google only for this search. Directions open in Google Maps. NAGISEN doesn't store your location.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Votre position est envoyée à Google uniquement pour cette recherche. L'itinéraire s'ouvre dans Google Maps. NAGISEN ne conserve pas votre position."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يُرسل موقعك إلى Google لهذا البحث فقط. تُفتح الاتجاهات في خرائط Google. لا يحتفظ NAGISEN بموقعك."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

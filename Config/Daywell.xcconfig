@@ -3,5 +3,7 @@
 // Without it the app still builds and Feed explains that it isn't set up.
 SUPABASE_URL =
 SUPABASE_ANON_KEY =
+// Google Places key for Gyms near you; without it the search uses Apple Maps.
+GOOGLE_PLACES_KEY =
 
 #include? "Secrets.xcconfig"
