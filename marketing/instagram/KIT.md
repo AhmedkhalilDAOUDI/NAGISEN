@@ -1,7 +1,8 @@
 # NAGISEN on Instagram
 
 Dark mystery, elegant minimalism. Bodies in motion, never faces, never app screenshots.
-Audience: Morocco. All captions and on-image text in English.
+Audience: English-speaking, outside Morocco. All captions and on-image text in English.
+Never say what the app does before release day: no food, calories, meals, nutrition, tracking or workouts. Hint, never confirm.
 
 ## Profile
 
@@ -12,12 +13,12 @@ Audience: Morocco. All captions and on-image text in English.
 
   ```
   The art of quiet progress.
-  Nutrition · movement · habits.
-  ↓ Open NAGISEN
+  Something is coming.
+  ↓ Join the waitlist
   ```
-- **Link:** https://ahmedkhalildaoudi.github.io/NAGISEN/
-  The link opens the web version. The iPhone app is not on the App Store yet, so never write "download on the App Store".
-- **Highlights:** black circles with one small word each, like BRUTT: `MOVEMENT` · `KITCHEN` · `NAGISEN` · `FAQ`.
+- **Link:** the waitlist page (`marketing/waitlist/index.html`), once it is hosted.
+  The app is not released yet, so never write "download" or "on the App Store". Everyone who joins gets one email when it opens.
+- **Highlights:** black circles with one small word each, like BRUTT: `MOVEMENT` · `STILLNESS` · `NAGISEN` · `FAQ`.
   Covers: post a black story, then pick it as the cover.
 
 ## The look
@@ -43,7 +44,7 @@ Files go in `photos/` with these exact names, then run `python3 render.py`.
 | `10-rope.jpg` | A jump rope as a blurred arc, the body in shadow |
 | `11-shadow.jpg` | Your shadow on a wall mid-movement (a squat or a stride) |
 
-Spares for later: chalked hands on a bar, a swimmer's arm in dark water, sand at Aïn Diab at dusk, a door left open onto the street before dawn.
+Spares for later: chalked hands on a bar, a swimmer's arm in dark water, sand on an empty beach at dusk, a door left open onto the street before dawn.
 
 ## The grid (posting order)
 
@@ -59,10 +60,10 @@ Instagram shows the newest post first, so post 01 ends up bottom-right. The rhyt
 | 06 | statement | No one sees the repetition. It shows later. |
 | 07 | photo, breath | Breathe. What counts is the next one. |
 | 08 | photo, stairs | One more floor. |
-| 09 | wordmark, link in bio | Meals, water, training, habits. One quiet place. NAGISEN, in your browser. Link in bio. |
+| 09 | wordmark, link in bio | Something quiet is coming. The list is open. Link in bio. |
 | 10 | photo, rope | Rhythm comes with time. |
 | 11 | photo, shadow | In silence. |
-| 12 | statement | Eat. Move. Breathe. Repeat. |
+| 12 | statement | Rise. Move. Rest. Repeat. |
 
 Every caption ends with the same quiet line:
 
@@ -71,19 +72,18 @@ Every caption ends with the same quiet line:
 ```
 
 **Hashtags.** Use 3 to 5, in the first comment rather than the caption:
-`#nagisen #casablanca #morocco #discipline #fitnessmorocco`.
-Rotate in `#rabat #marrakech #bodybuilding #running #nutrition`.
+`#nagisen #quietprogress #discipline #stillness #darkaesthetic`.
+Rotate in `#minimalism #nightrun #movement #blackandwhite #mood`. No fitness or food tags: they give the app away.
 
-**What the captions may claim.** Only what the app does: tracking meals, water, caffeine and workouts, a daily streak, a coach, and the web version.
-Its food search includes 2,146 Moroccan packaged products from Open Food Facts. Never promise results such as weight loss, muscle gained or "in 30 days".
+**What the captions may say.** Mood, not features. Never name what the app does, never a release date until there is one, and never promise results such as weight loss, muscle gained or "in 30 days". On release day the captions can say what it is, and then only what the code does.
 
 ## Stories
 
 Every post has a 1080×1920 version in `out/` (`NN-story.jpg`). The monogram is raised there so the reply bar doesn't cover it.
 
-- **On launch day:** story 02 with the link sticker on *Open NAGISEN*.
-- **The next day:** story 03 with a poll sticker: *Do you track what you eat? Yes / Not yet*.
-- **For the FAQ highlight:** a black story with this text: *On iPhone: open the link in Safari → Share → Add to Home Screen.*
+- **On launch day:** story 02 with the link sticker on *Join the waitlist*.
+- **The next day:** story 03 with a poll sticker: *Do you move before the city wakes? Yes / Not yet*.
+- **For the FAQ highlight:** a black story with this text: *iPhone only, for now. Join the list and you'll hear first.*
 
 ## Schedule (4 weeks, 3 posts a week)
 

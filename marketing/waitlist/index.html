@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>NAGISEN</title>
+  <meta name="description" content="Something quiet is coming.">
+  <meta name="theme-color" content="#090809">
+  <style>
+    :root {
+      --black: #090809;
+      --ink: #ECE6DA;
+      --muted: #8A857E;
+      --line: #2A2729;
+      --wine: #8B2B49;
+      --rose: #DC90A2;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: var(--black);
+      color: var(--ink);
+      font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+      display: grid;
+      place-items: center;
+      padding: 32px 16px env(safe-area-inset-bottom);
+    }
+    main { width: 100%; max-width: 420px; text-align: center; }
+    .mark {
+      display: inline-flex; align-items: center; gap: 22px;
+      font-weight: 600; font-size: clamp(30px, 9vw, 44px);
+      letter-spacing: 0.36em; margin-right: -0.36em;
+    }
+    .mark::before {
+      content: ""; width: 0.26em; height: 0.26em; border-radius: 50%; background: var(--wine);
+    }
+    h1 {
+      font: italic 400 clamp(24px, 6.5vw, 30px)/1.35 "New York", "Iowan Old Style", Georgia, serif;
+      margin: 56px 0 12px;
+    }
+    .kicker {
+      margin: 0; color: var(--rose); font-size: 11px; font-weight: 500;
+      letter-spacing: 0.32em; text-transform: uppercase;
+    }
+    form { margin-top: 48px; display: flex; border-bottom: 1px solid var(--line); }
+    form:focus-within { border-color: var(--muted); }
+    input {
+      flex: 1; min-width: 0; background: none; border: 0; outline: none;
+      color: var(--ink); font: inherit; padding: 14px 4px;
+    }
+    input::placeholder { color: var(--muted); }
+    button {
+      background: none; border: 0; color: var(--ink); font: inherit; cursor: pointer;
+      font-size: 12px; letter-spacing: 0.28em; text-transform: uppercase; padding: 14px 4px 14px 16px;
+    }
+    button:disabled { color: var(--muted); cursor: default; }
+    button:focus-visible, input:focus-visible { outline: 1px solid var(--muted); outline-offset: 4px; }
+    #status { min-height: 1.6em; margin: 20px 0 0; color: var(--muted); font-size: 14px; }
+    .note { margin-top: 72px; color: var(--muted); font-size: 12px; opacity: 0.75; }
+    .grain {
+      position: fixed; inset: 0; pointer-events: none; opacity: 0.07;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+  </style>
+</head>
+<body>
+  <div class="grain" aria-hidden="true"></div>
+  <main>
+    <div class="mark" role="img" aria-label="NAGISEN">NAGISEN</div>
+    <h1>Something quiet<br>is coming.</h1>
+    <p class="kicker">Progress in stillness</p>
+
+    <form id="join" novalidate>
+      <input id="email" name="email" type="email" autocomplete="email" inputmode="email"
+             placeholder="Your email" aria-label="Your email" required maxlength="254">
+      <button type="submit">Join</button>
+    </form>
+    <p id="status" role="status" aria-live="polite"></p>
+
+    <p class="note">One email when NAGISEN opens. Nothing else, never shared.</p>
+  </main>
+
+  <!-- config.js (not in git) sets WAITLIST_URL and WAITLIST_KEY; see config.example.js. -->
+  <script src="config.js"></script>
+  <script>
+    const URL = window.WAITLIST_URL;
+    const KEY = window.WAITLIST_KEY;
+
+    const form = document.getElementById("join");
+    const input = document.getElementById("email");
+    const button = form.querySelector("button");
+    const status = document.getElementById("status");
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const email = input.value.trim().toLowerCase();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+        status.textContent = "That address doesn't look right.";
+        return;
+      }
+      button.disabled = true;
+      status.textContent = "";
+      try {
+        const response = await fetch(URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", apikey: KEY, Prefer: "return=minimal" },
+          body: JSON.stringify({ email }),
+        });
+        // 409: already on the list, which is the same outcome for the visitor.
+        if (response.ok || response.status === 409) {
+          form.hidden = true;
+          status.textContent = "You're on the list.";
+        } else {
+          throw new Error(response.status);
+        }
+      } catch {
+        status.textContent = "Something went wrong. Try again in a moment.";
+        button.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
