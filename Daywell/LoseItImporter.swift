@@ -65,14 +65,21 @@ struct LoseItImportRecord: Codable, Equatable, Identifiable {
 enum LoseItImporter {
     static let sourceLabel = "Lose It!"
 
+    /// Apps people commonly move from. Any CSV or JSON export with dates and food names or
+    /// calories is read the same way; the name only labels the imported foods and the streak.
+    static let sources = ["Lose It!", "MyFitnessPal", "Yazio", "Cronometer", "FatSecret",
+                          "MacroFactor", "Samsung Health", String(localized: "Another app")]
+
     /// Reads every file (expanding `.zip` archives), maps rows to NAGISEN models and removes
     /// anything already present. Nothing is written here: the caller shows this preview first.
     static func preview(files: [LoseItSourceFile],
                         existingEntryFingerprints: Set<String> = [],
                         existingWeights: [WeightEntry] = [],
                         defaultMeal: Meal = .snacks,
+                        source: String = sourceLabel,
                         calendar: Calendar = .current) -> LoseItImportPreview {
-        var builder = Builder(existingFingerprints: existingEntryFingerprints,
+        var builder = Builder(source: source,
+                              existingFingerprints: existingEntryFingerprints,
                               existingWeights: existingWeights,
                               defaultMeal: defaultMeal,
                               calendar: calendar)
@@ -156,6 +163,7 @@ enum LoseItImporter {
     // MARK: - Builder
 
     private struct Builder {
+        let source: String
         let existingFingerprints: Set<String>
         let existingWeights: [WeightEntry]
         let defaultMeal: Meal
@@ -166,8 +174,9 @@ enum LoseItImporter {
         var skippedRows: [String: (reason: String, count: Int)] = [:]
         var unreadableFiles: [String] = []
 
-        init(existingFingerprints: Set<String>, existingWeights: [WeightEntry],
+        init(source: String, existingFingerprints: Set<String>, existingWeights: [WeightEntry],
              defaultMeal: Meal, calendar: Calendar) {
+            self.source = source
             self.existingFingerprints = existingFingerprints
             self.existingWeights = existingWeights
             self.defaultMeal = defaultMeal
@@ -267,7 +276,7 @@ enum LoseItImporter {
                 return
             }
             let legacy = LegacyStreak(
-                source: string(["source"]) ?? LoseItImporter.sourceLabel,
+                source: string(["source"]) ?? source,
                 count: count,
                 lastConfirmedDayKey: StreakEngine.dayKey(for: endDate, calendar: calendar),
                 timeZoneIdentifier: string(["timeZone", "timeZoneIdentifier", "tz"]) ?? TimeZone.current.identifier,
@@ -380,7 +389,10 @@ enum LoseItImporter {
             var loggedQuantity: Double?
             var loggedUnit: String?
             if let quantity = record.number(LoseItImporter.Alias.quantity), quantity > 0, record.number(LoseItImporter.Alias.servings) == nil {
-                let unit = record.text(LoseItImporter.Alias.unit)
+                // Some apps put the unit in the amount itself, like Cronometer's "150.00 g".
+                let unit = record.text(LoseItImporter.Alias.unit) ?? record.text(LoseItImporter.Alias.quantity).map {
+                    $0.drop { "0123456789.,- ".contains($0) }.trimmingCharacters(in: .whitespaces)
+                }
                 if let unit, !unit.isEmpty {
                     loggedQuantity = quantity
                     loggedUnit = unit
@@ -404,9 +416,9 @@ enum LoseItImporter {
                             fat: max(0, record.number(LoseItImporter.Alias.fat) ?? 0),
                             fiber: record.number(LoseItImporter.Alias.fiber).map { max(0, $0) },
                             sodium: record.number(LoseItImporter.Alias.sodium).map { max(0, $0) },
-                            source: LoseItImporter.sourceLabel)
+                            source: source)
 
-            let fingerprint = LoseItImporter.fingerprint(dayKey: StreakEngine.dayKey(for: date, calendar: calendar),
+            let fingerprint = LoseItImporter.fingerprint(source: source, dayKey: StreakEngine.dayKey(for: date, calendar: calendar),
                                                          meal: meal, name: name, brand: brand,
                                                          servings: servings, calories: calories)
             if existingFingerprints.contains(fingerprint) {
@@ -487,7 +499,7 @@ enum LoseItImporter {
 
     enum Alias {
         static let date = ["date", "day", "loggeddate", "entrydate", "diarydate", "timestamp", "datetime", "createdat", "consumedat"]
-        static let meal = ["meal", "mealname", "mealtype", "mealcategory", "category", "timeofday"]
+        static let meal = ["meal", "mealname", "mealtype", "mealcategory", "category", "timeofday", "group"]
         static let name = ["food", "foodname", "name", "item", "itemname", "description", "fooddescription", "title"]
         static let brand = ["brand", "brandname", "manufacturer", "restaurant", "store"]
         static let servings = ["servings", "servingcount", "numberofservings", "nservings", "servingqty"]
@@ -497,7 +509,7 @@ enum LoseItImporter {
         static let calories = ["calories", "kcal", "energy", "energykcal", "energykj", "calorieskcal",
                                "totalcalories", "caloriesper", "caloriesperserving"]
         static let protein = ["protein", "proteing", "protein_g", "proteins"]
-        static let carbs = ["carbs", "carbohydrates", "carbsg", "totalcarbohydrate", "totalcarbohydrates", "carbohydrate"]
+        static let carbs = ["carbs", "carbohydrates", "carbsg", "totalcarbohydrate", "totalcarbohydrates", "carbohydrate", "carbohydratesg"]
         static let fat = ["fat", "fatg", "totalfat", "fattyacids"]
         static let fiber = ["fiber", "fibreg", "dietaryfiber", "fibre"]
         static let sodium = ["sodium", "sodiummg", "sodiumg", "salt"]
@@ -532,9 +544,9 @@ enum LoseItImporter {
         return fallback
     }
 
-    static func fingerprint(dayKey: String, meal: Meal, name: String, brand: String,
+    static func fingerprint(source: String = sourceLabel, dayKey: String, meal: Meal, name: String, brand: String,
                             servings: Double, calories: Int) -> String {
-        let payload = [sourceLabel, dayKey, meal.rawValue, name.lowercased(), brand.lowercased(),
+        let payload = [source, dayKey, meal.rawValue, name.lowercased(), brand.lowercased(),
                        String(format: "%.3f", servings), String(calories)].joined(separator: "|")
         let digest = SHA256.hash(data: Data(payload.utf8))
         return "loseit:" + digest.map { String(format: "%02x", $0) }.joined()

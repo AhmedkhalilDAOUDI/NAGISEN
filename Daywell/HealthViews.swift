@@ -1,5 +1,4 @@
 import SwiftUI
-import AVFoundation
 import HealthKit
 
 @available(iOS 26.0, *)
@@ -165,7 +164,7 @@ private struct LiveAccessoryWorkoutView: View {
                     }
                 }.frame(minHeight: 60)
                 if workout.isRunning && workout.heartRate == nil && freshHealthReading == nil {
-                    Text("No live reading yet. Check that AirPods Heart Rate is on in iPhone Settings, the earbuds fit well, and NAGISEN has Heart Rate access in Health.")
+                    Text("No live reading yet. Check that your device is worn snugly, is sharing heart rate with Apple Health, and that NAGISEN has Heart Rate access in Health.")
                         .font(.caption).foregroundStyle(Theme.muted)
                 }
                 Divider()
@@ -198,16 +197,14 @@ struct AccessoriesView: View {
     @EnvironmentObject private var store: NutritionStore
     @Environment(\.dismiss) private var dismiss
     @AppStorage("nagisen.health.autoImport") private var autoImport = false
-    @State private var audioAccessories: [String] = []
     @State private var importStatus: String?
     private let refresh = Timer.publish(every: 10, on: .main, in: .common).autoconnect()
 
     private var latest: AccessoryHeartReading? { health.recentHeartReadings.first }
-    private var airPodsReadings: [AccessoryHeartReading] {
-        health.recentHeartReadings.filter {
-            $0.displaySource.localizedCaseInsensitiveContains("airpods") ||
-            $0.source.localizedCaseInsensitiveContains("airpods")
-        }
+    /// The newest reading from each device: a watch, ring, band, chest strap or earbuds.
+    private var latestByDevice: [AccessoryHeartReading] {
+        var seen = Set<String>()
+        return health.recentHeartReadings.filter { seen.insert($0.displaySource).inserted }
     }
 
     var body: some View {
@@ -226,7 +223,7 @@ struct AccessoriesView: View {
                         Text("\(latest.displaySource) · \(latest.date.formatted(date: .omitted, time: .shortened))")
                             .font(.subheadline).foregroundStyle(Theme.muted)
                     } else {
-                        Text("Start a workout with your AirPods Pro 3 or another supported heart-rate accessory.")
+                        Text("Wear anything that saves heart rate to Apple Health: Apple Watch, Garmin, Oura, Whoop, Polar, AirPods Pro or another watch, ring, band or strap.")
                             .font(.subheadline).foregroundStyle(Theme.muted)
                     }
                 }
@@ -249,22 +246,24 @@ struct AccessoriesView: View {
                             Text(importStatus).font(.caption).foregroundStyle(Theme.muted)
                         }
                     }
-                    if !audioAccessories.isEmpty {
-                        NagisenSection("Connected for audio") {
-                            ForEach(audioAccessories, id: \.self) { name in
-                                Label(name, systemImage: "airpodspro")
-                                    .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
-                            }
-                        }
-                    }
-                    NagisenSection("AirPods Pro 3") {
-                        if let reading = airPodsReadings.first {
-                            Label("\(reading.beatsPerMinute) bpm · \(reading.date.formatted(date: .abbreviated, time: .shortened))", systemImage: "heart.fill")
-                                .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
-                        } else {
-                            Text("No recent reading is explicitly labeled AirPods. iOS may combine AirPods and Apple Watch data; check the readings below.")
+                    NagisenSection("Your devices") {
+                        if latestByDevice.isEmpty {
+                            Text("No heart rate yet. Garmin Connect, Oura, Whoop, Polar Flow and many other apps can share with Apple Health from their own settings. Some brands need a separate sync app.")
                                 .font(.subheadline).foregroundStyle(Theme.muted)
                                 .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.vertical, 12)
+                        }
+                        ForEach(latestByDevice) { reading in
+                            HStack {
+                                Label(reading.displaySource, systemImage: "heart.fill")
+                                    .font(.subheadline)
+                                Spacer()
+                                Text("\(reading.beatsPerMinute) bpm").font(.subheadline.weight(.semibold))
+                                Text(reading.date.formatted(date: .abbreviated, time: .shortened))
+                                    .font(.caption).foregroundStyle(Theme.muted)
+                            }
+                            .frame(minHeight: 48)
+                            if reading.id != latestByDevice.last?.id { Divider() }
                         }
                     }
                     if !health.accessorySources.isEmpty {
@@ -298,7 +297,7 @@ struct AccessoriesView: View {
                         }
                     }
                 }
-                Text("NAGISEN reads heart-rate samples and their recorded source from Apple Health. A connected audio device is shown separately; audio connection alone does not mean heart-rate data is available. Other accessories appear after they contribute supported data to Health.")
+                Text("NAGISEN reads heart-rate samples and the device that recorded them from Apple Health. A device appears here once its app shares heart rate with Health.")
                     .font(.footnote).foregroundStyle(Theme.muted)
                 Button("Refresh") { refreshData() }
                     .font(.subheadline.weight(.semibold)).tint(Theme.accentText)
@@ -309,7 +308,7 @@ struct AccessoriesView: View {
         .foregroundStyle(Theme.ink)
         .toolbar(.hidden, for: .navigationBar)
         .onAppear { refreshData() }
-        .onReceive(refresh) { _ in health.refreshAccessoryReadings(); refreshAudioRoute() }
+        .onReceive(refresh) { _ in health.refreshAccessoryReadings() }
         .onReceive(health.$workouts) { _ in if autoImport { importAvailable() } }
         .onReceive(health.$weightSamples) { _ in if autoImport { importAvailable() } }
         .onChange(of: autoImport) { _, enabled in if enabled { importAvailable() } }
@@ -317,13 +316,6 @@ struct AccessoriesView: View {
 
     private func refreshData() {
         health.refresh()
-        refreshAudioRoute()
-    }
-
-    private func refreshAudioRoute() {
-        audioAccessories = AVAudioSession.sharedInstance().currentRoute.outputs
-            .filter { $0.portType == .bluetoothA2DP || $0.portType == .bluetoothHFP || $0.portType == .bluetoothLE }
-            .map(\.portName)
     }
 
     private func importAvailable() {
@@ -407,7 +399,7 @@ struct HealthView: View {
                     Button("Refresh Health data") { health.refresh() }
                         .font(.subheadline.weight(.medium))
                         .tint(Theme.red)
-                    Text("Values may be unavailable if access was not granted. Change access in Apple Health → profile → Apps → NAGISEN. NAGISEN reads Health data on this device and does not send it to Spotify or AI Chat.")
+                    Text("Values may be unavailable if access was not granted. Change access in Apple Health → profile → Apps → NAGISEN. NAGISEN reads Health data on this device and doesn't send it anywhere, except today's step count to the coach when you turn that on.")
                         .font(.caption).foregroundStyle(Theme.muted)
                 }
             }

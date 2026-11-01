@@ -89,6 +89,27 @@ final class BackupCompatibilityTests: XCTestCase {
         XCTAssertEqual(store.workoutSplit, WorkoutSplitTemplate.boxingStrength.split)
     }
 
+    func testSupplementsSurviveExportAndRestore() throws {
+        let day = Date(timeIntervalSince1970: 1_790_000_000)
+        store.supplements = [Supplement.creatineID, "vitaminD", "custom:Beetroot"]
+        store.setSupplementTaken(Supplement.creatineID, true, on: day)
+        store.setSupplementTaken("vitaminD", true, on: day)
+        let data = try XCTUnwrap(store.exportJSON())
+        let restored = NutritionStore()
+        XCTAssertTrue(restored.restoreJSON(data))
+        XCTAssertEqual(restored.supplements, [Supplement.creatineID, "vitaminD", "custom:Beetroot"])
+        XCTAssertTrue(restored.supplementTaken(Supplement.creatineID, on: day))
+        XCTAssertTrue(restored.creatineTaken(on: day), "creatine stays in its original field for older builds")
+        XCTAssertTrue(restored.supplementTaken("vitaminD", on: day))
+        XCTAssertFalse(restored.supplementTaken("custom:Beetroot", on: day))
+        XCTAssertEqual(Supplement.find("custom:Beetroot")?.name, "Beetroot")
+    }
+
+    func testOlderBackupWithCreatineHistoryStartsWithCreatineChosen() {
+        XCTAssertTrue(store.restoreJSON(Self.minimalBackup(extra: #""creatineTakenDays": ["2026-10-01"]"#)))
+        XCTAssertEqual(store.supplements, [Supplement.creatineID])
+    }
+
     func testMalformedWorkoutSplitIsNotRestored() {
         let broken = Self.minimalBackup(extra: """
         "workoutSplit": {"name": "Custom", "days": ["Push"]}

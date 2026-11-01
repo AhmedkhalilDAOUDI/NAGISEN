@@ -866,7 +866,7 @@ private struct PriceEditorView: View {
         }
     }
 
-    /// A recent barcode price is preferred; AI is only a clearly labelled fallback.
+    /// A recent barcode price first, then a matching online shop listing.
     private func lookUp() {
         isLooking = true
         note = nil
@@ -892,25 +892,9 @@ private struct PriceEditorView: View {
                 isLooking = false
                 return
             }
-            do {
-                let suggestion = try await DeepSeekPrice.lookup(food: food, observed: observed)
-                guard let unitPrice = suggestion.value(perHundredGrams: unit == .grams,
-                                                       gramsPerServing: food.gramsPerServing),
-                      unitPrice.isFinite, unitPrice > 0,
-                      let quantity = amountValue, quantity > 0 else { throw PriceLookupError.unitMismatch }
-                let estimatedPaid = unit == .grams ? unitPrice * quantity / 100 : unitPrice * quantity
-                paid = estimatedPaid.formatted(.number.precision(.fractionLength(0...2)))
-                suggestedPrice = true
-                let range = (suggestion.low != nil && suggestion.high != nil)
-                    ? "Estimated \(FoodCost.display(suggestion.low!))–\(FoodCost.display(suggestion.high!)) per \(unit == .grams ? "100 g" : "serving"). " : ""
-                let history = observed.map { " Last barcode record: \($0.date)." } ?? ""
-                note = String(localized: "DeepSeek estimate, not a verified current price. ") + range + (suggestion.note ?? "") + history
-                isLooking = false
-            } catch {
-                note = (observed.map { "Last barcode record: \($0.date). " } ?? "")
-                    + error.localizedDescription
-                isLooking = false
-            }
+            note = (observed.map { String(localized: "Last barcode record: \($0.date). ") } ?? "")
+                + String(localized: "No current price found. Enter the shelf or receipt price.")
+            isLooking = false
         }
     }
 

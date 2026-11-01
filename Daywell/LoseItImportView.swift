@@ -1,7 +1,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Import from Lose It! — a review-first migration: nothing is written until the user
+/// Import from another tracking app — a review-first migration: nothing is written until the user
 /// confirms the preview, and the legacy achievement can be carried over on its own when the
 /// food export is incomplete or unavailable.
 struct LoseItImportView: View {
@@ -19,13 +19,15 @@ struct LoseItImportView: View {
     @State private var legacyEndDate = Calendar.current.startOfDay(for: .now)
     @State private var includeLegacy = false
     @State private var loadedFileNames: [String] = []
+    @State private var loadedFiles: [LoseItSourceFile] = []
+    @AppStorage("nagisen.import.source") private var source = LoseItImporter.sourceLabel
 
     private var existingLegacy: LegacyStreak? { store.legacyStreak }
 
     private var manualLegacy: LegacyStreak? {
         guard includeLegacy, let count = Int(legacyCountText.replacingOccurrences(of: ",", with: "")),
               count > 0, count < 100_000 else { return nil }
-        return LegacyStreak(source: "Lose It!", count: count,
+        return LegacyStreak(source: source, count: count,
                             lastConfirmedDayKey: StreakEngine.dayKey(for: legacyEndDate),
                             timeZoneIdentifier: TimeZone.current.identifier)
     }
@@ -43,14 +45,19 @@ struct LoseItImportView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                NagisenHeader("Import from Lose It!", subtitle: String(localized: "Bring your history over, keep your streak."),
+                NagisenHeader("Import from another app", subtitle: String(localized: "Bring your history over, keep your streak."),
                               symbol: "xmark", onBack: { dismiss() })
+
+                NagisenSection("Coming from") {
+                    NagisenPicker("App", selection: $source, options: LoseItImporter.sources.map { ($0, $0) })
+                        .frame(minHeight: 54)
+                }
 
                 legacyCard
 
-                NagisenSection("Lose It! export") {
+                NagisenSection("Your export") {
                     VStack(alignment: .leading, spacing: 14) {
-                        Text("Choose the archive Lose It! emailed you (a .zip), or any CSV/JSON file inside it. NAGISEN reads it on this device and never uploads it.")
+                        Text("Export your data from \(source), then choose the .zip it gives you or the CSV or JSON files inside it. Rows need a date and a food name or calories. Spreadsheets (.xlsx) need saving as CSV first. NAGISEN reads the files on this device and never uploads them.")
                             .font(.footnote).foregroundStyle(Theme.muted)
                         Button { showingImporter = true } label: {
                             HStack(spacing: 10) {
@@ -113,9 +120,10 @@ struct LoseItImportView: View {
         .nagisenDialog("Import this data?", isPresented: $showingConfirmation, message: confirmationMessage) {
             [NagisenAction(title: String(localized: "Import"), destructive: true) { commit() }]
         }
-        .nagisenDialog("Lose It! import", isPresented: Binding(get: { outcome != nil }, set: { if !$0 { finishImport() } }),
+        .nagisenDialog("Import", isPresented: Binding(get: { outcome != nil }, set: { if !$0 { finishImport() } }),
                        message: outcome?.message, cancelTitle: "OK")
         .onAppear(perform: primeFields)
+        .onChange(of: source) { _, _ in if !loadedFiles.isEmpty { readFiles() } }
     }
 
     /// Closing the result: a finished import leaves the screen; an error stays to be fixed.
@@ -168,7 +176,7 @@ struct LoseItImportView: View {
                         Text("\(manualLegacy.count.formatted())-day streak · continued from \(manualLegacy.source)")
                             .font(.caption).foregroundStyle(Theme.accentText)
                     } else {
-                        Text("Enter the number of consecutive days you confirmed in Lose It!.")
+                        Text("Enter the number of consecutive days your streak shows in \(source).")
                             .font(.caption).foregroundStyle(Theme.muted)
                     }
                 }
@@ -267,12 +275,8 @@ struct LoseItImportView: View {
                 files.append(LoseItSourceFile(name: url.lastPathComponent, data: data))
             }
             guard !files.isEmpty else { return }
-            isWorking = true
-            let plan = LoseItImporter.preview(files: files,
-                                              existingEntryFingerprints: store.entryFingerprints,
-                                              existingWeights: store.weights)
-            isWorking = false
-            preview = plan
+            loadedFiles = files
+            let plan = readFiles()
             loadedFileNames = files.map(\.name)
             if let legacy = plan.legacy, existingLegacy == nil {
                 legacyCountText = String(legacy.count)
@@ -283,6 +287,19 @@ struct LoseItImportView: View {
                 parseError = String(localized: "No food entries, weigh-ins or streak were found in that file.")
             }
         }
+    }
+
+    /// Reads the chosen files again under the chosen app's name, so imported foods carry it.
+    @discardableResult
+    private func readFiles() -> LoseItImportPreview {
+        isWorking = true
+        let plan = LoseItImporter.preview(files: loadedFiles,
+                                          existingEntryFingerprints: store.entryFingerprints,
+                                          existingWeights: store.weights,
+                                          source: source)
+        isWorking = false
+        preview = plan
+        return plan
     }
 
     private func commit() {

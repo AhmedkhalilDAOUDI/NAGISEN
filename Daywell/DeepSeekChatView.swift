@@ -7,14 +7,127 @@ struct CoachMessage: Identifiable, Codable {
     var content: String
 }
 
+/// The AI service the coach talks to, with the person's own API key. Every provider except
+/// Anthropic speaks the OpenAI chat-completions format, so "Other" covers any compatible service.
+enum CoachProvider: String, CaseIterable, Identifiable {
+    case openAI, anthropic, gemini, deepSeek, mistral, openRouter, custom
+
+    var id: String { rawValue }
+
+    var name: String {
+        switch self {
+        case .openAI: "OpenAI"
+        case .anthropic: "Anthropic"
+        case .gemini: "Google Gemini"
+        case .deepSeek: "DeepSeek"
+        case .mistral: "Mistral"
+        case .openRouter: "OpenRouter"
+        case .custom: String(localized: "Other (OpenAI-compatible)")
+        }
+    }
+
+    var defaultModel: String {
+        switch self {
+        case .openAI: "gpt-5-mini"
+        case .anthropic: "claude-opus-5-5"
+        case .gemini: "gemini-2.5-flash"
+        case .deepSeek: "deepseek-flash"
+        case .mistral: "mistral-small-latest"
+        case .openRouter: "openrouter/auto"
+        case .custom: ""
+        }
+    }
+
+    /// The chat endpoint; `custom` uses the base URL the person typed.
+    func endpoint(customBase: String) -> URL? {
+        switch self {
+        case .openAI: URL(string: "https://api.openai.com/v1/chat/completions")
+        case .anthropic: URL(string: "https://api.anthropic.com/v1/messages")
+        case .gemini: URL(string: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions")
+        case .deepSeek: URL(string: "https://api.deepseek.com/chat/completions")
+        case .mistral: URL(string: "https://api.mistral.ai/v1/chat/completions")
+        case .openRouter: URL(string: "https://openrouter.ai/api/v1/chat/completions")
+        case .custom:
+            URL(string: customBase.trimmingCharacters(in: .whitespacesAndNewlines))
+                .flatMap { $0.scheme == "https" || $0.host == "localhost" ? $0 : nil }
+                .map { $0.path.hasSuffix("/chat/completions") ? $0 : $0.appending(path: "chat/completions") }
+        }
+    }
+
+    /// Keychain entry per provider. DeepSeek keeps the name it always had, so saved keys still work.
+    var keychainAccount: String {
+        self == .deepSeek ? "daywell.deepseek.api-key" : "nagisen.coach.key.\(rawValue)"
+    }
+
+    /// Builds the request for one reply. `messages` holds only user and assistant turns.
+    func request(key: String, model: String, customBase: String, system: String,
+                 messages: [[String: String]]) throws -> URLRequest {
+        guard let url = endpoint(customBase: customBase) else { throw CoachError.badEndpoint }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 60
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        var payload: [String: Any] = ["model": model]
+        if self == .anthropic {
+            request.setValue(key, forHTTPHeaderField: "x-api-key")
+            request.setValue("2026-10-21", forHTTPHeaderField: "anthropic-version")
+            payload["system"] = system
+            payload["messages"] = messages
+            // Room for the model's thinking plus a chat-length answer.
+            payload["max_tokens"] = 4000
+            payload["output_config"] = ["effort": "low"]
+        } else {
+            request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
+            payload["messages"] = [["role": "system", "content": system]] + messages
+            // OpenAI's newer models reject max_tokens; everyone else expects it.
+            payload[self == .openAI ? "max_completion_tokens" : "max_tokens"] = self == .openAI ? 4000 : 800
+            if self == .deepSeek { payload["thinking"] = ["type": "disabled"] }
+        }
+        request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+        return request
+    }
+
+    /// Pulls the answer text out of a successful response.
+    func answer(from data: Data) -> String? {
+        guard let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return nil }
+        let text: String?
+        if self == .anthropic {
+            text = (root["content"] as? [[String: Any]])?
+                .filter { $0["type"] as? String == "text" }
+                .compactMap { $0["text"] as? String }
+                .joined()
+        } else {
+            text = ((root["choices"] as? [[String: Any]])?.first?["message"] as? [String: Any])?["content"] as? String
+        }
+        return text.flatMap { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0 }
+    }
+}
+
+enum CoachError: LocalizedError {
+    case badEndpoint, invalidResponse, http(Int, String)
+    var errorDescription: String? {
+        switch self {
+        case .badEndpoint: String(localized: "The service address isn't valid. Check it in Chat settings.")
+        case .invalidResponse: String(localized: "The AI service returned an unreadable response. Try again.")
+        case .http(401, _), .http(403, _): String(localized: "The API key was rejected. Check it in Chat settings.")
+        case .http(402, let name): String(localized: "Your \(name) account has no credit left.")
+        case .http(404, _): String(localized: "The model wasn't found. Check the model name in Chat settings.")
+        case .http(429, let name): String(localized: "\(name) is busy or your limit was reached. Try again later.")
+        case .http(let code, let name): String(localized: "\(name) returned error \(code). Try again.")
+        }
+    }
+}
+
 @MainActor
-final class DeepSeekChat: ObservableObject {
+final class CoachChat: ObservableObject {
     @Published var messages: [CoachMessage] = [] { didSet { saveHistory() } }
     @Published var isSending = false
     @Published var errorMessage: String?
 
-    private let account = "daywell.deepseek.api-key"
     private let historyKey = "daywell.deepseek.chat.v2"
+    static let providerKey = "nagisen.coach.provider"
+    static let baseURLKey = "nagisen.coach.baseURL"
+    static func modelKey(_ provider: CoachProvider) -> String { "nagisen.coach.model.\(provider.rawValue)" }
 
     init() {
         if let data = UserDefaults.standard.data(forKey: historyKey),
@@ -23,14 +136,28 @@ final class DeepSeekChat: ObservableObject {
         }
     }
 
-    var hasKey: Bool { loadKey() != nil }
+    /// The chosen provider. Someone who saved a DeepSeek key before providers existed stays on DeepSeek.
+    var provider: CoachProvider {
+        if let raw = UserDefaults.standard.string(forKey: Self.providerKey), let chosen = CoachProvider(rawValue: raw) {
+            return chosen
+        }
+        return Self.loadKey(for: .deepSeek) != nil ? .deepSeek : .openAI
+    }
 
-    func setKey(_ value: String) -> Bool {
+    var model: String {
+        let saved = UserDefaults.standard.string(forKey: Self.modelKey(provider))?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return saved.isEmpty ? provider.defaultModel : saved
+    }
+
+    var hasKey: Bool { Self.loadKey(for: provider) != nil && !model.isEmpty }
+
+    func setKey(_ value: String, for provider: CoachProvider) -> Bool {
         let cleaned = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleaned.isEmpty, let data = cleaned.data(using: .utf8) else { return false }
         let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
                                     kSecAttrService as String: "Daywell",
-                                    kSecAttrAccount as String: account]
+                                    kSecAttrAccount as String: provider.keychainAccount]
         SecItemDelete(query as CFDictionary)
         var add = query
         add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
@@ -38,28 +165,23 @@ final class DeepSeekChat: ObservableObject {
         return SecItemAdd(add as CFDictionary, nil) == errSecSuccess
     }
 
-    func removeKey() {
+    func removeKey(for provider: CoachProvider) {
         SecItemDelete([kSecClass: kSecClassGenericPassword,
                        kSecAttrService: "Daywell",
-                       kSecAttrAccount: account] as CFDictionary)
+                       kSecAttrAccount: provider.keychainAccount] as CFDictionary)
     }
 
     func clearHistory() { messages = [] }
 
     func send(_ text: String, context: String? = nil) async {
         let question = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !question.isEmpty, let key = loadKey(), !isSending else { return }
+        let provider = provider
+        guard !question.isEmpty, let key = Self.loadKey(for: provider), !isSending else { return }
         errorMessage = nil
         messages.append(CoachMessage(role: "user", content: question))
         isSending = true
         defer { isSending = false }
         do {
-            var request = URLRequest(url: URL(string: "https://api.deepseek.com/chat/completions")!)
-            request.httpMethod = "POST"
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
-            request.timeoutInterval = 45
-            var history = messages.suffix(12).map { ["role": $0.role, "content": $0.content] }
             var systemPrompt = """
             You're texting with a friend who trains and cares about food. Talk like a real person in a chat: casual, relaxed, plain words, contractions. Answer what they asked in the first sentence, then stop when it's answered. Most replies are one to four sentences; go longer only when they ask for detail or a plan.
 
@@ -74,32 +196,25 @@ final class DeepSeekChat: ObservableObject {
             if let context, !context.isEmpty {
                 systemPrompt += "\n\nNAGISEN data, supplied for this reply when relevant: \(context)"
             }
-            history.insert(["role": "system", "content": systemPrompt], at: 0)
-            let payload: [String: Any] = [
-                "model": "deepseek-flash",
-                "thinking": ["type": "disabled"],
-                "max_tokens": 800,
-                "messages": history
-            ]
-            request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+            let history = messages.suffix(12).map { ["role": $0.role, "content": $0.content] }
+            let request = try provider.request(key: key, model: model,
+                                               customBase: UserDefaults.standard.string(forKey: Self.baseURLKey) ?? "",
+                                               system: systemPrompt, messages: history)
             let (data, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse else { throw ChatError.invalidResponse }
-            guard (200..<300).contains(http.statusCode) else { throw ChatError.http(http.statusCode) }
-            let completion = try JSONDecoder().decode(Completion.self, from: data)
-            guard let answer = completion.choices.first?.message.content, !answer.isEmpty else {
-                throw ChatError.invalidResponse
-            }
+            guard let http = response as? HTTPURLResponse else { throw CoachError.invalidResponse }
+            guard (200..<300).contains(http.statusCode) else { throw CoachError.http(http.statusCode, provider.name) }
+            guard let answer = provider.answer(from: data) else { throw CoachError.invalidResponse }
             messages.append(CoachMessage(role: "assistant", content: answer))
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
-    private func loadKey() -> String? {
+    static func loadKey(for provider: CoachProvider) -> String? {
         var result: CFTypeRef?
         let status = SecItemCopyMatching([kSecClass: kSecClassGenericPassword,
                                           kSecAttrService: "Daywell",
-                                          kSecAttrAccount: account,
+                                          kSecAttrAccount: provider.keychainAccount,
                                           kSecReturnData: true,
                                           kSecMatchLimit: kSecMatchLimitOne] as CFDictionary, &result)
         guard status == errSecSuccess, let data = result as? Data else { return nil }
@@ -110,26 +225,6 @@ final class DeepSeekChat: ObservableObject {
         guard let data = try? JSONEncoder().encode(messages) else { return }
         UserDefaults.standard.set(data, forKey: historyKey)
     }
-
-    private struct Completion: Decodable {
-        struct Choice: Decodable {
-            struct Message: Decodable { var content: String? }
-            var message: Message
-        }
-        var choices: [Choice]
-    }
-
-    private enum ChatError: LocalizedError {
-        case invalidResponse, http(Int)
-        var errorDescription: String? {
-            switch self {
-            case .invalidResponse: String(localized: "DeepSeek returned an unreadable response. Try again.")
-            case .http(401): String(localized: "The API key was rejected. Check it in Chat settings.")
-            case .http(429): String(localized: "DeepSeek is busy or the account limit was reached. Try again later.")
-            case .http(let code): String(localized: "DeepSeek returned error \(code). Try again.")
-            }
-        }
-    }
 }
 
 struct DeepSeekChatView: View {
@@ -139,11 +234,14 @@ struct DeepSeekChatView: View {
     @EnvironmentObject private var store: NutritionStore
     @EnvironmentObject private var health: HealthManager
     @AppStorage("daywell.chat.useContext") private var useContext = false
-    @StateObject private var chat = DeepSeekChat()
+    @StateObject private var chat = CoachChat()
     @State private var draft = ""
     @State private var showingSettings = false
     @State private var keyInput = ""
     @State private var hasKey = false
+    @AppStorage(CoachChat.providerKey) private var providerRaw = ""
+    @AppStorage(CoachChat.baseURLKey) private var customBase = ""
+    @State private var modelInput = ""
     @FocusState private var composerFocused: Bool
 
     private var canSend: Bool {
@@ -214,7 +312,7 @@ struct DeepSeekChatView: View {
                 }
             }
             .sheet(isPresented: $showingSettings, onDismiss: { hasKey = chat.hasKey }) { settings }
-            .onAppear { hasKey = chat.hasKey }
+            .onAppear { hasKey = chat.hasKey; modelInput = UserDefaults.standard.string(forKey: CoachChat.modelKey(chat.provider)) ?? "" }
         }
     }
 
@@ -246,8 +344,8 @@ struct DeepSeekChatView: View {
             .padding(.top, 18)
 
             if !hasKey {
-                quietCard(symbol: "key", title: String(localized: "Connect DeepSeek"),
-                          detail: String(localized: "Add your API key once. It stays in this iPhone's Keychain.")) {
+                quietCard(symbol: "key", title: String(localized: "Connect an AI"),
+                          detail: String(localized: "Pick OpenAI, Anthropic, Google or another service and add your own API key. It stays in this iPhone's Keychain.")) {
                     showingSettings = true
                 }
             }
@@ -260,7 +358,7 @@ struct DeepSeekChatView: View {
                            prompt: "Using my logged nutrition and daily goals, suggest a practical next meal or snack. Do not assume I ate nothing when the diary is empty.")
             } else if hasKey {
                 quietCard(symbol: "sparkles", title: String(localized: "Let your coach see today"),
-                          detail: String(localized: "Each message would include a short summary of today's food, goals, workouts and steps, sent to DeepSeek.")) {
+                          detail: String(localized: "Each message would include a short summary of today's food, goals, workouts and steps, sent to \(chat.provider.name).")) {
                     useContext = true
                 }
             }
@@ -381,21 +479,45 @@ struct DeepSeekChatView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 25) {
                     NagisenHeader("Chat settings", subtitle: String(localized: "Make this space yours."), symbol: "xmark", onBack: { showingSettings = false })
-                    NagisenSection("DeepSeek connection") {
-                    SecureField(chat.hasKey ? "Replace API key" : "Paste API key", text: $keyInput)
+                    NagisenSection("AI service") {
+                    Picker("Service", selection: providerBinding) {
+                        ForEach(CoachProvider.allCases) { Text(ui: $0.name).tag($0) }
+                    }
+                    .tint(Theme.accentText)
+                    .frame(minHeight: 54)
+                    Divider()
+                    if chat.provider == .custom {
+                        TextField("Base URL, like https://api.example.com/v1", text: $customBase)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .keyboardType(.URL)
+                            .frame(minHeight: 54)
+                        Divider()
+                    }
+                    TextField(chat.provider.defaultModel.isEmpty ? String(localized: "Model name") : chat.provider.defaultModel,
+                              text: $modelInput)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .frame(minHeight: 54)
+                        .onChange(of: modelInput) { _, value in
+                            UserDefaults.standard.set(value, forKey: CoachChat.modelKey(chat.provider))
+                            hasKey = chat.hasKey
+                        }
+                    Divider()
+                    SecureField(CoachChat.loadKey(for: chat.provider) != nil ? "Replace API key" : "Paste API key", text: $keyInput)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .frame(minHeight: 54)
                     Divider()
                     Button("Save key on this iPhone") {
-                        if chat.setKey(keyInput) { keyInput = ""; hasKey = true; showingSettings = false }
+                        if chat.setKey(keyInput, for: chat.provider) { keyInput = ""; hasKey = chat.hasKey; if hasKey { showingSettings = false } }
                     }
                     .disabled(keyInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     .foregroundStyle(Theme.accentText)
                     .frame(minHeight: 54)
-                    if chat.hasKey {
+                    if CoachChat.loadKey(for: chat.provider) != nil {
                         Divider()
-                        Button("Remove saved key", role: .destructive) { chat.removeKey(); hasKey = false }
+                        Button("Remove saved key", role: .destructive) { chat.removeKey(for: chat.provider); hasKey = false }
                             .foregroundStyle(Theme.danger)
                             .frame(minHeight: 54)
                     }
@@ -405,7 +527,7 @@ struct DeepSeekChatView: View {
                         .tint(Theme.red)
                         .frame(minHeight: 54)
                     Divider()
-                    Text("When on, each message includes a short summary of today’s food, goals, workouts and permitted step count. This summary is sent to DeepSeek with your question.")
+                    Text("When on, each message includes a short summary of today’s food, goals, workouts and permitted step count. This summary is sent to \(chat.provider.name) with your question.")
                         .font(.footnote).foregroundStyle(Theme.muted)
                         .padding(.vertical, 14)
                     }
@@ -414,7 +536,7 @@ struct DeepSeekChatView: View {
                             .foregroundStyle(Theme.danger)
                             .frame(minHeight: 54)
                     }
-                    Text("The key is stored in this iPhone's Keychain. Chat history stays on this device. Messages you send go to DeepSeek.")
+                    Text("The key is stored in this iPhone's Keychain. Chat history stays on this device. Messages you send go to \(chat.provider.name), under that service's own terms.")
                         .font(.footnote).foregroundStyle(Theme.muted)
                         .padding(.horizontal, 2)
                 }
@@ -425,6 +547,16 @@ struct DeepSeekChatView: View {
             .background(NagisenBackdrop())
             .toolbar(.hidden, for: .navigationBar)
         }
+    }
+
+    /// Switching service loads that service's saved model and key state.
+    private var providerBinding: Binding<CoachProvider> {
+        Binding(get: { chat.provider }, set: { next in
+            providerRaw = next.rawValue
+            modelInput = UserDefaults.standard.string(forKey: CoachChat.modelKey(next)) ?? ""
+            keyInput = ""
+            hasKey = chat.hasKey
+        })
     }
 
     private func send() {

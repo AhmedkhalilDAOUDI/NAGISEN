@@ -448,7 +448,7 @@ private struct HomeView: View {
                     .cardStyle()
                     .padding(.horizontal, 18)
                     if tracksCreatine {
-                        CreatineCard(date: date)
+                        SupplementsCard(date: date)
                             .padding(.horizontal, 18)
                     }
                     CaffeineCard(date: date)
@@ -544,9 +544,11 @@ struct DailyGuidanceCard: View {
         }
 
         if UserDefaults.standard.object(forKey: OnboardingPlan.tracksCreatineKey) as? Bool ?? true,
-           !store.creatineTaken(on: today) && calendar.component(.hour, from: today) >= 18 {
+           calendar.component(.hour, from: today) >= 18,
+           case let left = store.supplements.filter({ !store.supplementTaken($0, on: today) }).compactMap(Supplement.find),
+           !left.isEmpty {
             result.append(Cue(title: String(localized: "Evening check-in"),
-                              detail: String(localized: "Your 5 g creatine switch is still off for today. Mark it when taken."),
+                              detail: String(localized: "Not checked off yet today: \(left.map(\.name).formatted(.list(type: .and)))."),
                               symbol: "checkmark.circle"))
         }
 
@@ -927,33 +929,6 @@ private struct MacroCard: View {
                     .font(.caption2).foregroundStyle(Theme.accentText)
             }
         }
-    }
-}
-
-private struct CreatineCard: View {
-    @EnvironmentObject private var store: NutritionStore
-    let date: Date
-
-    var body: some View {
-        let taken = store.creatineTaken(on: date)
-        HStack(spacing: 14) {
-            Image(systemName: taken ? "checkmark.circle.fill" : "circle.dotted")
-                .font(.title2)
-                .foregroundStyle(Theme.accentText)
-            VStack(alignment: .leading, spacing: 4) {
-                Text("5g creatine").font(.system(.body, design: .serif))
-                Text(taken ? "Taken on this day" : "Not taken on this day")
-                    .font(.caption).foregroundStyle(Theme.muted)
-            }
-            Spacer()
-            Toggle("Creatine taken on this day", isOn: Binding(
-                get: { store.creatineTaken(on: date) },
-                set: { store.setCreatineTaken($0, on: date) }
-            ))
-            .labelsHidden()
-            .tint(Theme.red)
-        }
-        .cardStyle()
     }
 }
 

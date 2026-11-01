@@ -174,8 +174,8 @@ struct OnboardingView: View {
             Text("Currency: \(UserRegion.currency(for: plan.country))")
                 .font(.caption).foregroundStyle(Theme.muted)
         case 6:
-            question(String(localized: "Supplements"), String(localized: "Do you take creatine daily?"),
-                     String(localized: "Adds a daily switch on your Dashboard to mark it taken."))
+            question(String(localized: "Supplements"), String(localized: "Do you take supplements?"),
+                     String(localized: "Adds a daily checklist on your Dashboard. You pick yours there."))
             choices([(true, String(localized: "Yes"), nil as String?), (false, String(localized: "No"), nil)], selection: $plan.takesCreatine)
         default: summary
         }

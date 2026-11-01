@@ -139,7 +139,7 @@ final class CommunityCloud: ObservableObject {
         !store.entries.isEmpty || !store.weights.isEmpty || !store.workouts.isEmpty ||
         !store.groceryStock.isEmpty || !store.customFoods.isEmpty || !store.waterEntries.isEmpty ||
         !store.completedLoggingDays.isEmpty || !store.strengthRecords.isEmpty ||
-        !store.creatineTakenDays.isEmpty ||
+        !store.creatineTakenDays.isEmpty || !store.supplementDays.isEmpty ||
         store.goals.calories != 2000 || store.goals.protein != 120 || store.goals.fat != 65 ||
         store.profile.age != nil || store.profile.heightCm != nil
     }

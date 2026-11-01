@@ -201,8 +201,8 @@ struct ProfileView: View {
                         NavigationLink {
                             AccessoriesView()
                         } label: {
-                            MenuRow(symbol: "airpodspro", title: String(localized: "Accessories"),
-                                    detail: String(localized: "AirPods heart rate & Health sources"))
+                            MenuRow(symbol: "heart.text.square", title: String(localized: "Accessories"),
+                                    detail: String(localized: "Heart rate from your watch, ring or earbuds"))
                         }
                     }
                     .softCardStyle()
@@ -246,7 +246,7 @@ struct ProfileView: View {
                     .softCardStyle()
                     Button { showingLoseItImport = true } label: {
                         MenuRow(symbol: "arrow.down.doc",
-                                title: String(localized: "Import from Lose It!"),
+                                title: String(localized: "Import from another app"),
                                 detail: store.legacyStreak.map {
                                     "\($0.count.formatted(.number.grouping(.automatic)))-day streak on file"
                                 } ?? String(localized: "Bring over food history and your streak"))

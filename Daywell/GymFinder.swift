@@ -2,8 +2,8 @@ import CoreLocation
 import MapKit
 import SwiftUI
 
-/// Finds gyms and fitness centers near the iPhone: Google Places when a key is set up, Apple Maps
-/// otherwise. The location goes only to that search; NAGISEN neither stores it nor sends it elsewhere.
+/// Finds gyms and fitness centers near the iPhone through Apple Maps. The location goes only to
+/// that search; NAGISEN neither stores it nor sends it elsewhere.
 @MainActor
 final class GymFinder: NSObject, ObservableObject, CLLocationManagerDelegate {
     enum State: Equatable { case idle, locating, searching, done, denied, failed(String) }
@@ -14,14 +14,10 @@ final class GymFinder: NSObject, ObservableObject, CLLocationManagerDelegate {
         let address: String
         let coordinate: CLLocationCoordinate2D
         let meters: CLLocationDistance
-        let rating: Double?
-        /// Opens Google Maps (the app when installed, the website otherwise) with directions.
-        var directions: URL? {
-            var parts = URLComponents(string: "https://www.google.com/maps/dir/")
-            parts?.queryItems = [URLQueryItem(name: "api", value: "1"),
-                                 URLQueryItem(name: "destination", value: "\(coordinate.latitude),\(coordinate.longitude)")]
-            if !id.hasPrefix("apple-") { parts?.queryItems?.append(URLQueryItem(name: "destination_place_id", value: id)) }
-            return parts?.url
+        let item: MKMapItem
+        /// Opens Apple Maps with directions.
+        func openDirections() {
+            item.openInMaps(launchOptions: [MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDefault])
         }
     }
 
@@ -31,10 +27,6 @@ final class GymFinder: NSObject, ObservableObject, CLLocationManagerDelegate {
 
     /// How far around you to look: 5 km covers a city neighborhood without listing the whole region.
     static let radius: CLLocationDistance = 5_000
-
-    static var googleKey: String? {
-        (Bundle.main.object(forInfoDictionaryKey: "GooglePlacesKey") as? String).flatMap { $0.isEmpty ? nil : $0 }
-    }
 
     override init() {
         super.init()
@@ -82,63 +74,14 @@ final class GymFinder: NSObject, ObservableObject, CLLocationManagerDelegate {
     private func search(around location: CLLocation) async {
         state = .searching
         do {
-            let found: [Gym]
-            if let key = Self.googleKey {
-                found = try await Self.google(around: location, key: key)
-            } else {
-                found = try await Self.apple(around: location)
-            }
-            gyms = found.sorted { $0.meters < $1.meters }
+            gyms = try await Self.apple(around: location).sorted { $0.meters < $1.meters }
             state = .done
         } catch {
             state = .failed(String(localized: "The gym search didn't work right now. Try again in a moment."))
         }
     }
 
-    /// Google Places (New) Nearby Search for gyms and fitness centers, nearest first.
-    private static func google(around location: CLLocation, key: String) async throws -> [Gym] {
-        struct Body: Encodable {
-            struct Circle: Encodable { let center: [String: Double]; let radius: Double }
-            struct Restriction: Encodable { let circle: Circle }
-            let includedTypes = ["gym", "fitness_center"]
-            let maxResultCount = 20
-            let rankPreference = "DISTANCE"
-            let languageCode: String
-            let locationRestriction: Restriction
-        }
-        struct Reply: Decodable {
-            struct Place: Decodable {
-                struct Name: Decodable { let text: String }
-                struct Point: Decodable { let latitude: Double; let longitude: Double }
-                let id: String
-                let displayName: Name?
-                let formattedAddress: String?
-                let location: Point
-                let rating: Double?
-            }
-            let places: [Place]?
-        }
-        var request = URLRequest(url: URL(string: "https://places.googleapis.com/v1/places:searchNearby")!)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(key, forHTTPHeaderField: "X-Goog-Api-Key")
-        request.setValue(Bundle.main.bundleIdentifier, forHTTPHeaderField: "X-Ios-Bundle-Identifier")
-        request.setValue("places.id,places.displayName,places.formattedAddress,places.location,places.rating",
-                         forHTTPHeaderField: "X-Goog-FieldMask")
-        let center = ["latitude": location.coordinate.latitude, "longitude": location.coordinate.longitude]
-        request.httpBody = try JSONEncoder().encode(Body(languageCode: Locale.current.language.languageCode?.identifier ?? "en",
-                                                         locationRestriction: .init(circle: .init(center: center, radius: radius))))
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
-        return (try JSONDecoder().decode(Reply.self, from: data).places ?? []).map { place in
-            let point = CLLocation(latitude: place.location.latitude, longitude: place.location.longitude)
-            return Gym(id: place.id, name: place.displayName?.text ?? String(localized: "Gym"),
-                       address: place.formattedAddress ?? "", coordinate: point.coordinate,
-                       meters: location.distance(from: point), rating: place.rating)
-        }
-    }
-
-    /// Apple Maps points of interest, used when no Google key is set up.
+    /// Apple Maps points of interest for gyms and fitness centers.
     private static func apple(around location: CLLocation) async throws -> [Gym] {
         let request = MKLocalPointsOfInterestRequest(center: location.coordinate, radius: radius)
         request.pointOfInterestFilter = MKPointOfInterestFilter(including: [.fitnessCenter])
@@ -147,7 +90,7 @@ final class GymFinder: NSObject, ObservableObject, CLLocationManagerDelegate {
                 let point = CLLocation(latitude: item.placemark.coordinate.latitude, longitude: item.placemark.coordinate.longitude)
                 return Gym(id: "apple-\(index)", name: item.name ?? String(localized: "Gym"),
                            address: [item.placemark.thoroughfare, item.placemark.locality].compactMap { $0 }.joined(separator: ", "),
-                           coordinate: point.coordinate, meters: location.distance(from: point), rating: nil)
+                           coordinate: point.coordinate, meters: location.distance(from: point), item: item)
             }
         } catch let error as MKError where error.code == .placemarkNotFound {
             // Apple Maps answers "nothing nearby" with an error; that's an empty list, not a failure.
@@ -222,9 +165,7 @@ struct GymsNearbyView: View {
                     case .done:
                         results
                     }
-                    Text(GymFinder.googleKey == nil
-                         ? "Your location is used only for this search, through Apple Maps. NAGISEN doesn't store it."
-                         : "Your location is sent to Google only for this search. Directions open in Google Maps. NAGISEN doesn't store your location.")
+                    Text("Your location is used only for this search, through Apple Maps. NAGISEN doesn't store it.")
                         .font(.caption).foregroundStyle(Theme.muted)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -283,15 +224,9 @@ struct GymsNearbyView: View {
                 Text(gym.name).font(.body.weight(.medium)).lineLimit(2)
                 Text(gym.address.isEmpty ? distance(gym.meters) : "\(distance(gym.meters)) · \(gym.address)")
                     .font(.caption).foregroundStyle(Theme.muted).lineLimit(2)
-                if let rating = gym.rating {
-                    Label(rating.formatted(.number.precision(.fractionLength(1))), systemImage: "star.fill")
-                        .font(.caption2).foregroundStyle(Theme.accentText)
-                }
             }
             Spacer(minLength: 8)
-            Button {
-                if let url = gym.directions { UIApplication.shared.open(url) }
-            } label: {
+            Button { gym.openDirections() } label: {
                 Image(systemName: "arrow.triangle.turn.up.right.diamond")
                     .font(.system(size: 16))
                     .foregroundStyle(Theme.accentText)

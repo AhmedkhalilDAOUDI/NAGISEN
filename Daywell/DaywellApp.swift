@@ -3,7 +3,6 @@ import SwiftUI
 @main
 struct DaywellApp: App {
     @StateObject private var store = NutritionStore()
-    @StateObject private var spotify = SpotifyManager()
     @StateObject private var health = HealthManager()
     @StateObject private var community = CommunityCloud()
     @StateObject private var feed = FeedService()
@@ -27,14 +26,10 @@ struct DaywellApp: App {
                 .environment(\.locale, language.locale)
                 .environment(\.layoutDirection, language.layoutDirection)
                 .environmentObject(store)
-                .environmentObject(spotify)
                 .environmentObject(health)
                 .environmentObject(community)
                 .environmentObject(feed)
-                .onOpenURL { url in
-                    spotify.handle(url: url)
-                    feed.handle(url: url)
-                }
+                .onOpenURL { url in feed.handle(url: url) }
                 .sheet(isPresented: $feed.recoveringPassword) {
                     NewPasswordView().environmentObject(feed)
                 }
@@ -47,7 +42,6 @@ struct DaywellApp: App {
                 .onAppear {
                     WaterReminders.reconcile()
                     Reminders.reconcile(store: store)
-                    spotify.connectIfAuthorized()
                     Task {
                         await community.connect()
                         await community.sync(store)
@@ -79,7 +73,6 @@ struct DaywellApp: App {
                 }
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active {
-                        spotify.connectIfAuthorized()
                         health.refresh()
                         WaterReminders.reconcile()
                         Reminders.reconcile(store: store)
@@ -88,7 +81,6 @@ struct DaywellApp: App {
                             await community.sync(store)
                         }
                     }
-                    if phase == .inactive { spotify.disconnect() }
                     if phase == .background {
                         store.backupNow()
                         Task { await community.sync(store) }

@@ -377,6 +377,10 @@ final class NutritionStore: ObservableObject {
     @Published var costFoods: [Food] = [] { didSet { persist("costFoods", costFoods) } }
     @Published var appearance = AppearanceMode.system { didSet { persist("appearance", appearance) } }
     @Published var creatineTakenDays: Set<String> = [] { didSet { persist("creatineTakenDays", creatineTakenDays) } }
+    /// Supplements the person chose to check off daily, as catalog ids or "custom:Name".
+    @Published var supplements: [String] = [] { didSet { persist("supplements", supplements) } }
+    /// Days each supplement was taken, by id. Creatine stays in creatineTakenDays so older backups keep working.
+    @Published var supplementDays: [String: Set<String>] = [:] { didSet { persist("supplementDays", supplementDays) } }
     @Published var completedLoggingDays: Set<String> = [] { didSet { persist("completedLoggingDays", completedLoggingDays) } }
     @Published var workouts: [WorkoutEntry] = [] { didSet { persist("workouts", workouts) } }
     @Published var strengthRecords: [StrengthRecord] = [] { didSet { persist("strengthRecords", strengthRecords) } }
@@ -412,6 +416,8 @@ final class NutritionStore: ObservableObject {
         var costFoods: [Food]?
         var appearance: AppearanceMode?
         var creatineTakenDays: Set<String>?
+        var supplements: [String]?
+        var supplementDays: [String: Set<String>]?
         var completedLoggingDays: Set<String>?
         var workouts: [WorkoutEntry]?
         var strengthRecords: [StrengthRecord]?
@@ -457,6 +463,8 @@ final class NutritionStore: ObservableObject {
             costFoods = vault?.read("costFoods") ?? []
             appearance = vault?.read("appearance") ?? .system
             creatineTakenDays = vault?.read("creatineTakenDays") ?? []
+            supplements = vault?.read("supplements") ?? Supplement.startingList(tracksCreatine: !creatineTakenDays.isEmpty)
+            supplementDays = vault?.read("supplementDays") ?? [:]
             completedLoggingDays = vault?.read("completedLoggingDays") ?? []
             workouts = vault?.read("workouts") ?? []
             strengthRecords = vault?.read("strengthRecords") ?? []
@@ -499,6 +507,8 @@ final class NutritionStore: ObservableObject {
         costFoods = saved.costFoods ?? []
         appearance = saved.appearance ?? .system
         creatineTakenDays = saved.creatineTakenDays ?? []
+        supplements = saved.supplements ?? Supplement.startingList(tracksCreatine: !creatineTakenDays.isEmpty)
+        supplementDays = saved.supplementDays ?? [:]
         completedLoggingDays = saved.completedLoggingDays ?? []
         workouts = saved.workouts ?? []
         strengthRecords = saved.strengthRecords ?? []
@@ -542,6 +552,8 @@ final class NutritionStore: ObservableObject {
             vault.write("costFoods", value: costFoods) &&
             vault.write("appearance", value: appearance) &&
             vault.write("creatineTakenDays", value: creatineTakenDays) &&
+            vault.write("supplements", value: supplements) &&
+            vault.write("supplementDays", value: supplementDays) &&
             vault.write("completedLoggingDays", value: completedLoggingDays) &&
             vault.write("workouts", value: workouts) &&
             vault.write("strengthRecords", value: strengthRecords) &&
@@ -574,6 +586,7 @@ final class NutritionStore: ObservableObject {
                               costFoods: costFoods,
                               appearance: appearance,
                               creatineTakenDays: creatineTakenDays,
+                              supplements: supplements, supplementDays: supplementDays,
                               completedLoggingDays: completedLoggingDays, workouts: workouts,
                               strengthRecords: strengthRecords,
                               workoutSplit: workoutSplit,
@@ -685,6 +698,7 @@ final class NutritionStore: ObservableObject {
                               costFoods: costFoods,
                               appearance: appearance,
                               creatineTakenDays: creatineTakenDays,
+                              supplements: supplements, supplementDays: supplementDays,
                               completedLoggingDays: completedLoggingDays, workouts: workouts,
                               strengthRecords: strengthRecords,
                               workoutSplit: workoutSplit,
@@ -708,6 +722,7 @@ final class NutritionStore: ObservableObject {
         "entries", "customFoods", "goals", "profile", "dietPreferences", "weights",
         "waterEntries", "waterGoalML", "caffeineEntries", "caffeineHalfLifeHours",
         "caffeineBedtimeHour", "foodPrices", "costFoods", "appearance", "creatineTakenDays",
+        "supplements", "supplementDays",
         "completedLoggingDays", "workouts", "strengthRecords", "workoutSplit", "challengePlans",
         "questSeenIDs", "trophyNames", "goalAdjustments", "weekdayGoals", "foodsToAvoid",
         "savedRecipes", "groceryStock", "groceryPlan", "legacyStreak",
@@ -798,6 +813,8 @@ final class NutritionStore: ObservableObject {
         costFoods = saved.costFoods ?? []
         appearance = saved.appearance ?? .system
         creatineTakenDays = saved.creatineTakenDays ?? []
+        supplements = saved.supplements ?? Supplement.startingList(tracksCreatine: !creatineTakenDays.isEmpty)
+        supplementDays = saved.supplementDays ?? [:]
         completedLoggingDays = saved.completedLoggingDays ?? []
         workouts = saved.workouts ?? []
         strengthRecords = saved.strengthRecords ?? []
@@ -1128,6 +1145,16 @@ final class NutritionStore: ObservableObject {
         let key = dayKey(date)
         if taken { creatineTakenDays.insert(key) }
         else { creatineTakenDays.remove(key) }
+    }
+
+    func supplementTaken(_ id: String, on date: Date) -> Bool {
+        id == Supplement.creatineID ? creatineTaken(on: date) : supplementDays[id, default: []].contains(dayKey(date))
+    }
+
+    func setSupplementTaken(_ id: String, _ taken: Bool, on date: Date) {
+        guard id != Supplement.creatineID else { return setCreatineTaken(taken, on: date) }
+        let key = dayKey(date)
+        if taken { supplementDays[id, default: []].insert(key) } else { supplementDays[id]?.remove(key) }
     }
 
     var allFoods: [Food] { customFoods + Self.starterFoods }

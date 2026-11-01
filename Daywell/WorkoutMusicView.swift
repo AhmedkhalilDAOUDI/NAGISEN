@@ -320,8 +320,6 @@ struct WorkoutMusicView: View {
                     }
                     .buttonStyle(.plain)
 
-                    SpotifyMusicCard()
-
                     GymsNearbyCard()
 
                     VStack(alignment: .leading, spacing: 15) {
@@ -785,109 +783,6 @@ private struct JapaneseTrophySeal: View {
         .accessibilityHidden(true)
     }
 }
-private struct SpotifyMusicCard: View {
-    @EnvironmentObject private var spotify: SpotifyManager
-
-    var body: some View {
-        Group {
-            if spotify.isConnected { player } else { connectRow }
-        }
-        .onAppear { spotify.connectIfAuthorized() }
-    }
-
-    private var connectRow: some View {
-        HStack(spacing: 14) {
-            Image(systemName: "music.note")
-                .font(.title3)
-                .foregroundStyle(Theme.accentText)
-                .frame(width: 32)
-            VStack(alignment: .leading, spacing: 3) {
-                Text("MUSIC")
-                    .font(.caption2.weight(.semibold)).nagisenTracking(1.6)
-                    .foregroundStyle(Theme.muted)
-                Text("See what's playing while you train")
-                    .font(.subheadline)
-            }
-            Spacer(minLength: 8)
-            Button(spotify.hasSavedAuthorization ? "Reconnect" : "Connect") {
-                if spotify.hasSavedAuthorization { spotify.authorizeAgain() }
-                else { spotify.connect() }
-            }
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(Theme.accentText)
-            .frame(minHeight: 44)
-            .disabled(!spotify.isConfigured)
-            .accessibilityLabel(spotify.hasSavedAuthorization ? "Reconnect Spotify" : "Connect Spotify")
-        }
-        .softCardStyle()
-    }
-
-    private var player: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("MUSIC")
-                .font(.caption2.weight(.semibold)).nagisenTracking(2.2)
-                .foregroundStyle(Theme.muted)
-            HStack(spacing: 12) {
-                trackButton("backward.end.fill", label: String(localized: "Previous Spotify song")) {
-                    spotify.previousTrack()
-                }
-                .frame(maxWidth: .infinity)
-                Group {
-                    if let artwork = spotify.artwork {
-                        Image(uiImage: artwork).resizable().scaledToFill()
-                    } else {
-                        Image(systemName: "music.note")
-                            .font(.title)
-                            .foregroundStyle(Theme.accentText)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .background(Theme.surface.opacity(0.4))
-                    }
-                }
-                .frame(width: 112, height: 112)
-                .clipShape(RoundedRectangle(cornerRadius: 17))
-                .overlay(RoundedRectangle(cornerRadius: 17).strokeBorder(Theme.line, lineWidth: 1))
-                trackButton("forward.end.fill", label: String(localized: "Next Spotify song")) {
-                    spotify.nextTrack()
-                }
-                .frame(maxWidth: .infinity)
-            }
-            .frame(maxWidth: .infinity)
-            VStack(spacing: 4) {
-                Text(spotify.trackName ?? "Spotify")
-                    .font(.system(size: 20, design: .serif))
-                    .lineLimit(2)
-                Text(spotify.artistName ?? spotify.status)
-                    .font(.caption).foregroundStyle(Theme.muted)
-                    .lineLimit(2)
-            }
-            .frame(maxWidth: .infinity)
-            .multilineTextAlignment(.center)
-            HStack {
-                Label(spotify.status, systemImage: "waveform")
-                    .font(.caption).foregroundStyle(Theme.muted)
-                Spacer()
-                Link("Open Spotify", destination: URL(string: "https://open.spotify.com/")!)
-                    .font(.subheadline.weight(.semibold))
-            }
-        }
-        .cardStyle()
-    }
-
-    private func trackButton(_ symbol: String, label: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 19, weight: .medium))
-                .foregroundStyle(Theme.ink)
-                .frame(width: 48, height: 48)
-                .nagisenGlass(in: Circle(), tint: Theme.surface.opacity(0.08))
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(label)
-        .disabled(!spotify.isConnected)
-        .opacity(spotify.isConnected ? 1 : 0.4)
-    }
-}
-
 enum BodybuildingExerciseCatalog {
     static let groups: [(String, [String])] = [
         ("Chest & shoulders", ["Bench press", "Incline dumbbell press", "Cable fly", "Overhead press", "Lateral raise"]),

@@ -261,4 +261,44 @@ final class LoseItImporterTests: XCTestCase {
         XCTAssertTrue(result.entries.isEmpty)
         XCTAssertTrue(result.skipped.contains { $0.category == "Unrecognized rows" })
     }
+
+    // MARK: - Other apps
+
+    func testCronometerStyleExportKeepsTheUnitInsideTheAmount() {
+        let csv = """
+        Day,Time,Group,Food Name,Amount,Energy (kcal),Protein (g),Carbs (g),Fat (g)
+        2026-10-27,08:10,Breakfast,"Oats, rolled",80.00 g,303,10.6,54,5.3
+        2026-10-27,13:00,Lunch,Chicken breast,150.00 g,248,46.5,0,5.4
+        """
+        let result = LoseItImporter.preview(files: [file("servings.csv", csv)], source: "Cronometer", calendar: calendar)
+        XCTAssertEqual(result.entries.count, 2)
+        let oats = result.entries[0]
+        XCTAssertEqual(oats.food.name, "Oats, rolled")
+        XCTAssertEqual(oats.food.calories, 303)
+        XCTAssertEqual(oats.servings, 1, "the 80 g amount must not multiply the calories")
+        XCTAssertEqual(oats.loggedQuantity, 80)
+        XCTAssertEqual(oats.loggedUnit, "g")
+        XCTAssertEqual(oats.meal, .breakfast)
+        XCTAssertEqual(oats.food.source, "Cronometer")
+    }
+
+    func testMyFitnessPalMealTotalsBecomeSummariesNotFoods() {
+        let csv = """
+        Date,Meal,Calories,Fat (g),Carbohydrates (g),Protein (g)
+        2026-10-27,Breakfast,410,12,55,20
+        2026-10-27,Dinner,690,25,60,45
+        """
+        let result = LoseItImporter.preview(files: [file("Nutrition-Summary.csv", csv)], source: "MyFitnessPal", calendar: calendar)
+        XCTAssertTrue(result.entries.isEmpty)
+        XCTAssertEqual(result.dailySummaries.count, 2)
+        XCTAssertEqual(result.dailySummaries.first?.carbs, 55)
+    }
+
+    func testTheSameFoodFromTwoAppsIsNotTreatedAsADuplicate() {
+        let a = LoseItImporter.fingerprint(source: "Yazio", dayKey: "2026-10-27", meal: .lunch, name: "Rice",
+                                           brand: "", servings: 1, calories: 200)
+        let b = LoseItImporter.fingerprint(dayKey: "2026-10-27", meal: .lunch, name: "Rice",
+                                           brand: "", servings: 1, calories: 200)
+        XCTAssertNotEqual(a, b)
+    }
 }

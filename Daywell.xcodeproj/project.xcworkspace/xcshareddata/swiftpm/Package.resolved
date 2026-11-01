@@ -2,15 +2,6 @@
   "originHash": "4a7d2c9ae237efcc42b4d61f9b5726fffc4e93f93343fe1be2555c0a0638bd78",
   "pins": [
     {
-      "identity": "ios-sdk",
-      "kind": "remoteSourceControl",
-      "location": "https://github.com/spotify/ios-sdk.git",
-      "state": {
-        "revision": "0b3e54771738ad5e64f22c8e5e19ca76d6becc6c",
-        "version": "5.0.1"
-      }
-    },
-    {
       "identity": "supabase-swift",
       "kind": "remoteSourceControl",
       "location": "https://github.com/supabase/supabase-swift.git",
