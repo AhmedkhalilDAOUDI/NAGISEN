@@ -2,44 +2,63 @@ import XCTest
 @testable import Daywell
 
 final class RestGameTests: XCTestCase {
-    private func play(seed: UInt64, follow: Bool) -> EmberGame {
-        var game = EmberGame(seed: seed)
-        while !game.isOver {
-            // A perfect player sits in the gap of the next line still above the ember.
-            if follow, let next = game.veils.filter({ !$0.resolved && $0.y < EmberGame.emberY }).max(by: { $0.y < $1.y }) {
-                game.x = next.gapCenter
-            }
-            game.step(1.0 / 60)
+    func testClearingAMemoryRoundScoresItAndAddsATile() {
+        var game = MemoryGame(seed: 4)
+        XCTAssertEqual(game.pattern.count, 3)
+        let tiles = Array(game.pattern)
+        XCTAssertEqual(game.tap(tiles[0]), .hit)
+        XCTAssertEqual(game.tap(tiles[1]), .hit)
+        XCTAssertEqual(game.tap(tiles[2]), .cleared(points: 3))
+        game.newRound()
+        XCTAssertEqual(game.pattern.count, 4)
+    }
+
+    func testAMemoryMissTakesATileAwayButNeverBelowThree() {
+        var game = MemoryGame(seed: 9)
+        let outside = (0..<MemoryGame.tiles).first { !game.pattern.contains($0) }!
+        XCTAssertEqual(game.tap(outside), .miss)
+        XCTAssertEqual(game.length, 3)
+    }
+
+    func testMathGetsHarderAndPaysMoreAfterFiveCorrect() {
+        var game = MathGame(seed: 2)
+        XCTAssertNil(game.submit(game.answer + 1), "a wrong answer earns nothing")
+        for _ in 0..<5 { XCTAssertEqual(game.submit(game.answer), 1) }
+        XCTAssertEqual(game.tier, 1)
+        XCTAssertEqual(game.submit(game.answer), 2)
+    }
+
+    func testMathAnswersAreNeverNegative() {
+        var game = MathGame(seed: 11)
+        for _ in 0..<200 {
+            XCTAssertGreaterThanOrEqual(game.answer, 0, game.question)
+            _ = game.submit(game.answer)
         }
-        return game
     }
 
-    func testARestLastsExactlyThreeMinutesAndThenStops() {
-        var game = play(seed: 7, follow: false)
-        XCTAssertEqual(game.remaining, 0)
-        let score = game.score
-        game.step(1)
-        XCTAssertEqual(game.score, score, "nothing moves after the rest is over")
+    func testQuickerReactionsEarnMore() {
+        XCTAssertGreaterThan(ReactionScoring.points(milliseconds: 210), ReactionScoring.points(milliseconds: 380))
+        XCTAssertEqual(ReactionScoring.points(milliseconds: 900), 1)
     }
 
-    func testThreadingTheGapsScoresAndBuildsAStreak() {
-        let game = play(seed: 7, follow: true)
-        XCTAssertGreaterThan(game.bestStreak, 50, "a perfect run passes every line")
-        XCTAssertGreaterThan(game.score, game.bestStreak)
+    func testUnscramblingAWordScoresItsLength() {
+        var game = WordGame(seed: 5)
+        let word = game.word
+        XCTAssertNotEqual(String(game.letters), word, "the letters always start shuffled")
+        var available = Array(game.letters.enumerated())
+        var result = WordGame.Pick.partial
+        for letter in word {
+            let index = available.firstIndex { $0.element == letter }!
+            result = game.pick(available.remove(at: index).offset)
+        }
+        XCTAssertEqual(result, .solved(points: word.count))
     }
 
-    func testHittingALineBreaksTheStreakButNeverEndsTheGame() {
-        var game = EmberGame(seed: 3)
-        game.x = 0.0
-        for _ in 0..<(60 * 20) { game.step(1.0 / 60) }
-        XCTAssertFalse(game.isOver)
-        XCTAssertLessThan(game.bestStreak, 3, "sitting at the edge mostly hits the lines")
-        XCTAssertGreaterThan(game.remaining, 150)
-    }
-
-    func testLongPausesAreCappedPerStep() {
-        var game = EmberGame(seed: 1)
-        game.step(30)
-        XCTAssertEqual(game.elapsed, 0.05, accuracy: 0.0001)
+    func testAWrongWordClearsTheAnswer() {
+        var game = WordGame(seed: 5)
+        // Picking the shuffled letters in their shown order is never the word (nor another real word here).
+        var result = WordGame.Pick.partial
+        for index in game.letters.indices { result = game.pick(index) }
+        if result == .wrong { XCTAssertTrue(game.picked.isEmpty) }
     }
 }
