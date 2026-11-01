@@ -120,6 +120,7 @@ struct WorkoutMusicView: View {
     @State private var pendingAwards: [Trophy] = []
     @State private var activeAward: Trophy?
     @State private var showingShuffle = false
+    @State private var sessionType: SessionType?
     @State private var requestedCount = 3
     @State private var requestedDifficulty = ChallengeFactory.Difficulty.balanced
 
@@ -269,6 +270,8 @@ struct WorkoutMusicView: View {
                 VStack(alignment: .leading, spacing: 23) {
                     NagisenPageHeading(kicker: String(localized: "NAGISEN MOVE"), title: String(localized: "Keep moving"),
                                        subtitle: Date.now.formatted(.dateTime.weekday(.wide).month(.wide).day()))
+
+                    SessionPickerCard { sessionType = $0 }
 
                     NavigationLink {
                         PersonalRecordsView()
@@ -453,6 +456,12 @@ struct WorkoutMusicView: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { showNextAward() }
             }) {
                 NavigationStack { AddWorkoutView(challenge: selectedQuest) }
+            }
+            .fullScreenCover(item: $sessionType, onDismiss: {
+                checkForNewAwards()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { showNextAward() }
+            }) { type in
+                SessionView(type: type)
             }
             .fullScreenCover(item: $activeAward) { trophy in
                 TrophyCelebrationView(trophy: trophy, onDismiss: dismissAward)
@@ -879,7 +888,7 @@ private struct SpotifyMusicCard: View {
     }
 }
 
-private enum BodybuildingExerciseCatalog {
+enum BodybuildingExerciseCatalog {
     static let groups: [(String, [String])] = [
         ("Chest & shoulders", ["Bench press", "Incline dumbbell press", "Cable fly", "Overhead press", "Lateral raise"]),
         ("Back & arms", ["Pull-up", "Lat pulldown", "Barbell row", "Seated cable row", "Biceps curl", "Triceps pushdown"]),
