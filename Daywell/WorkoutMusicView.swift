@@ -273,6 +273,8 @@ struct WorkoutMusicView: View {
 
                     SessionPickerCard { sessionType = $0 }
 
+                    RestGameCard()
+
                     NavigationLink {
                         PersonalRecordsView()
                     } label: {

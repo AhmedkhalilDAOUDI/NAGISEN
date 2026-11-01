@@ -294,6 +294,8 @@ struct SessionView: View {
                         .cardStyle()
                     }
 
+                    RestGameCard()
+
                     HStack(spacing: 12) {
                         Button { withAnimation(.easeInOut(duration: 0.25)) { build() } } label: {
                             Label("Shuffle", systemImage: "shuffle")
