@@ -49,6 +49,23 @@ struct ProgressViewScreen: View {
                         }
                     }
                     .accentCardStyle(Theme.accent)
+                    NavigationLink {
+                        TargetCalculatorView()
+                    } label: {
+                        HStack(spacing: 14) {
+                            Image(systemName: "function").foregroundStyle(Theme.accentText)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text("Calculate your target").font(.system(size: 21, design: .serif))
+                                Text("Age, height, target weight and activity").font(.caption).foregroundStyle(Theme.muted)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right").font(.caption).foregroundStyle(Theme.muted)
+                        }
+                        .foregroundStyle(Theme.ink)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .softCardStyle()
                     VStack(alignment: .leading, spacing: 17) {
                         HStack {
                             Text("Weight")
@@ -251,7 +268,7 @@ struct GoalsView: View {
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(Theme.accentText)
                 }
-                Text("Choose targets that fit your needs. You can also copy a target from your food plan.")
+                Text("Choose targets that fit your needs, or calculate one from your body details on the Goals screen.")
                     .font(.footnote).foregroundStyle(Theme.muted)
             }
             .padding(.horizontal, 24)

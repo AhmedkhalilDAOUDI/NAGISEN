@@ -201,25 +201,16 @@ private enum DietPlanEngine {
 
 struct DietPlanView: View {
     @EnvironmentObject private var store: NutritionStore
-    @EnvironmentObject private var health: HealthManager
     @Environment(\.dismiss) private var dismiss
     @State private var selectedDay = 0
     @State private var avoidInput = ""
     @State private var showingGroceries = false
     @State private var mealToLog: PlannedMealSelection?
 
-    private var weight: Double? {
-        store.weights.max { $0.date < $1.date }?.kilograms ?? health.weightKilograms
-    }
+    /// The plan is sized to the daily calorie goal, which is set (or calculated) in Goals.
     private var target: Int? {
-        guard let weight, let age = store.profile.age, age >= 18,
-              let height = store.profile.heightCm,
-              let equation = store.dietPreferences.equation,
-              let activity = store.dietPreferences.activity else { return nil }
-        let direction = DietPlanEngine.direction(store.dietPreferences.direction, weight: weight,
-                                                  target: store.profile.targetWeightKg)
-        return DietPlanEngine.calories(weight: weight, height: height, age: age,
-                                       equation: equation, activity: activity, direction: direction)
+        let calories = store.goals(on: .now).calories
+        return calories > 0 ? calories : nil
     }
     private var day: PlanDay? {
         target.flatMap { DietPlanEngine.day(style: store.dietPreferences.style, index: selectedDay,
@@ -276,41 +267,6 @@ struct DietPlanView: View {
                     .frame(minHeight: 54)
                 }
 
-                VStack(alignment: .leading, spacing: 15) {
-                    Text("CALCULATE YOUR TARGET")
-                        .font(.caption2.weight(.semibold)).nagisenTracking(2).foregroundStyle(Theme.muted)
-                    HStack {
-                        Text("Current weight")
-                        Spacer()
-                        Text(weight.map { "\($0.formatted(.number.precision(.fractionLength(1)))) kg" } ?? "Add in You")
-                            .foregroundStyle(Theme.muted)
-                    }
-                    .frame(minHeight: 46)
-                    Divider()
-                    HStack {
-                        Text("Age & height")
-                        Spacer()
-                        Text(store.profile.age.flatMap { age in store.profile.heightCm.map { "\(age)y · \(Int($0)) cm" } } ?? "Add in You")
-                            .foregroundStyle(Theme.muted)
-                    }
-                    .frame(minHeight: 46)
-                    Divider()
-                    NagisenPicker("Calorie equation", selection: $store.dietPreferences.equation,
-                                  options: [(nil, String(localized: "Choose"))] + EnergyEquation.allCases.map { (Optional($0), $0.rawValue) })
-                    .frame(minHeight: 48)
-                    Divider()
-                    NagisenPicker("Activity", selection: $store.dietPreferences.activity,
-                                  options: [(nil, String(localized: "Choose"))] + DietActivity.allCases.map { (Optional($0), $0.rawValue) })
-                    .frame(minHeight: 48)
-                    Divider()
-                    NagisenPicker("Goal", selection: $store.dietPreferences.direction,
-                                  options: DietDirection.allCases.map { ($0, $0.rawValue) })
-                    .frame(minHeight: 48)
-                    Text("Uses the Mifflin–St Jeor estimate. Activity and body data affect the result; adjust your daily goals if your needs differ.")
-                        .font(.caption).foregroundStyle(Theme.muted)
-                }
-                .softCardStyle()
-
                 if let day, let target {
                     Button { showingGroceries = true } label: {
                         Label("Shopping list for the week", systemImage: "basket")
@@ -326,7 +282,7 @@ struct DietPlanView: View {
                         HStack(alignment: .firstTextBaseline) {
                             Text("\(target.formatted())")
                                 .font(.system(size: 42, design: .serif))
-                            Text("kcal target")
+                            Text("kcal · your daily goal")
                                 .font(.subheadline).foregroundStyle(Theme.muted)
                         }
                         Text("Today’s portions: \(day.calories.formatted()) kcal")
@@ -336,15 +292,8 @@ struct DietPlanView: View {
                             macro(String(localized: "CARBS"), value: day.carbs, color: Theme.carbs)
                             macro(String(localized: "FAT"), value: day.fat, color: Theme.fat)
                         }
-                        Button("Use these as my daily goals") {
-                            store.goals = NutritionGoals(calories: target, protein: day.protein,
-                                                         carbs: day.carbs, fat: day.fat).balanced
-                        }
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 13)
-                        .background(Theme.accent, in: RoundedRectangle(cornerRadius: 12))
+                        Text("Change the goal in Goals; the plan follows it.")
+                            .font(.caption).foregroundStyle(Theme.muted)
                     }
                     .softCardStyle()
 
@@ -386,7 +335,7 @@ struct DietPlanView: View {
                         .font(.footnote).foregroundStyle(Theme.muted)
                 } else {
                     Text(target == nil
-                         ? "Add a weight in You → Weight log, enter your age and height in Body details, then choose a calorie equation and activity level here. Plans are for adults 18 and older."
+                         ? "Set a daily calorie goal in Goals first. Plans are for adults 18 and older."
                          : "No complete day fits the foods you entered. Try another style or adjust the foods to avoid.")
                         .font(.subheadline)
                         .foregroundStyle(Theme.muted)
@@ -531,5 +480,127 @@ private struct PlannedMealLogView: View {
         }
         .background(NagisenBackdrop())
         .toolbar(.hidden, for: .navigationBar)
+    }
+}
+
+/// Estimates a daily calorie target from body details and activity, and can make it the daily goal.
+struct TargetCalculatorView: View {
+    @EnvironmentObject private var store: NutritionStore
+    @EnvironmentObject private var health: HealthManager
+    @Environment(\.dismiss) private var dismiss
+    @State private var age = ""
+    @State private var height = ""
+    @State private var targetWeight = ""
+    @State private var applied = false
+
+    private var weight: Double? {
+        store.weights.max { $0.date < $1.date }?.kilograms ?? health.weightKilograms
+    }
+
+    private func number(_ text: String, in range: ClosedRange<Double>) -> Double? {
+        guard let value = Double(text.replacingOccurrences(of: ",", with: ".")), value.isFinite,
+              range.contains(value) else { return nil }
+        return value
+    }
+
+    private var profile: PersonalProfile? {
+        let ageValue = age.isEmpty ? nil : Int(age).flatMap { (1...120).contains($0) ? $0 : nil }
+        let heightValue = height.isEmpty ? nil : number(height, in: 50...250)
+        let targetValue = targetWeight.isEmpty ? nil : number(targetWeight, in: 20...500)
+        if (!age.isEmpty && ageValue == nil) || (!height.isEmpty && heightValue == nil)
+            || (!targetWeight.isEmpty && targetValue == nil) { return nil }
+        return PersonalProfile(age: ageValue, heightCm: heightValue, targetWeightKg: targetValue)
+    }
+
+    private var target: Int? {
+        guard let weight, let profile, let age = profile.age, age >= 18, let height = profile.heightCm,
+              let equation = store.dietPreferences.equation,
+              let activity = store.dietPreferences.activity else { return nil }
+        let direction = DietPlanEngine.direction(store.dietPreferences.direction, weight: weight,
+                                                  target: profile.targetWeightKg)
+        return DietPlanEngine.calories(weight: weight, height: height, age: age,
+                                       equation: equation, activity: activity, direction: direction)
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                NagisenHeader("Calculate your target", subtitle: String(localized: "The basics behind your plan."), onBack: { dismiss() })
+                NagisenSection("About you") {
+                    NagisenTextRow("Age", placeholder: String(localized: "Years"), text: $age)
+                    Divider().overlay(Theme.line)
+                    NagisenTextRow("Height", placeholder: "0", unit: "cm", text: $height, keyboard: .decimalPad)
+                    Divider().overlay(Theme.line)
+                    HStack {
+                        Text("Current weight")
+                        Spacer()
+                        Text(weight.map { "\($0.formatted(.number.precision(.fractionLength(1)))) kg" } ?? String(localized: "Log a weight in Goals"))
+                            .foregroundStyle(Theme.muted)
+                    }
+                    .frame(minHeight: 54)
+                    Divider().overlay(Theme.line)
+                    NagisenTextRow("Target weight", placeholder: "0", unit: "kg", text: $targetWeight, keyboard: .decimalPad)
+                }
+                NagisenSection("How you live") {
+                    NagisenPicker("Calorie equation", selection: $store.dietPreferences.equation,
+                                  options: [(nil, String(localized: "Choose"))] + EnergyEquation.allCases.map { (Optional($0), $0.rawValue) })
+                    .frame(minHeight: 52)
+                    Divider().overlay(Theme.line)
+                    NagisenPicker("Activity", selection: $store.dietPreferences.activity,
+                                  options: [(nil, String(localized: "Choose"))] + DietActivity.allCases.map { (Optional($0), $0.rawValue) })
+                    .frame(minHeight: 52)
+                    Divider().overlay(Theme.line)
+                    NagisenPicker("Goal", selection: $store.dietPreferences.direction,
+                                  options: DietDirection.allCases.map { ($0, $0.rawValue) })
+                    .frame(minHeight: 52)
+                }
+                if let target {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack(alignment: .firstTextBaseline) {
+                            Text("\(target.formatted())").font(.system(size: 42, design: .serif))
+                            Text("kcal / day").font(.subheadline).foregroundStyle(Theme.muted)
+                        }
+                        Button(applied ? String(localized: "Set as your daily goal") : String(localized: "Use as my daily goal")) { apply(target) }
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 13)
+                            .background(Theme.accent, in: RoundedRectangle(cornerRadius: 12))
+                            .disabled(applied)
+                    }
+                    .softCardStyle()
+                } else {
+                    Text("Fill in your age (18 or older), height and a logged weight, then choose an equation and activity level.")
+                        .font(.subheadline).foregroundStyle(Theme.muted)
+                }
+                Text("Uses the Mifflin–St Jeor or another estimate you choose. Activity and body data affect the result; adjust your goals if your needs differ.")
+                    .font(.footnote).foregroundStyle(Theme.muted)
+            }
+            .foregroundStyle(Theme.ink)
+            .padding(.horizontal, 24).padding(.top, 10).padding(.bottom, 32)
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .background(NagisenBackdrop())
+        .tint(Theme.accentText)
+        .toolbar(.hidden, for: .navigationBar)
+        .onAppear {
+            age = store.profile.age.map(String.init) ?? ""
+            height = store.profile.heightCm.map { $0.formatted() } ?? ""
+            targetWeight = store.profile.targetWeightKg.map { $0.formatted() } ?? ""
+        }
+        // Body details save as they become valid, so leaving the screen never loses them.
+        .onChange(of: profile) { _, value in if let value { store.profile = value }; applied = false }
+        .onChange(of: target) { _, _ in applied = false }
+    }
+
+    private func apply(_ calories: Int) {
+        let current = store.goals
+        if let day = DietPlanEngine.day(style: store.dietPreferences.style, index: 0,
+                                        targetCalories: calories, avoiding: store.foodsToAvoid) {
+            store.goals = NutritionGoals(calories: calories, protein: day.protein, carbs: day.carbs, fat: day.fat).balanced
+        } else {
+            store.goals = NutritionGoals(calories: calories, protein: current.protein, carbs: 0, fat: current.fat).balanced
+        }
+        applied = true
     }
 }

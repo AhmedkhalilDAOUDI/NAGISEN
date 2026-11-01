@@ -199,7 +199,7 @@ enum AppearanceMode: String, CaseIterable, Codable, Identifiable {
     var id: String { rawValue }
 }
 
-struct PersonalProfile: Codable {
+struct PersonalProfile: Codable, Equatable {
     var age: Int? = nil
     var heightCm: Double? = nil
     var targetWeightKg: Double? = nil

@@ -981,8 +981,6 @@ private struct WaterDetailView: View {
     let date: Date
     @State private var amount = ""
     @State private var goal = ""
-    @AppStorage("daywell.water.reminders") private var remindersEnabled = false
-    @State private var reminderError = false
 
     var body: some View {
         ScrollView {
@@ -1023,26 +1021,6 @@ private struct WaterDetailView: View {
                 Text("Set a target that fits your own needs.")
                     .font(.footnote).foregroundStyle(Theme.muted).padding(.bottom, 14)
                 }
-                NagisenSection("Reminders") {
-                Toggle("Gentle water check-ins", isOn: Binding(
-                    get: { remindersEnabled },
-                    set: { enabled in
-                        if enabled {
-                            WaterReminders.enable { allowed in
-                                remindersEnabled = allowed
-                                reminderError = !allowed
-                            }
-                        } else {
-                            remindersEnabled = false
-                            WaterReminders.disable()
-                        }
-                    }
-                ))
-                .tint(Theme.red)
-                .frame(minHeight: 54)
-                Text("When enabled, NAGISEN sends a check-in every two hours from 9 a.m. to 9 p.m. Turn this off at any time.")
-                    .font(.footnote).foregroundStyle(Theme.muted).padding(.bottom, 14)
-                }
                 NagisenSection("History") {
                 let entries = store.waterEntries.filter { Calendar.current.isDate($0.date, inSameDayAs: date) }
                     .sorted { $0.date > $1.date }
@@ -1071,8 +1049,6 @@ private struct WaterDetailView: View {
         .background(NagisenBackdrop())
         .toolbar(.hidden, for: .navigationBar)
         .onAppear { goal = String(store.waterGoalML) }
-        .nagisenDialog("Notifications are off", isPresented: $reminderError,
-                       message: String(localized: "Allow NAGISEN notifications in iPhone Settings to use water check-ins."), cancelTitle: "OK")
     }
 }
 

@@ -13,12 +13,14 @@ struct ProfileView: View {
     @AppStorage(Reminders.streakHourKey) private var streakHour = Reminders.defaultStreakTime.hour
     @AppStorage(Reminders.streakMinuteKey) private var streakMinute = Reminders.defaultStreakTime.minute
     @AppStorage(Reminders.borderKey) private var borderNudge = false
+    @AppStorage("daywell.water.reminders") private var waterReminders = false
     @State private var notificationsDenied = false
     @State private var exportFile: DataExportFile?
     @State private var showingImporter = false
     @State private var pendingRestore: Data?
     @State private var restoreError = false
     @State private var showingAutomaticRestore = false
+    @State private var showingRestoreChoice = false
     @State private var showingLoseItImport = false
     @State private var showingCloudChoice = false
 
@@ -114,6 +116,20 @@ struct ProfileView: View {
                         .font(.caption).foregroundStyle(Theme.muted)
                 }
             }
+            Divider().overlay(Theme.line)
+            Toggle(isOn: Binding(get: { waterReminders }, set: { on in
+                if on {
+                    WaterReminders.enable { allowed in waterReminders = allowed; notificationsDenied = !allowed }
+                } else {
+                    waterReminders = false
+                    WaterReminders.disable()
+                }
+            })) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Water check-ins").font(.body.weight(.medium))
+                    Text("Every two hours from 9 a.m. to 9 p.m.").font(.caption).foregroundStyle(Theme.muted)
+                }
+            }
             if notificationsDenied {
                 Text("Notifications are off for NAGISEN. Turn them on in iPhone Settings → Notifications.")
                     .font(.caption).foregroundStyle(Theme.accentText)
@@ -152,10 +168,6 @@ struct ProfileView: View {
         })
     }
 
-    private var latestWeight: WeightEntry? {
-        store.weights.max { $0.date < $1.date }
-    }
-
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -174,7 +186,7 @@ struct ProfileView: View {
                             ProgressViewScreen()
                         } label: {
                             MenuRow(symbol: "target", title: String(localized: "Goals"),
-                                    detail: String(localized: "Daily targets, insights & progress"))
+                                    detail: String(localized: "Targets, weight & progress"))
                         }
                         Divider().overlay(Theme.line)
                         NavigationLink {
@@ -183,34 +195,20 @@ struct ProfileView: View {
                             MenuRow(symbol: "fork.knife", title: String(localized: "Food plan"),
                                     detail: String(localized: "Meals, calories & macros"))
                         }
-                        Divider().overlay(Theme.line)
-                        NavigationLink {
-                            WeightHistoryView()
-                        } label: {
-                            MenuRow(symbol: "scalemass", title: String(localized: "Weight log"),
-                                    detail: latestWeight.map { "\($0.kilograms.formatted(.number.precision(.fractionLength(1)))) kg latest" } ?? String(localized: "Add your first weight"))
-                        }
-                        Divider().overlay(Theme.line)
-                        NavigationLink {
-                            BodyDetailsView()
-                        } label: {
-                            MenuRow(symbol: "figure.stand", title: String(localized: "Body details"),
-                                    detail: String(localized: "Age, height & target weight"))
-                        }
-                        Divider().overlay(Theme.line)
-                        NavigationLink {
-                            AccessoriesView()
-                        } label: {
-                            MenuRow(symbol: "heart.text.square", title: String(localized: "Accessories"),
-                                    detail: String(localized: "Heart rate from your watch, ring or earbuds"))
-                        }
                     }
                     .softCardStyle()
 
-                    NagisenPicker("Language", selection: Binding(get: { AppLanguage.current }, set: { $0.apply(); languageCode = $0.rawValue }),
-                                  options: AppLanguage.allCases.map { ($0, $0.label) })
-                        .frame(minHeight: 52)
-                        .softCardStyle()
+                    VStack(spacing: 0) {
+                        NagisenPicker("Language", selection: Binding(get: { AppLanguage.current }, set: { $0.apply(); languageCode = $0.rawValue }),
+                                      options: AppLanguage.allCases.map { ($0, $0.label) })
+                            .frame(minHeight: 52)
+                        Divider().overlay(Theme.line)
+                        NagisenPicker("Look", selection: $store.appearance,
+                                      options: [(AppearanceMode.system, String(localized: "Match iPhone")),
+                                                (.light, String(localized: "Light")), (.dark, String(localized: "Dark"))])
+                            .frame(minHeight: 52)
+                    }
+                    .softCardStyle()
 
                     VStack(alignment: .leading, spacing: 12) {
                         Label("iCloud sync", systemImage: "icloud")
@@ -238,9 +236,11 @@ struct ProfileView: View {
                     }
                     .buttonStyle(.plain)
                     .softCardStyle()
-                    Button { showingImporter = true } label: {
-                        MenuRow(symbol: "square.and.arrow.down", title: String(localized: "Restore a backup"),
-                                detail: String(localized: "Replace this device's NAGISEN history"))
+                    Button {
+                        if store.latestAutomaticBackup != nil { showingRestoreChoice = true } else { showingImporter = true }
+                    } label: {
+                        MenuRow(symbol: "square.and.arrow.down", title: String(localized: "Restore"),
+                                detail: String(localized: "From a backup file or the latest automatic backup"))
                     }
                     .buttonStyle(.plain)
                     .softCardStyle()
@@ -253,14 +253,6 @@ struct ProfileView: View {
                     }
                     .buttonStyle(.plain)
                     .softCardStyle()
-                    if store.latestAutomaticBackup != nil {
-                        Button { showingAutomaticRestore = true } label: {
-                            MenuRow(symbol: "clock.arrow.circlepath", title: String(localized: "Recover recent history"),
-                                    detail: String(localized: "Restore the latest local backup"))
-                        }
-                        .buttonStyle(.plain)
-                        .softCardStyle()
-                    }
 
                     Text("Your history stays on this iPhone and in your private iCloud backup when connected. Feed posts are public. Online food search uses Open Food Facts.")
                         .font(.footnote).foregroundStyle(Theme.muted)
@@ -292,6 +284,11 @@ struct ProfileView: View {
                 return [NagisenAction(title: String(localized: "Replace with backup"), destructive: true) {
                     if let backup, !store.restoreJSON(backup) { restoreError = true }
                 }]
+            }
+            .nagisenDialog("Restore from where?", isPresented: $showingRestoreChoice,
+                           message: String(localized: "Both replace this iPhone's NAGISEN history.")) {
+                [NagisenAction(title: String(localized: "Latest automatic backup")) { showingAutomaticRestore = true },
+                 NagisenAction(title: String(localized: "A backup file")) { showingImporter = true }]
             }
             .nagisenDialog("Restore the latest automatic backup?", isPresented: $showingAutomaticRestore,
                            message: String(localized: "Current NAGISEN history will be replaced. Export it first if you want to keep both versions.")) {
@@ -353,63 +350,6 @@ private struct MenuRow: View {
         }
         .padding(.vertical, 13)
         .contentShape(Rectangle())
-    }
-}
-
-private struct BodyDetailsView: View {
-    @EnvironmentObject private var store: NutritionStore
-    @Environment(\.dismiss) private var dismiss
-    @State private var age = ""
-    @State private var height = ""
-    @State private var targetWeight = ""
-
-    private func optionalDouble(_ text: String, range: ClosedRange<Double>) -> Double? {
-        guard !text.isEmpty, let value = Double(text.replacingOccurrences(of: ",", with: ".")),
-              value.isFinite, range.contains(value) else { return nil }
-        return value
-    }
-
-    private var valid: Bool {
-        (age.isEmpty || (Int(age).map { (1...120).contains($0) } ?? false)) &&
-        (height.isEmpty || optionalDouble(height, range: 50...250) != nil) &&
-        (targetWeight.isEmpty || optionalDouble(targetWeight, range: 20...500) != nil)
-    }
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 26) {
-                NagisenHeader("Body details", subtitle: String(localized: "The basics behind your plan."), onBack: { dismiss() },
-                              actionTitle: String(localized: "Save"), actionEnabled: valid, onAction: save)
-                NagisenSection("About you") {
-                    NagisenTextRow("Age", placeholder: String(localized: "Years"), text: $age)
-                    Divider().overlay(Theme.line)
-                    NagisenTextRow("Height", placeholder: "0", unit: "cm", text: $height, keyboard: .decimalPad)
-                }
-                NagisenSection("Weight goal") {
-                    NagisenTextRow("Target", placeholder: "0", unit: "kg", text: $targetWeight, keyboard: .decimalPad)
-                }
-                Text("NAGISEN uses these details to estimate your food plan for adults 18 and older.")
-                    .font(.footnote).foregroundStyle(Theme.muted)
-            }
-            .padding(.horizontal, 24).padding(.top, 10).padding(.bottom, 32)
-        }
-        .scrollDismissesKeyboard(.interactively)
-        .background(NagisenBackdrop())
-        .tint(Theme.accentText)
-        .toolbar(.hidden, for: .navigationBar)
-        .onAppear {
-            age = store.profile.age.map(String.init) ?? ""
-            height = store.profile.heightCm.map { $0.formatted() } ?? ""
-            targetWeight = store.profile.targetWeightKg.map { $0.formatted() } ?? ""
-        }
-    }
-
-    private func save() {
-        guard valid else { return }
-        store.profile = PersonalProfile(age: Int(age),
-            heightCm: optionalDouble(height, range: 50...250),
-            targetWeightKg: optionalDouble(targetWeight, range: 20...500))
-        dismiss()
     }
 }
 

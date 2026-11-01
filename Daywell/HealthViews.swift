@@ -192,15 +192,14 @@ private struct LiveAccessoryWorkoutView: View {
     }
 }
 
-struct AccessoriesView: View {
+/// Heart rate per device, a live workout, and importing Health workouts and weight. Shown inside HealthView.
+private struct HealthDevicesSections: View {
     @EnvironmentObject private var health: HealthManager
     @EnvironmentObject private var store: NutritionStore
-    @Environment(\.dismiss) private var dismiss
     @AppStorage("nagisen.health.autoImport") private var autoImport = false
     @State private var importStatus: String?
     private let refresh = Timer.publish(every: 10, on: .main, in: .common).autoconnect()
 
-    private var latest: AccessoryHeartReading? { health.recentHeartReadings.first }
     /// The newest reading from each device: a watch, ring, band, chest strap or earbuds.
     private var latestByDevice: [AccessoryHeartReading] {
         var seen = Set<String>()
@@ -208,114 +207,44 @@ struct AccessoriesView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
-                NagisenHeader("Accessories", subtitle: String(localized: "Your activity, from the devices you use."), symbol: "chevron.left") { dismiss() }
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("HEART RATE").font(.caption.weight(.semibold)).nagisenTracking(2).foregroundStyle(Theme.muted)
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text(latest.map { "\($0.beatsPerMinute)" } ?? "—")
-                            .font(.system(size: 60, weight: .light, design: .rounded))
-                            .monospacedDigit()
-                        Text("bpm").font(.title3).foregroundStyle(Theme.muted)
-                    }
-                    if let latest {
-                        Text("\(latest.displaySource) · \(latest.date.formatted(date: .omitted, time: .shortened))")
-                            .font(.subheadline).foregroundStyle(Theme.muted)
-                    } else {
-                        Text("Wear anything that saves heart rate to Apple Health: Apple Watch, Garmin, Oura, Whoop, Polar, AirPods Pro or another watch, ring, band or strap.")
-                            .font(.subheadline).foregroundStyle(Theme.muted)
-                    }
+        VStack(alignment: .leading, spacing: 20) {
+            NagisenSection("Heart rate by device") {
+                if latestByDevice.isEmpty {
+                    Text("Wear anything that saves heart rate to Apple Health: Apple Watch, Garmin, Oura, Whoop, Polar, AirPods Pro or another watch, ring, band or strap. Most apps share with Health from their own settings; some brands need a separate sync app.")
+                        .font(.subheadline).foregroundStyle(Theme.muted)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 12)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .softCardStyle()
-
-                if !health.hasRequestedAccess {
-                    Button("Connect Apple Health") { health.requestAccess() }
-                        .buttonStyle(.borderedProminent).tint(Theme.red)
-                } else {
-                    if #available(iOS 26.0, *) { LiveAccessoryWorkoutView() }
-                    NagisenSection("Keep your log together") {
-                        Toggle("Import Health workouts & weight", isOn: $autoImport)
-                            .tint(Theme.red).frame(minHeight: 54)
-                        Divider()
-                        Button("Import available data now") { importAvailable() }
-                            .font(.subheadline.weight(.medium)).frame(minHeight: 52)
-                        if let importStatus {
-                            Divider()
-                            Text(importStatus).font(.caption).foregroundStyle(Theme.muted)
-                        }
+                ForEach(latestByDevice) { reading in
+                    HStack {
+                        Label(reading.displaySource, systemImage: "heart.fill")
+                            .font(.subheadline)
+                        Spacer()
+                        Text("\(reading.beatsPerMinute) bpm").font(.subheadline.weight(.semibold))
+                        Text(reading.date.formatted(date: .abbreviated, time: .shortened))
+                            .font(.caption).foregroundStyle(Theme.muted)
                     }
-                    NagisenSection("Your devices") {
-                        if latestByDevice.isEmpty {
-                            Text("No heart rate yet. Garmin Connect, Oura, Whoop, Polar Flow and many other apps can share with Apple Health from their own settings. Some brands need a separate sync app.")
-                                .font(.subheadline).foregroundStyle(Theme.muted)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.vertical, 12)
-                        }
-                        ForEach(latestByDevice) { reading in
-                            HStack {
-                                Label(reading.displaySource, systemImage: "heart.fill")
-                                    .font(.subheadline)
-                                Spacer()
-                                Text("\(reading.beatsPerMinute) bpm").font(.subheadline.weight(.semibold))
-                                Text(reading.date.formatted(date: .abbreviated, time: .shortened))
-                                    .font(.caption).foregroundStyle(Theme.muted)
-                            }
-                            .frame(minHeight: 48)
-                            if reading.id != latestByDevice.last?.id { Divider() }
-                        }
-                    }
-                    if !health.accessorySources.isEmpty {
-                        NagisenSection("Sources in Apple Health") {
-                            ForEach(health.accessorySources) { source in
-                                HStack {
-                                    VStack(alignment: .leading, spacing: 3) {
-                                        Text(source.name).font(.subheadline.weight(.medium))
-                                        Text(source.metrics).font(.caption).foregroundStyle(Theme.muted)
-                                    }
-                                    Spacer()
-                                    Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.accentText)
-                                }
-                                .frame(minHeight: 54)
-                                if source.id != health.accessorySources.last?.id { Divider() }
-                            }
-                        }
-                    }
-                    if !health.recentHeartReadings.isEmpty {
-                        NagisenSection("Recent readings") {
-                            ForEach(Array(health.recentHeartReadings.prefix(8))) { reading in
-                                HStack {
-                                    Text(reading.displaySource).font(.subheadline)
-                                    Spacer()
-                                    Text("\(reading.beatsPerMinute) bpm")
-                                        .font(.subheadline.weight(.semibold))
-                                    Text(reading.date.formatted(date: .omitted, time: .shortened))
-                                        .font(.caption).foregroundStyle(Theme.muted)
-                                }.frame(minHeight: 46)
-                            }
-                        }
-                    }
+                    .frame(minHeight: 48)
+                    if reading.id != latestByDevice.last?.id { Divider() }
                 }
-                Text("NAGISEN reads heart-rate samples and the device that recorded them from Apple Health. A device appears here once its app shares heart rate with Health.")
-                    .font(.footnote).foregroundStyle(Theme.muted)
-                Button("Refresh") { refreshData() }
-                    .font(.subheadline.weight(.semibold)).tint(Theme.accentText)
             }
-            .padding(24)
+            if #available(iOS 26.0, *) { LiveAccessoryWorkoutView() }
+            NagisenSection("Keep your log together") {
+                Toggle("Import Health workouts & weight", isOn: $autoImport)
+                    .tint(Theme.red).frame(minHeight: 54)
+                Divider()
+                Button("Import available data now") { importAvailable() }
+                    .font(.subheadline.weight(.medium)).frame(minHeight: 52)
+                if let importStatus {
+                    Divider()
+                    Text(importStatus).font(.caption).foregroundStyle(Theme.muted)
+                }
+            }
         }
-        .background(NagisenBackdrop())
-        .foregroundStyle(Theme.ink)
-        .toolbar(.hidden, for: .navigationBar)
-        .onAppear { refreshData() }
         .onReceive(refresh) { _ in health.refreshAccessoryReadings() }
         .onReceive(health.$workouts) { _ in if autoImport { importAvailable() } }
         .onReceive(health.$weightSamples) { _ in if autoImport { importAvailable() } }
         .onChange(of: autoImport) { _, enabled in if enabled { importAvailable() } }
-    }
-
-    private func refreshData() {
-        health.refresh()
     }
 
     private func importAvailable() {
@@ -396,6 +325,7 @@ struct HealthView: View {
                         }
                         .cardStyle()
                     }
+                    HealthDevicesSections()
                     Button("Refresh Health data") { health.refresh() }
                         .font(.subheadline.weight(.medium))
                         .tint(Theme.red)
