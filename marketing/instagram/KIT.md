@@ -8,7 +8,7 @@ Never say what the app does before release day: no food, calories, meals, nutrit
 
 - **Name field:** NAGISEN · Quiet progress
 - **Username:** @nagisen (or @nagisen.app if taken)
-- **Picture:** the app icon (`Daywell/Assets.xcassets/AppIcon.appiconset/AppIcon-dark.png`)
+- **Picture:** the app icon (`NAGISEN/Assets.xcassets/AppIcon.appiconset/AppIcon-dark.png`)
 - **Bio** (under 150 characters):
 
   ```

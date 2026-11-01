@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key><string>en</string>
+    <key>CFBundleDisplayName</key><string>NAGISEN</string>
+    <key>CFBundleExecutable</key><string>$(EXECUTABLE_NAME)</string>
+    <key>CFBundleIdentifier</key><string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+    <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+    <key>CFBundleName</key><string>NAGISEN</string>
+    <key>CFBundlePackageType</key><string>APPL</string>
+    <key>CFBundleShortVersionString</key><string>$(MARKETING_VERSION)</string>
+    <key>CFBundleVersion</key><string>$(CURRENT_PROJECT_VERSION)</string>
+    <key>LSRequiresIPhoneOS</key><true/>
+    <key>ITSAppUsesNonExemptEncryption</key><false/>
+    <key>CADisableMinimumFrameDurationOnPhone</key><true/>
+    <key>SupabaseURL</key><string>$(SUPABASE_URL)</string>
+    <key>SupabaseAnonKey</key><string>$(SUPABASE_ANON_KEY)</string>
+    <key>MinimumOSVersion</key><string>$(IPHONEOS_DEPLOYMENT_TARGET)</string>
+    <key>NSCameraUsageDescription</key><string>Scan barcodes or photograph food packages to find nutrition information.</string>
+    <key>NSLocationWhenInUseUsageDescription</key><string>Find gyms near you. Your location is sent only to search for them on the map, and NAGISEN doesn't store it.</string>
+    <key>NSMicrophoneUsageDescription</key><string>Use your voice to search for food on this iPhone.</string>
+    <key>NSSpeechRecognitionUsageDescription</key><string>Turn your spoken food name into a search on this iPhone.</string>
+    <key>NSHealthShareUsageDescription</key><string>NAGISEN reads your steps, activity, heart rate, body weight and workouts to show your progress. Your Health data stays on this iPhone, except today's step count when you turn on Use my NAGISEN data for the coach.</string>
+    <key>NSHealthUpdateUsageDescription</key><string>NAGISEN saves workouts you start in Accessories to Apple Health so your heart-rate session and activity stay together.</string>
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key><string>com.nagisen.app.auth</string>
+            <key>CFBundleURLSchemes</key><array><string>nagisen</string></array>
+        </dict>
+    </array>
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+        <string>UIInterfaceOrientationPortraitUpsideDown</string>
+    </array>
+    <key>UILaunchScreen</key><dict/>
+</dict>
+</plist>

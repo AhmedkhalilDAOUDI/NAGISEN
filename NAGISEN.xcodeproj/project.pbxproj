@@ -1,0 +1,382 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 60;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		F0000000000000000000002A /* RestGameTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0000000000000000000001A /* RestGameTests.swift */; };
+		A000000000000000000000D1 /* RestGame.swift in Sources */ = {isa = PBXBuildFile; fileRef = A000000000000000000000D0 /* RestGame.swift */; };
+		A000000000000000000000CF /* Supplements.swift in Sources */ = {isa = PBXBuildFile; fileRef = A000000000000000000000CE /* Supplements.swift */; };
+		F00000000000000000000029 /* CoachProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00000000000000000000019 /* CoachProviderTests.swift */; };
+		A000000000000000000000CD /* SessionPlanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = A000000000000000000000CC /* SessionPlanner.swift */; };
+		A000000000000000000000CB /* GymFinder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A000000000000000000000CA /* GymFinder.swift */; };
+		A000000000000000000000C9 /* AppLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A000000000000000000000C8 /* AppLanguage.swift */; };
+		A000000000000000000000C7 /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A000000000000000000000C6 /* InfoPlist.xcstrings */; };
+		A000000000000000000000C5 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A000000000000000000000C4 /* Localizable.xcstrings */; };
+		A000000000000000000000C3 /* PushNotifications.swift in Sources */ = {isa = PBXBuildFile; fileRef = A000000000000000000000C2 /* PushNotifications.swift */; };
+		A000000000000000000000C1 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A000000000000000000000C0 /* OnboardingView.swift */; };
+		A000000000000000000000BF /* StreakCelebrationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A000000000000000000000BE /* StreakCelebrationView.swift */; };
+		A000000000000000000000BD /* StoriesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A000000000000000000000BC /* StoriesView.swift */; };
+		A000000000000000000000BB /* PeopleListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A000000000000000000000BA /* PeopleListView.swift */; };
+		A000000000000000000000B9 /* FeedPostView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A000000000000000000000B8 /* FeedPostView.swift */; };
+		A000000000000000000000B7 /* FeedService+Stories.swift in Sources */ = {isa = PBXBuildFile; fileRef = A000000000000000000000B6 /* FeedService+Stories.swift */; };
+		A000000000000000000000B5 /* FeedService+Social.swift in Sources */ = {isa = PBXBuildFile; fileRef = A000000000000000000000B4 /* FeedService+Social.swift */; };
+		A000000000000000000000B3 /* Reminders.swift in Sources */ = {isa = PBXBuildFile; fileRef = A000000000000000000000B2 /* Reminders.swift */; };
+		A000000000000000000000B1 /* ActivityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A000000000000000000000B0 /* ActivityView.swift */; };
+		A000000000000000000000AF /* MemberPageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A000000000000000000000AE /* MemberPageView.swift */; };
+		A000000000000000000000AB /* AvatarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A000000000000000000000AA /* AvatarView.swift */; };
+		A000000000000000000000AD /* AccountSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A000000000000000000000AC /* AccountSettingsView.swift */; };
+		A000000000000000000000A9 /* PathProgress.swift in Sources */ = {isa = PBXBuildFile; fileRef = A000000000000000000000A8 /* PathProgress.swift */; };
+		F00000000000000000000028 /* SessionPlannerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00000000000000000000018 /* SessionPlannerTests.swift */; };
+		F00000000000000000000027 /* PathProgressTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00000000000000000000017 /* PathProgressTests.swift */; };
+		A000000000000000000000A7 /* PostCommentsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A000000000000000000000A6 /* PostCommentsView.swift */; };
+		A000000000000000000000A3 /* FeedService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A000000000000000000000A0 /* FeedService.swift */; };
+		A000000000000000000000A4 /* FeedAccountView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A000000000000000000000A1 /* FeedAccountView.swift */; };
+		A000000000000000000000A5 /* PostMedia.swift in Sources */ = {isa = PBXBuildFile; fileRef = A000000000000000000000A2 /* PostMedia.swift */; };
+		A00000000000000000000011 /* NAGISENApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000021 /* NAGISENApp.swift */; };
+		A00000000000000000000012 /* NutritionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000022 /* NutritionStore.swift */; };
+		C00000000000000000000001 /* NutritionVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000002 /* NutritionVault.swift */; };
+		C00000000000000000000003 /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = C00000000000000000000004 /* libsqlite3.tbd */; };
+		A00000000000000000000013 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000023 /* ContentView.swift */; };
+		A00000000000000000000014 /* FoodViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000024 /* FoodViews.swift */; };
+		A00000000000000000000015 /* ProgressAndGoals.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000025 /* ProgressAndGoals.swift */; };
+		A00000000000000000000016 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000026 /* Assets.xcassets */; };
+		A00000000000000000000017 /* ProfileViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000027 /* ProfileViews.swift */; };
+		A00000000000000000000018 /* OpenFoodFactsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000028 /* OpenFoodFactsService.swift */; };
+		A00000000000000000000019 /* BarcodeScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000029 /* BarcodeScannerView.swift */; };
+		A0000000000000000000001A /* FoodSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000002A /* FoodSearchView.swift */; };
+		A0000000000000000000001B /* WorkoutMusicView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000002B /* WorkoutMusicView.swift */; };
+		A0000000000000000000001E /* DeepSeekChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000002E /* DeepSeekChatView.swift */; };
+		A00000000000000000000096 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = A00000000000000000000095 /* Supabase */; };
+		A00000000000000000000033 /* HealthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000035 /* HealthManager.swift */; };
+		A00000000000000000000034 /* HealthViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000036 /* HealthViews.swift */; };
+		A0000000000000000000003A /* DietPlanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000003B /* DietPlanView.swift */; };
+		A0000000000000000000003C /* GroceryPlannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000003D /* GroceryPlannerView.swift */; };
+		A0000000000000000000003E /* SocialFeedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000003F /* SocialFeedView.swift */; };
+		A00000000000000000000044 /* CommunityCloud.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000045 /* CommunityCloud.swift */; };
+		A00000000000000000000037 /* trophy_koto.wav in Resources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000038 /* trophy_koto.wav */; };
+		A00000000000000000000047 /* MoroccanFoods.json in Resources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000048 /* MoroccanFoods.json */; };
+		A0000000000000000000009B /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000009A /* PrivacyInfo.xcprivacy */; };
+		A00000000000000000000049 /* QuestCatalog.json in Resources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000004A /* QuestCatalog.json */; };
+		B00000000000000000000001 /* WidgetSnapshot.swift in App Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000010 /* WidgetSnapshot.swift */; };
+		B00000000000000000000002 /* WidgetSync.swift in App Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000011 /* WidgetSync.swift */; };
+		B00000000000000000000003 /* WidgetSnapshot.swift in Widget Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000010 /* WidgetSnapshot.swift */; };
+		B00000000000000000000004 /* NAGISENWidgets.swift in Widget Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000012 /* NAGISENWidgets.swift */; };
+		B00000000000000000000005 /* NAGISENWidgets.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = B00000000000000000000015 /* NAGISENWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		E20000000000000000000001 /* StreakLedger.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10000000000000000000001 /* StreakLedger.swift */; };
+		E20000000000000000000005 /* StreakAudit.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10000000000000000000005 /* StreakAudit.swift */; };
+		E20000000000000000000006 /* StreakAuditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10000000000000000000006 /* StreakAuditView.swift */; };
+		E20000000000000000000002 /* ZipArchiveReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10000000000000000000002 /* ZipArchiveReader.swift */; };
+		E20000000000000000000003 /* LoseItImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10000000000000000000003 /* LoseItImporter.swift */; };
+		E20000000000000000000004 /* LoseItImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10000000000000000000004 /* LoseItImportView.swift */; };
+		F00000000000000000000021 /* StreakLedgerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00000000000000000000011 /* StreakLedgerTests.swift */; };
+		F00000000000000000000022 /* LoseItImporterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00000000000000000000012 /* LoseItImporterTests.swift */; };
+		F00000000000000000000023 /* BackupCompatibilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00000000000000000000013 /* BackupCompatibilityTests.swift */; };
+		E20000000000000000000007 /* CaffeineAndCost.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10000000000000000000007 /* CaffeineAndCost.swift */; };
+		E20000000000000000000008 /* CaffeineAndCostViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10000000000000000000008 /* CaffeineAndCostViews.swift */; };
+		E20000000000000000000009 /* ReceiptPrices.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10000000000000000000009 /* ReceiptPrices.swift */; };
+		E2000000000000000000000A /* ReceiptPriceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1000000000000000000000A /* ReceiptPriceView.swift */; };
+		E2000000000000000000000B /* PriceLookup.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1000000000000000000000B /* PriceLookup.swift */; };
+		F00000000000000000000024 /* CaffeineAndCostTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00000000000000000000014 /* CaffeineAndCostTests.swift */; };
+		F00000000000000000000025 /* ReceiptPriceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00000000000000000000015 /* ReceiptPriceTests.swift */; };
+		F00000000000000000000026 /* FeedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00000000000000000000016 /* FeedTests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		F0000000000000000000001A /* RestGameTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestGameTests.swift; sourceTree = "<group>"; };
+		A000000000000000000000D0 /* RestGame.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RestGame.swift"; sourceTree = "<group>"; };
+		A000000000000000000000CE /* Supplements.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Supplements.swift"; sourceTree = "<group>"; };
+		F00000000000000000000019 /* CoachProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachProviderTests.swift; sourceTree = "<group>"; };
+		A000000000000000000000CC /* SessionPlanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SessionPlanner.swift"; sourceTree = "<group>"; };
+		A000000000000000000000CA /* GymFinder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GymFinder.swift"; sourceTree = "<group>"; };
+		A000000000000000000000C8 /* AppLanguage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppLanguage.swift"; sourceTree = "<group>"; };
+		A000000000000000000000C6 /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = "InfoPlist.xcstrings"; sourceTree = "<group>"; };
+		A000000000000000000000C4 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = "Localizable.xcstrings"; sourceTree = "<group>"; };
+		A000000000000000000000C2 /* PushNotifications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PushNotifications.swift"; sourceTree = "<group>"; };
+		A000000000000000000000C0 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OnboardingView.swift"; sourceTree = "<group>"; };
+		A000000000000000000000BE /* StreakCelebrationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "StreakCelebrationView.swift"; sourceTree = "<group>"; };
+		A000000000000000000000BC /* StoriesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoriesView.swift; sourceTree = "<group>"; };
+		A000000000000000000000BA /* PeopleListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeopleListView.swift; sourceTree = "<group>"; };
+		A000000000000000000000B8 /* FeedPostView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedPostView.swift; sourceTree = "<group>"; };
+		A000000000000000000000B6 /* FeedService+Stories.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FeedService+Stories.swift"; sourceTree = "<group>"; };
+		A000000000000000000000B4 /* FeedService+Social.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FeedService+Social.swift"; sourceTree = "<group>"; };
+		A000000000000000000000B2 /* Reminders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Reminders.swift; sourceTree = "<group>"; };
+		A000000000000000000000B0 /* ActivityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityView.swift; sourceTree = "<group>"; };
+		A000000000000000000000AE /* MemberPageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemberPageView.swift; sourceTree = "<group>"; };
+		A000000000000000000000AA /* AvatarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarView.swift; sourceTree = "<group>"; };
+		A000000000000000000000AC /* AccountSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountSettingsView.swift; sourceTree = "<group>"; };
+		A000000000000000000000A8 /* PathProgress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PathProgress.swift; sourceTree = "<group>"; };
+		F00000000000000000000018 /* SessionPlannerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionPlannerTests.swift; sourceTree = "<group>"; };
+		F00000000000000000000017 /* PathProgressTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PathProgressTests.swift; sourceTree = "<group>"; };
+		A000000000000000000000A6 /* PostCommentsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostCommentsView.swift; sourceTree = "<group>"; };
+		A000000000000000000000A0 /* FeedService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedService.swift; sourceTree = "<group>"; };
+		A000000000000000000000A1 /* FeedAccountView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedAccountView.swift; sourceTree = "<group>"; };
+		A000000000000000000000A2 /* PostMedia.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostMedia.swift; sourceTree = "<group>"; };
+		A00000000000000000000097 /* NAGISEN.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = NAGISEN.xcconfig; sourceTree = "<group>"; };
+		A00000000000000000000020 /* NAGISEN.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NAGISEN.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A00000000000000000000021 /* NAGISENApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NAGISENApp.swift; sourceTree = "<group>"; };
+		A00000000000000000000022 /* NutritionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionStore.swift; sourceTree = "<group>"; };
+		C00000000000000000000002 /* NutritionVault.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionVault.swift; sourceTree = "<group>"; };
+		C00000000000000000000004 /* libsqlite3.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libsqlite3.tbd; path = usr/lib/libsqlite3.tbd; sourceTree = SDKROOT; };
+		A00000000000000000000023 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		A00000000000000000000024 /* FoodViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodViews.swift; sourceTree = "<group>"; };
+		A00000000000000000000025 /* ProgressAndGoals.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressAndGoals.swift; sourceTree = "<group>"; };
+		A00000000000000000000026 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A00000000000000000000027 /* ProfileViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileViews.swift; sourceTree = "<group>"; };
+		A00000000000000000000028 /* OpenFoodFactsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenFoodFactsService.swift; sourceTree = "<group>"; };
+		A00000000000000000000029 /* BarcodeScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarcodeScannerView.swift; sourceTree = "<group>"; };
+		A0000000000000000000002A /* FoodSearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodSearchView.swift; sourceTree = "<group>"; };
+		A0000000000000000000002B /* WorkoutMusicView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutMusicView.swift; sourceTree = "<group>"; };
+		A0000000000000000000002D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A0000000000000000000002E /* DeepSeekChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepSeekChatView.swift; sourceTree = "<group>"; };
+		A00000000000000000000035 /* HealthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthManager.swift; sourceTree = "<group>"; };
+		A00000000000000000000036 /* HealthViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthViews.swift; sourceTree = "<group>"; };
+		A0000000000000000000003B /* DietPlanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DietPlanView.swift; sourceTree = "<group>"; };
+		A0000000000000000000003D /* GroceryPlannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroceryPlannerView.swift; sourceTree = "<group>"; };
+		A0000000000000000000003F /* SocialFeedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SocialFeedView.swift; sourceTree = "<group>"; };
+		A00000000000000000000045 /* CommunityCloud.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommunityCloud.swift; sourceTree = "<group>"; };
+		A00000000000000000000038 /* trophy_koto.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = trophy_koto.wav; sourceTree = "<group>"; };
+		A00000000000000000000048 /* MoroccanFoods.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = MoroccanFoods.json; sourceTree = "<group>"; };
+		A0000000000000000000009A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		A0000000000000000000004A /* QuestCatalog.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = QuestCatalog.json; sourceTree = "<group>"; };
+		A00000000000000000000039 /* NAGISEN.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NAGISEN.entitlements; sourceTree = "<group>"; };
+		B00000000000000000000010 /* WidgetSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSnapshot.swift; sourceTree = "<group>"; };
+		B00000000000000000000011 /* WidgetSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSync.swift; sourceTree = "<group>"; };
+		B00000000000000000000012 /* NAGISENWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NAGISENWidgets.swift; sourceTree = "<group>"; };
+		B00000000000000000000013 /* Widget Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B00000000000000000000014 /* NAGISENWidgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NAGISENWidgets.entitlements; sourceTree = "<group>"; };
+		B00000000000000000000015 /* NAGISENWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NAGISENWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		E10000000000000000000001 /* StreakLedger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreakLedger.swift; sourceTree = "<group>"; };
+		E10000000000000000000005 /* StreakAudit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreakAudit.swift; sourceTree = "<group>"; };
+		E10000000000000000000006 /* StreakAuditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreakAuditView.swift; sourceTree = "<group>"; };
+		E10000000000000000000002 /* ZipArchiveReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZipArchiveReader.swift; sourceTree = "<group>"; };
+		E10000000000000000000003 /* LoseItImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoseItImporter.swift; sourceTree = "<group>"; };
+		E10000000000000000000004 /* LoseItImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoseItImportView.swift; sourceTree = "<group>"; };
+		F00000000000000000000002 /* NAGISENTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NAGISENTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		F00000000000000000000011 /* StreakLedgerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreakLedgerTests.swift; sourceTree = "<group>"; };
+		F00000000000000000000012 /* LoseItImporterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoseItImporterTests.swift; sourceTree = "<group>"; };
+		F00000000000000000000013 /* BackupCompatibilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupCompatibilityTests.swift; sourceTree = "<group>"; };
+		E10000000000000000000007 /* CaffeineAndCost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaffeineAndCost.swift; sourceTree = "<group>"; };
+		E10000000000000000000008 /* CaffeineAndCostViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaffeineAndCostViews.swift; sourceTree = "<group>"; };
+		E10000000000000000000009 /* ReceiptPrices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiptPrices.swift; sourceTree = "<group>"; };
+		E1000000000000000000000A /* ReceiptPriceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiptPriceView.swift; sourceTree = "<group>"; };
+		E1000000000000000000000B /* PriceLookup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PriceLookup.swift; sourceTree = "<group>"; };
+		F00000000000000000000014 /* CaffeineAndCostTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaffeineAndCostTests.swift; sourceTree = "<group>"; };
+		F00000000000000000000015 /* ReceiptPriceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiptPriceTests.swift; sourceTree = "<group>"; };
+		F00000000000000000000016 /* FeedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedTests.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		A00000000000000000000030 = {
+			isa = PBXGroup;
+			children = (A00000000000000000000031 /* NAGISEN */, B00000000000000000000020 /* NAGISENWidgets */, F00000000000000000000003 /* NAGISENTests */, A00000000000000000000098 /* Config */, A00000000000000000000032 /* Products */);
+			sourceTree = "<group>";
+		};
+		A00000000000000000000031 /* NAGISEN */ = {
+			isa = PBXGroup;
+			children = (A00000000000000000000021, A00000000000000000000022, C00000000000000000000002, A00000000000000000000023, A00000000000000000000024, A00000000000000000000025, A00000000000000000000026, A00000000000000000000027, A00000000000000000000028, A00000000000000000000029, A0000000000000000000002A, A0000000000000000000002B, A0000000000000000000002C, A0000000000000000000002D, A0000000000000000000002E, A00000000000000000000035, A00000000000000000000036, A0000000000000000000003B, A0000000000000000000003D, A0000000000000000000003F, A00000000000000000000045, A00000000000000000000038, A00000000000000000000048, A0000000000000000000009A, A0000000000000000000004A, A00000000000000000000039, B00000000000000000000010, B00000000000000000000011, E10000000000000000000001, E10000000000000000000002, E10000000000000000000003, E10000000000000000000004, E10000000000000000000005, E10000000000000000000006, E10000000000000000000007, E10000000000000000000008, E10000000000000000000009, E1000000000000000000000A, E1000000000000000000000B, A000000000000000000000A0, A000000000000000000000A1, A000000000000000000000A2, A000000000000000000000A6, A000000000000000000000A8, A000000000000000000000AA, A000000000000000000000AC, A000000000000000000000AE, A000000000000000000000B0, A000000000000000000000B2, A000000000000000000000B4, A000000000000000000000B6, A000000000000000000000B8, A000000000000000000000BA, A000000000000000000000BC, A000000000000000000000BE, A000000000000000000000C0, A000000000000000000000C2, A000000000000000000000C4, A000000000000000000000C6, A000000000000000000000C8, A000000000000000000000CA, A000000000000000000000CC, A000000000000000000000CE, A000000000000000000000D0);
+			path = NAGISEN;
+			sourceTree = "<group>";
+		};
+		A00000000000000000000032 /* Products */ = {
+			isa = PBXGroup;
+			children = (A00000000000000000000020 /* NAGISEN.app */, B00000000000000000000015 /* NAGISENWidgets.appex */, F00000000000000000000002 /* NAGISENTests.xctest */, C00000000000000000000004 /* libsqlite3.tbd */);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		B00000000000000000000020 /* NAGISENWidgets */ = {isa = PBXGroup; children = (B00000000000000000000012, B00000000000000000000013, B00000000000000000000014); path = NAGISENWidgets; sourceTree = "<group>"; };
+		F00000000000000000000003 /* NAGISENTests */ = {
+			isa = PBXGroup;
+			children = (F00000000000000000000011, F00000000000000000000012, F00000000000000000000013, F00000000000000000000014, F00000000000000000000015, F00000000000000000000016, F00000000000000000000017, F00000000000000000000018, F0000000000000000000001A, F00000000000000000000019);
+			path = NAGISENTests;
+			sourceTree = "<group>";
+		};
+		A00000000000000000000098 /* Config */ = {isa = PBXGroup; children = (A00000000000000000000097 /* NAGISEN.xcconfig */); path = Config; sourceTree = "<group>"; };
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A00000000000000000000040 /* NAGISEN */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A00000000000000000000061;
+			buildPhases = (A00000000000000000000050 /* Sources */, A00000000000000000000051 /* Frameworks */, A00000000000000000000052 /* Resources */);
+			buildRules = ();
+			dependencies = ();
+			name = NAGISEN;
+			productName = NAGISEN;
+			productReference = A00000000000000000000020 /* NAGISEN.app */;
+			productType = "com.apple.product-type.application";
+			packageProductDependencies = (A00000000000000000000095 /* Supabase */);
+		};
+		B00000000000000000000030 /* NAGISENWidgets */ = {isa = PBXNativeTarget; buildConfigurationList = B00000000000000000000040; buildPhases = (B00000000000000000000031 /* Sources */, B00000000000000000000032 /* Frameworks */, B00000000000000000000033 /* Resources */); buildRules = (); dependencies = (); name = NAGISENWidgets; productName = NAGISENWidgets; productReference = B00000000000000000000015 /* NAGISENWidgets.appex */; productType = "com.apple.product-type.app-extension"; };
+		F00000000000000000000001 /* NAGISENTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F00000000000000000000040;
+			buildPhases = (F00000000000000000000031 /* Sources */, F00000000000000000000032 /* Frameworks */, F00000000000000000000033 /* Resources */);
+			buildRules = ();
+			dependencies = (F00000000000000000000052 /* PBXTargetDependency */);
+			name = NAGISENTests;
+			productName = NAGISENTests;
+			productReference = F00000000000000000000002 /* NAGISENTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		B00000000000000000000034 /* Embed App Extensions */ = {isa = PBXCopyFilesBuildPhase; buildActionMask = 2147483647; dstPath = ""; dstSubfolderSpec = 13; files = (B00000000000000000000005); name = "Embed App Extensions"; runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXContainerItemProxy section */
+		B00000000000000000000050 /* PBXContainerItemProxy */ = {isa = PBXContainerItemProxy; containerPortal = A00000000000000000000041 /* Project object */; proxyType = 1; remoteGlobalIDString = B00000000000000000000030; remoteInfo = NAGISENWidgets; };
+		F00000000000000000000051 /* PBXContainerItemProxy */ = {isa = PBXContainerItemProxy; containerPortal = A00000000000000000000041 /* Project object */; proxyType = 1; remoteGlobalIDString = A00000000000000000000040; remoteInfo = NAGISEN; };
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXTargetDependency section */
+		B00000000000000000000051 /* NAGISENWidgets */ = {isa = PBXTargetDependency; target = B00000000000000000000030 /* NAGISENWidgets */; targetProxy = B00000000000000000000050 /* PBXContainerItemProxy */; };
+		F00000000000000000000052 /* PBXTargetDependency */ = {isa = PBXTargetDependency; target = A00000000000000000000040 /* NAGISEN */; targetProxy = F00000000000000000000051 /* PBXContainerItemProxy */; };
+/* End PBXTargetDependency section */
+
+/* Begin PBXProject section */
+		A00000000000000000000041 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastUpgradeCheck = 2710;
+				TargetAttributes = { A00000000000000000000040 = { CreatedOnToolsVersion = 27.1; }; B00000000000000000000030 = { CreatedOnToolsVersion = 27.1; }; F00000000000000000000001 = { CreatedOnToolsVersion = 27.1; TestTargetID = A00000000000000000000040; }; };
+			};
+			buildConfigurationList = A00000000000000000000060;
+			compatibilityVersion = "Xcode 15.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (en, Base, fr, ar);
+			mainGroup = A00000000000000000000030;
+			productRefGroup = A00000000000000000000032;
+			projectDirPath = "";
+			projectRoot = "";
+			packageReferences = (A00000000000000000000094 /* supabase-swift */);
+			targets = (A00000000000000000000040 /* NAGISEN */, B00000000000000000000030 /* NAGISENWidgets */, F00000000000000000000001 /* NAGISENTests */);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A00000000000000000000052 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (A00000000000000000000016, A00000000000000000000037, A00000000000000000000047, A00000000000000000000049, A0000000000000000000009B, A000000000000000000000C5, A000000000000000000000C7); runOnlyForDeploymentPostprocessing = 0; };
+		B00000000000000000000033 /* Widget Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		F00000000000000000000033 /* Test Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A00000000000000000000051 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (A00000000000000000000096 /* Supabase in Frameworks */, C00000000000000000000003 /* libsqlite3.tbd in Frameworks */); runOnlyForDeploymentPostprocessing = 0; };
+		B00000000000000000000032 /* Widget Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		F00000000000000000000032 /* Test Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A00000000000000000000050 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (A00000000000000000000011, A00000000000000000000012, C00000000000000000000001, A00000000000000000000013, A00000000000000000000014, A00000000000000000000015, A00000000000000000000017, A00000000000000000000018, A00000000000000000000019, A0000000000000000000001A, A0000000000000000000001B, A0000000000000000000001D, A0000000000000000000001E, A00000000000000000000033, A00000000000000000000034, A0000000000000000000003A, A0000000000000000000003C, A0000000000000000000003E, A00000000000000000000044, E20000000000000000000001, E20000000000000000000002, E20000000000000000000003, E20000000000000000000004, E20000000000000000000005, E20000000000000000000006, E20000000000000000000007, E20000000000000000000008, E20000000000000000000009, E2000000000000000000000A, E2000000000000000000000B, A000000000000000000000A3, A000000000000000000000A4, A000000000000000000000A5, A000000000000000000000A7, A000000000000000000000A9, A000000000000000000000AB, A000000000000000000000AD, A000000000000000000000AF, A000000000000000000000B1, A000000000000000000000B3, A000000000000000000000B5, A000000000000000000000B7, A000000000000000000000B9, A000000000000000000000BB, A000000000000000000000BD, A000000000000000000000BF, A000000000000000000000C1, A000000000000000000000C3, A000000000000000000000C9, A000000000000000000000CB, A000000000000000000000CD, A000000000000000000000CF, A000000000000000000000D1);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B00000000000000000000031 /* Widget Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (B00000000000000000000003, B00000000000000000000004); runOnlyForDeploymentPostprocessing = 0; };
+		F00000000000000000000031 /* Test Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (F00000000000000000000021, F00000000000000000000022, F00000000000000000000023, F00000000000000000000024, F00000000000000000000025, F00000000000000000000026, F00000000000000000000027, F00000000000000000000028, F0000000000000000000002A, F00000000000000000000029); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		A00000000000000000000094 /* supabase-swift */ = {isa = XCRemoteSwiftPackageReference; repositoryURL = "https://github.com/supabase/supabase-swift.git"; requirement = {kind = exactVersion; version = 2.55.6; }; };
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A00000000000000000000095 /* Supabase */ = {isa = XCSwiftPackageProductDependency; package = A00000000000000000000094 /* supabase-swift */; productName = Supabase; };
+/* End XCSwiftPackageProductDependency section */
+
+/* Begin XCBuildConfiguration section */
+		A00000000000000000000070 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = { CLANG_ENABLE_MODULES = YES; ONLY_ACTIVE_ARCH = YES; SDKROOT = iphoneos; SWIFT_VERSION = 5.0; IPHONEOS_DEPLOYMENT_TARGET = 17.0; };
+			name = Debug;
+		};
+		A00000000000000000000071 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = { CLANG_ENABLE_MODULES = YES; SDKROOT = iphoneos; SWIFT_VERSION = 5.0; IPHONEOS_DEPLOYMENT_TARGET = 17.0; };
+			name = Release;
+		};
+		A00000000000000000000072 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = A00000000000000000000097 /* NAGISEN.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CURRENT_PROJECT_VERSION = 29;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = NAGISEN/Info.plist;
+				CODE_SIGN_ENTITLEMENTS = NAGISEN/NAGISEN.entitlements;
+				INFOPLIST_KEY_CFBundleDisplayName = NAGISEN;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Scan food barcodes to look up nutrition information.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.nagisen.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				OTHER_LDFLAGS = "-ObjC";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.16.0;
+				ENABLE_TESTABILITY = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+			};
+			name = Debug;
+		};
+		A00000000000000000000073 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = A00000000000000000000097 /* NAGISEN.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CURRENT_PROJECT_VERSION = 29;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = NAGISEN/Info.plist;
+				CODE_SIGN_ENTITLEMENTS = NAGISEN/NAGISEN.entitlements;
+				INFOPLIST_KEY_CFBundleDisplayName = NAGISEN;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Scan food barcodes to look up nutrition information.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.nagisen.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				OTHER_LDFLAGS = "-ObjC";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.16.0;
+			};
+			name = Release;
+		};
+		B00000000000000000000041 /* Widget Debug */ = {isa = XCBuildConfiguration; buildSettings = { APPLICATION_EXTENSION_API_ONLY = YES; CODE_SIGN_ENTITLEMENTS = NAGISENWidgets/NAGISENWidgets.entitlements; CURRENT_PROJECT_VERSION = 29; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = NAGISENWidgets/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 0.16.0; PRODUCT_BUNDLE_IDENTIFIER = com.nagisen.app.widgets; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SKIP_INSTALL = YES; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Debug; };
+		B00000000000000000000042 /* Widget Release */ = {isa = XCBuildConfiguration; buildSettings = { APPLICATION_EXTENSION_API_ONLY = YES; CODE_SIGN_ENTITLEMENTS = NAGISENWidgets/NAGISENWidgets.entitlements; CURRENT_PROJECT_VERSION = 29; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = NAGISENWidgets/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 0.16.0; PRODUCT_BUNDLE_IDENTIFIER = com.nagisen.app.widgets; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SKIP_INSTALL = YES; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Release; };
+		F00000000000000000000041 /* Test Debug */ = {isa = XCBuildConfiguration; buildSettings = { ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES; BUNDLE_LOADER = "$(TEST_HOST)"; CODE_SIGN_STYLE = Automatic; GENERATE_INFOPLIST_FILE = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks"; PRODUCT_BUNDLE_IDENTIFIER = com.nagisen.app.tests; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_EMIT_LOC_STRINGS = NO; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NAGISEN.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/NAGISEN"; }; name = Debug; };
+		F00000000000000000000042 /* Test Release */ = {isa = XCBuildConfiguration; buildSettings = { ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES; BUNDLE_LOADER = "$(TEST_HOST)"; CODE_SIGN_STYLE = Automatic; GENERATE_INFOPLIST_FILE = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks"; PRODUCT_BUNDLE_IDENTIFIER = com.nagisen.app.tests; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_EMIT_LOC_STRINGS = NO; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NAGISEN.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/NAGISEN"; }; name = Release; };
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A00000000000000000000060 = {isa = XCConfigurationList; buildConfigurations = (A00000000000000000000070, A00000000000000000000071); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		A00000000000000000000061 = {isa = XCConfigurationList; buildConfigurations = (A00000000000000000000072, A00000000000000000000073); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		B00000000000000000000040 /* Widget Configurations */ = {isa = XCConfigurationList; buildConfigurations = (B00000000000000000000041, B00000000000000000000042); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		F00000000000000000000040 /* Test Configurations */ = {isa = XCConfigurationList; buildConfigurations = (F00000000000000000000041, F00000000000000000000042); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+/* End XCConfigurationList section */
+	};
+	rootObject = A00000000000000000000041 /* Project object */;
+}

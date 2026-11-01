@@ -17,10 +17,10 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 
-OUTPUT = Path(__file__).resolve().parents[1] / "Daywell" / "MoroccanFoods.json"
+OUTPUT = Path(__file__).resolve().parents[1] / "NAGISEN" / "MoroccanFoods.json"
 QUERY = 'countries_tags:"en:morocco" code:611*'
 NAMESPACE = uuid.UUID("07cb9a65-07f5-43d6-a9e5-b428fc99dd80")
-USER_AGENT = "NAGISEN/0.16.0 (iOS; com.daywell.nutrition; local Morocco catalog)"
+USER_AGENT = "NAGISEN/0.16.0 (iOS; com.nagisen.app; local Morocco catalog)"
 
 
 def fetch_page(page: int) -> dict:

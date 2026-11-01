@@ -7,7 +7,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "tools" / "quest_catalog.tsv"
-OUTPUT = ROOT / "Daywell" / "QuestCatalog.json"
+OUTPUT = ROOT / "NAGISEN" / "QuestCatalog.json"
 
 
 def main():
