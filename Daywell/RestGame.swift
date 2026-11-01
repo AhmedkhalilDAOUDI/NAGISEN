@@ -4,7 +4,7 @@ import UserNotifications
 /// Four small games, each filling exactly one rest between sets. Every game scores "higher is
 /// better" so the shared rest screen can keep one best score per game.
 enum RestGame: String, CaseIterable, Identifiable {
-    case memory, math, reaction, words
+    case memory, odd, reaction, words
 
     static let restSeconds: Double = 180
     var id: String { rawValue }
@@ -12,7 +12,7 @@ enum RestGame: String, CaseIterable, Identifiable {
     var name: String {
         switch self {
         case .memory: String(localized: "Memory grid")
-        case .math: String(localized: "Quick math")
+        case .odd: String(localized: "Odd one out")
         case .reaction: String(localized: "Reaction")
         case .words: String(localized: "Unscramble")
         }
@@ -21,7 +21,7 @@ enum RestGame: String, CaseIterable, Identifiable {
     var symbol: String {
         switch self {
         case .memory: "square.grid.3x3"
-        case .math: "plus.forwardslash.minus"
+        case .odd: "circle.grid.3x3"
         case .reaction: "bolt"
         case .words: "textformat.abc"
         }
@@ -78,11 +78,13 @@ struct MemoryGame {
     }
 }
 
-/// Mental arithmetic that gets harder every five correct answers.
-struct MathGame {
-    private(set) var solved = 0
-    private(set) var question = ""
-    private(set) var answer = 0
+/// One circle in the grid is a slightly different shade. Each find makes the grid bigger and the
+/// difference subtler; a wrong tap steps back one level.
+struct OddOneOutGame {
+    private(set) var level = 0
+    private(set) var odd = 0
+    /// Brightness of the ordinary circles; the odd one is lighter by `difference`.
+    private(set) var brightness = 0.5
     private var random: SeededRandom
 
     init(seed: UInt64 = UInt64.random(in: 1...UInt64.max)) {
@@ -90,33 +92,23 @@ struct MathGame {
         next()
     }
 
-    var tier: Int { min(solved / 5, 4) }
+    var side: Int { min(2 + level / 3, 6) }
+    var difference: Double { max(0.035, 0.26 * pow(0.88, Double(level))) }
 
     mutating func next() {
-        switch tier {
-        case 0:
-            let a = random.int(2...20), b = random.int(2...20)
-            (question, answer) = ("\(a) + \(b)", a + b)
-        case 1:
-            let a = random.int(20...60), b = random.int(5...19)
-            (question, answer) = random.int(0...1) == 0 ? ("\(a) + \(b)", a + b) : ("\(a) − \(b)", a - b)
-        case 2:
-            let a = random.int(3...9), b = random.int(3...9)
-            (question, answer) = ("\(a) × \(b)", a * b)
-        case 3:
-            let a = random.int(6...12), b = random.int(6...12)
-            (question, answer) = ("\(a) × \(b)", a * b)
-        default:
-            let a = random.int(3...9), b = random.int(3...9), c = random.int(5...30)
-            (question, answer) = ("\(a) × \(b) + \(c)", a * b + c)
-        }
+        brightness = random.double(0.32...0.58)
+        odd = random.int(0...side * side - 1)
     }
 
-    /// Returns the points earned, or nil when the answer is wrong.
-    mutating func submit(_ value: Int) -> Int? {
-        guard value == answer else { return nil }
-        let points = 1 + tier
-        solved += 1
+    /// Returns the points earned, or nil for a wrong circle.
+    mutating func tap(_ index: Int) -> Int? {
+        guard index == odd else {
+            level = max(0, level - 1)
+            next()
+            return nil
+        }
+        let points = 1 + level / 5
+        level += 1
         next()
         return points
     }
@@ -212,7 +204,7 @@ struct RestView: View {
             Group {
                 switch game {
                 case .memory: MemoryGridView(score: $score, active: !finished)
-                case .math: QuickMathView(score: $score, active: !finished)
+                case .odd: OddOneOutView(score: $score, active: !finished)
                 case .reaction: ReactionView(score: $score, active: !finished)
                 case .words: UnscrambleView(score: $score, active: !finished)
                 }
@@ -351,55 +343,38 @@ private struct MemoryGridView: View {
     }
 }
 
-private struct QuickMathView: View {
+private struct OddOneOutView: View {
     @Binding var score: Int
     let active: Bool
-    @State private var game = MathGame()
-    @State private var typed = ""
+    @State private var game = OddOneOutGame()
     @State private var wrong = 0
 
     var body: some View {
         VStack(spacing: 22) {
             Spacer()
-            Text(game.question).font(.system(size: 48, design: .serif)).monospacedDigit()
-            Text(typed.isEmpty ? " " : typed)
-                .font(.system(size: 40, weight: .light, design: .rounded)).monospacedDigit()
-                .foregroundStyle(Theme.accentText)
-                .frame(height: 50)
-                .phaseAnimator([0, 12, -12, 0], trigger: wrong) { view, offset in view.offset(x: offset) }
-            Spacer()
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3), spacing: 10) {
-                ForEach(["1", "2", "3", "4", "5", "6", "7", "8", "9", "⌫", "0", "✓"], id: \.self) { key in
-                    Button { press(key) } label: {
-                        Text(key).font(.system(size: 26, design: .rounded))
-                            .frame(maxWidth: .infinity, minHeight: 58)
-                            .background(Theme.ink.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(key == "⌫" ? String(localized: "Delete") : key == "✓" ? String(localized: "Check") : key)
+            Text("Find the different shade").font(.system(size: 22, design: .serif))
+            let side = game.side
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: side), spacing: 10) {
+                ForEach(0..<side * side, id: \.self) { index in
+                    Circle()
+                        .fill(Color(hue: 0.95, saturation: 0.62,
+                                    brightness: game.brightness + (index == game.odd ? game.difference : 0)))
+                        .aspectRatio(1, contentMode: .fit)
+                        .onTapGesture { tap(index) }
+                        .accessibilityLabel(String(localized: "Circle \(index + 1)"))
+                        .accessibilityAddTraits(.isButton)
                 }
             }
-            .padding(.bottom, 8)
+            .id("\(game.level)-\(game.odd)")
+            .phaseAnimator([0, 12, -12, 0], trigger: wrong) { view, offset in view.offset(x: offset) }
+            Text("Level \(game.level + 1)").font(.subheadline).foregroundStyle(Theme.muted)
+            Spacer()
         }
     }
 
-    private func press(_ key: String) {
+    private func tap(_ index: Int) {
         guard active else { return }
-        switch key {
-        case "⌫": _ = typed.popLast()
-        case "✓": check()
-        default:
-            guard typed.count < 4 else { return }
-            typed += key
-            // Answers check themselves once they have as many digits as the right answer.
-            if typed.count == String(game.answer).count { check() }
-        }
-    }
-
-    private func check() {
-        guard let value = Int(typed) else { return }
-        if let points = game.submit(value) { score += points } else { wrong += 1 }
-        typed = ""
+        if let points = game.tap(index) { score += points } else { wrong += 1 }
     }
 }
 

@@ -20,20 +20,29 @@ final class RestGameTests: XCTestCase {
         XCTAssertEqual(game.length, 3)
     }
 
-    func testMathGetsHarderAndPaysMoreAfterFiveCorrect() {
-        var game = MathGame(seed: 2)
-        XCTAssertNil(game.submit(game.answer + 1), "a wrong answer earns nothing")
-        for _ in 0..<5 { XCTAssertEqual(game.submit(game.answer), 1) }
-        XCTAssertEqual(game.tier, 1)
-        XCTAssertEqual(game.submit(game.answer), 2)
+    func testFindingTheOddCircleGrowsTheGridAndNarrowsTheDifference() {
+        var game = OddOneOutGame(seed: 3)
+        XCTAssertEqual(game.side, 2)
+        let start = game.difference
+        for _ in 0..<6 { XCTAssertNotNil(game.tap(game.odd)) }
+        XCTAssertEqual(game.side, 4)
+        XCTAssertLessThan(game.difference, start)
+        XCTAssertTrue((0..<game.side * game.side).contains(game.odd))
     }
 
-    func testMathAnswersAreNeverNegative() {
-        var game = MathGame(seed: 11)
-        for _ in 0..<200 {
-            XCTAssertGreaterThanOrEqual(game.answer, 0, game.question)
-            _ = game.submit(game.answer)
-        }
+    func testAWrongCircleStepsBackOneLevel() {
+        var game = OddOneOutGame(seed: 8)
+        _ = game.tap(game.odd)
+        _ = game.tap(game.odd)
+        XCTAssertNil(game.tap((game.odd + 1) % (game.side * game.side)))
+        XCTAssertEqual(game.level, 1)
+    }
+
+    func testTheGridNeverGrowsPastSixAndTheDifferenceStaysVisible() {
+        var game = OddOneOutGame(seed: 1)
+        for _ in 0..<80 { _ = game.tap(game.odd) }
+        XCTAssertEqual(game.side, 6)
+        XCTAssertGreaterThanOrEqual(game.difference, 0.035)
     }
 
     func testQuickerReactionsEarnMore() {
