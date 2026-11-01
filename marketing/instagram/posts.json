@@ -1,14 +1,14 @@
 [
   {"id": "01", "kind": "photo", "photo": "01-dumbbells.jpg"},
-  {"id": "02", "kind": "wordmark", "sub": "L'art du progrès tranquille"},
-  {"id": "03", "kind": "statement", "kicker": "Progress in stillness", "text": "Le progrès\nne fait pas de bruit."},
-  {"id": "04", "kind": "photo", "photo": "04-lane.jpg", "line": "Pas à pas.", "line_position": "high"},
-  {"id": "05", "kind": "photo", "photo": "05-streetlight.jpg", "line": "Avant l'aube.", "line_position": "low"},
-  {"id": "06", "kind": "statement", "kicker": "Discipline", "text": "Personne ne voit\nla répétition."},
+  {"id": "02", "kind": "wordmark", "sub": "The art of quiet progress"},
+  {"id": "03", "kind": "statement", "kicker": "Progress in stillness", "text": "Progress\nmakes no sound."},
+  {"id": "04", "kind": "photo", "photo": "04-lane.jpg", "line": "Step by step.", "line_position": "high"},
+  {"id": "05", "kind": "photo", "photo": "05-streetlight.jpg", "line": "Before dawn.", "line_position": "low"},
+  {"id": "06", "kind": "statement", "kicker": "Discipline", "text": "No one sees\nthe repetition."},
   {"id": "07", "kind": "photo", "photo": "07-breath.jpg", "tone": "ash"},
-  {"id": "08", "kind": "photo", "photo": "08-stairs.jpg", "line": "Un étage de plus.", "line_position": "high"},
-  {"id": "09", "kind": "wordmark", "sub": "Lien en bio"},
+  {"id": "08", "kind": "photo", "photo": "08-stairs.jpg", "line": "One more floor.", "line_position": "high"},
+  {"id": "09", "kind": "wordmark", "sub": "Link in bio"},
   {"id": "10", "kind": "photo", "photo": "10-rope.jpg"},
-  {"id": "11", "kind": "photo", "photo": "11-shadow.jpg", "tone": "ash", "line": "En silence.", "line_position": "center"},
-  {"id": "12", "kind": "statement", "kicker": "NAGISEN", "text": "Mange. Bouge. Respire.\nRecommence."}
+  {"id": "11", "kind": "photo", "photo": "11-shadow.jpg", "tone": "ash", "line": "In silence.", "line_position": "center"},
+  {"id": "12", "kind": "statement", "kicker": "NAGISEN", "text": "Eat. Move. Breathe.\nRepeat."}
 ]
