@@ -326,7 +326,7 @@ struct SessionView: View {
             if focus == nil { focus = splitFocus }
             if plan == nil { build() }
         }
-        .sheet(item: $logged, onDismiss: { dismiss() }) { entry in
+        .fullScreenCover(item: $logged, onDismiss: { dismiss() }) { entry in
             ShareCardSheet(card: ShareCards.workout(entry))
         }
     }

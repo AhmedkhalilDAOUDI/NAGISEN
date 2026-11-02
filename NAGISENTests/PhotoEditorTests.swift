@@ -1,4 +1,5 @@
 import XCTest
+import SwiftUI
 @testable import NAGISEN
 
 final class PhotoEditorTests: XCTestCase {
@@ -61,5 +62,43 @@ final class PhotoEditorTests: XCTestCase {
         XCTAssertEqual(CardLayout.resized(1.5, by: 2), 3)
         XCTAssertEqual(CardLayout.resized(1, by: 0.1), 0.4)
         XCTAssertEqual(CardLayout.resized(1.2, by: 1.5), 1.8, accuracy: 0.0001)
+    }
+
+    func testGesturesBuildOnWhereThePieceWasAndTheBinRemovesIt() {
+        var draft = CardDraft()
+        let bin = CGPoint(x: 180, y: 390)
+        draft.touch("protein", CardTouch(move: CGSize(width: 30, height: 0), location: CGPoint(x: 50, y: 50), ended: true), trash: bin)
+        draft.touch("protein", CardTouch(move: CGSize(width: 10, height: 5), pinch: 2, turn: .degrees(15), location: CGPoint(x: 60, y: 55)), trash: bin)
+        XCTAssertEqual(draft.layout.offsets["protein"], CGSize(width: 40, height: 5))
+        XCTAssertEqual(draft.layout.sizes["protein"], 2)
+        XCTAssertEqual(draft.layout.turns["protein"], .degrees(15))
+        XCTAssertEqual(draft.holding, "protein")
+        draft.touch("protein", CardTouch(move: CGSize(width: 10, height: 5), location: CGPoint(x: 60, y: 55), ended: true), trash: bin)
+        XCTAssertNil(draft.holding)
+
+        draft.touch("protein", CardTouch(location: CGPoint(x: 175, y: 385)), trash: bin)
+        XCTAssertTrue(draft.overTrash)
+        draft.touch("protein", CardTouch(location: CGPoint(x: 175, y: 385), ended: true), trash: bin)
+        XCTAssertTrue(draft.hidden.contains("protein"), "data goes to hidden so it can come back")
+        XCTAssertNil(draft.layout.offsets["protein"])
+    }
+
+    func testWordsYouTypeStayEditableAndLeaveWhenEmptiedOrBinned() {
+        var draft = CardDraft()
+        var words = CardText(text: "  Morning miles ")
+        draft.commit(words)
+        XCTAssertEqual(draft.layout.texts.map(\.text), ["Morning miles"])
+        XCTAssertEqual(draft.layout.selected, words.field, "fresh words stay picked")
+        draft.layout.selected = nil
+        XCTAssertNil(draft.tap(words.field), "the first tap only selects")
+        XCTAssertEqual(draft.tap(words.field)?.id, words.id, "a second tap opens it for typing")
+        words.text = ""
+        draft.commit(words)
+        XCTAssertTrue(draft.layout.texts.isEmpty)
+
+        draft.layout.quote = Quotes.pick(for: .day)
+        draft.remove(CardLayout.quoteField)
+        XCTAssertNil(draft.layout.quote)
+        XCTAssertTrue(draft.hidden.isEmpty)
     }
 }

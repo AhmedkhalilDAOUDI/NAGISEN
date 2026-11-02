@@ -86,7 +86,7 @@ struct StreakCelebrationView: View {
             }
             .buttonStyle(.plain)
         }
-        .sheet(isPresented: $sharing) {
+        .fullScreenCover(isPresented: $sharing) {
             ShareCardSheet(card: ShareCards.streak(days: streak, longest: store.streakSnapshot(asOf: date).longestStreak))
         }
         .padding(22)

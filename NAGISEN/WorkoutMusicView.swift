@@ -624,7 +624,7 @@ private struct TrophyCelebrationView: View {
             }
             .buttonStyle(.plain)
         }
-        .sheet(isPresented: $sharing) {
+        .fullScreenCover(isPresented: $sharing) {
             ShareCardSheet(card: ShareCards.trophy(title: trophy.title, subtitle: trophy.subtitle, symbol: trophy.symbol))
         }
         .padding(22)

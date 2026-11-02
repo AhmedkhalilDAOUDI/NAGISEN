@@ -390,7 +390,7 @@ struct ActivityDetailView: View {
         .background(NagisenBackdrop())
         .toolbar(.hidden, for: .navigationBar)
         .task { heartRate = await health.averageHeartRate(from: activity.start, to: activity.end) }
-        .sheet(isPresented: $sharing) { ShareCardSheet(card: RouteCard(activity: activity)) }
+        .fullScreenCover(isPresented: $sharing) { ShareCardSheet(card: RouteCard(activity: activity)) }
         .sheet(isPresented: $markingSegment) { MarkSegmentView(activity: activity) }
         .nagisenDialog("Delete this activity?", isPresented: $confirmingDelete,
                        message: String(localized: "It is removed from NAGISEN. A copy saved to Apple Health stays there.")) {
@@ -614,7 +614,7 @@ struct RouteCard: PhotoCard {
                 Spacer()
             } else {
                 RouteShape(points: activity.points)
-                    .stroke(photo == nil ? Theme.accent : .white, style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
+                    .stroke(layout.color(Self.routeField, photo == nil ? Theme.accent : .white), style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
                     .shadow(color: .black.opacity(photo == nil ? 0 : 0.6), radius: 4)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding(20)
@@ -622,19 +622,19 @@ struct RouteCard: PhotoCard {
             }
             HStack(alignment: .firstTextBaseline) {
                 if !hidden.contains(Self.distanceField) {
-                    number((activity.distance / 1000).formatted(.number.precision(.fractionLength(2))), String(localized: "km"))
+                    number((activity.distance / 1000).formatted(.number.precision(.fractionLength(2))), String(localized: "km"), Self.distanceField)
                         .movable(Self.distanceField, layout)
                 }
                 if !hidden.contains(Self.timeField) {
-                    number(RecordedActivity.durationText(activity.movingSeconds), String(localized: "time"))
+                    number(RecordedActivity.durationText(activity.movingSeconds), String(localized: "time"), Self.timeField)
                         .movable(Self.timeField, layout)
                 }
                 if !hidden.contains(paceField) {
                     Group {
                         if activity.kind.showsSpeed {
-                            number(activity.speedKmh.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "–", String(localized: "km/h"))
+                            number(activity.speedKmh.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "–", String(localized: "km/h"), paceField)
                         } else {
-                            number(activity.pace.map(RecordedActivity.paceText) ?? "–", String(localized: "/km"))
+                            number(activity.pace.map(RecordedActivity.paceText) ?? "–", String(localized: "/km"), paceField)
                         }
                     }
                     .movable(paceField, layout)
@@ -648,10 +648,10 @@ struct RouteCard: PhotoCard {
         .environment(\.colorScheme, .dark)
     }
 
-    private func number(_ value: String, _ unit: String) -> some View {
+    private func number(_ value: String, _ unit: String, _ field: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(value).font(layout.font(28)).monospacedDigit()
-            Text(unit).font(layout.label(11)).foregroundStyle(photo == nil ? Theme.muted : .white.opacity(0.8))
+            Text(value).font(layout.font(28, field)).monospacedDigit().foregroundStyle(layout.color(field, Theme.ink))
+            Text(unit).font(layout.label(11, field)).foregroundStyle(photo == nil ? Theme.muted : .white.opacity(0.8))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
