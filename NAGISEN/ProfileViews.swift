@@ -381,6 +381,14 @@ struct WeightHistoryView: View {
                         }
                     }
                     .softCardStyle()
+                    if let card = ShareCards.weight(store.weights) {
+                        HStack {
+                            Text("Share your progress. The card shows the change and the curve, never your weight.")
+                                .font(.caption).foregroundStyle(Theme.muted)
+                            Spacer()
+                            ShareCardButton { card }
+                        }
+                    }
                 } else {
                     Text("No weights logged yet")
                         .foregroundStyle(Theme.muted)

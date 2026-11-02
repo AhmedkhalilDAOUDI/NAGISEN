@@ -708,6 +708,7 @@ private struct CalendarLogView: View {
                                     Text(ui: workout.activity)
                                     Spacer()
                                     Text("\(workout.minutes) min").foregroundStyle(Theme.muted)
+                                    ShareCardButton { ShareCards.workout(workout) }
                                 }
                             }
                         }
@@ -794,9 +795,14 @@ private struct CalorieCard: View {
         let overage = CalorieBalanceStyle.overage(eaten, goal: goal)
         let balanceColor = CalorieBalanceStyle.color(eaten, goal: goal)
         VStack(alignment: .leading, spacing: 18) {
-            Text("DAILY BALANCE")
-                .font(.caption2.weight(.semibold)).nagisenTracking(2.2)
-                .foregroundStyle(Theme.muted)
+            HStack {
+                Text("DAILY BALANCE")
+                    .font(.caption2.weight(.semibold)).nagisenTracking(2.2)
+                    .foregroundStyle(Theme.muted)
+                Spacer()
+                ShareCardButton { ShareCards.day(store, on: date) }
+                    .padding(.vertical, -12)
+            }
             HStack(spacing: 14) {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(abs(remaining).formatted())
@@ -870,6 +876,10 @@ private struct CalorieCard: View {
                         .foregroundStyle(Theme.ink)
                         .contentTransition(.numericText(value: Double(streak.activeStreak)))
                     Spacer()
+                    if streak.activeStreak > 0 {
+                        ShareCardButton { ShareCards.streak(days: streak.activeStreak, longest: streak.longestStreak) }
+                            .padding(.vertical, -12)
+                    }
                     Button("Verify") { showingStreakAudit = true }
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(Theme.accentText)

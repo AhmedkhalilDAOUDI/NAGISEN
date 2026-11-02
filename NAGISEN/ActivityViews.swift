@@ -390,7 +390,7 @@ struct ActivityDetailView: View {
         .background(NagisenBackdrop())
         .toolbar(.hidden, for: .navigationBar)
         .task { heartRate = await health.averageHeartRate(from: activity.start, to: activity.end) }
-        .sheet(isPresented: $sharing) { ShareActivityView(activity: activity) }
+        .sheet(isPresented: $sharing) { ShareCardSheet(card: RouteCard(activity: activity)) }
         .sheet(isPresented: $markingSegment) { MarkSegmentView(activity: activity) }
         .nagisenDialog("Delete this activity?", isPresented: $confirmingDelete,
                        message: String(localized: "It is removed from NAGISEN. A copy saved to Apple Health stays there.")) {
@@ -622,57 +622,5 @@ struct RouteCard: View {
             Text(unit).font(.system(size: 11)).foregroundStyle(Theme.muted)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
-private struct ShareActivityView: View {
-    @EnvironmentObject private var feed: FeedService
-    @Environment(\.dismiss) private var dismiss
-    let activity: RecordedActivity
-    @State private var caption = ""
-    @State private var posting = false
-    @State private var failed = false
-
-    var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    RouteCard(activity: activity)
-                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                        .scaleEffect(0.85)
-                        .frame(height: 400)
-                    if feed.state == .ready {
-                        TextField("Say something (optional)", text: $caption, axis: .vertical)
-                            .lineLimit(1...4)
-                            .padding(14)
-                            .nagisenPanel()
-                        if failed {
-                            Text(feed.message ?? String(localized: "Couldn't post right now. Try again."))
-                                .font(.caption).foregroundStyle(Theme.accentText)
-                        }
-                    } else {
-                        Text("Join the community in Settings to share activities to the Feed.")
-                            .font(.subheadline).foregroundStyle(Theme.muted).multilineTextAlignment(.center)
-                    }
-                }
-                .padding(20)
-            }
-            .background(NagisenBackdrop())
-            .nagisenSheetBar(String(localized: "Share to Feed"), onClose: { dismiss() },
-                             actionTitle: String(localized: "Post"), actionEnabled: feed.state == .ready && !posting,
-                             busy: posting) { post() }
-        }
-    }
-
-    private func post() {
-        let renderer = ImageRenderer(content: RouteCard(activity: activity))
-        renderer.scale = 3
-        guard let data = renderer.uiImage?.jpegData(compressionQuality: 0.9),
-              let attachment = try? PostMedia.photo(from: data) else { failed = true; return }
-        posting = true
-        Task {
-            if await feed.publish(caption, attachment: attachment) { dismiss() } else { failed = true }
-            posting = false
-        }
     }
 }

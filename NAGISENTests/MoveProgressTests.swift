@@ -58,6 +58,17 @@ final class MoveProgressTests: XCTestCase {
         XCTAssertEqual(TrainingLoad.history([], days: 10, until: today).last?.fitness, 0)
     }
 
+    func testTheWeightCardShowsTheChangeButNeverTheWeight() throws {
+        let start = Date(timeIntervalSince1970: 1_790_000_000)
+        let entries = [WeightEntry(date: start, kilograms: 92.4), WeightEntry(date: start.addingTimeInterval(86_400 * 30), kilograms: 89.1)]
+        let card = try XCTUnwrap(ShareCards.weight(entries))
+        XCTAssertTrue(card.value.contains("3.3"))
+        XCTAssertTrue(card.value.hasPrefix("−"))
+        let text = [card.kicker, card.headline, card.value, card.caption].joined(separator: " ")
+        XCTAssertFalse(text.contains("92") || text.contains("89"), "the card must not reveal the weight itself")
+        XCTAssertNil(ShareCards.weight([entries[0]]), "one weigh-in has no change to share")
+    }
+
     func testSavingARouteFromAnActivityThinsIt() {
         let route = SavedRoute(name: "Loop", activity: run(steps: 200, meters: 5, seconds: 2))
         XCTAssertLessThan(route.coordinates.count, 60)

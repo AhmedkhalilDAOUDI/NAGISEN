@@ -571,6 +571,7 @@ private struct TrophyCelebrationView: View {
     @State private var horizon = false
     @State private var risen = false
     @State private var named = false
+    @State private var sharing = false
     @State private var soundPlayer: AVAudioPlayer?
 
     var body: some View {
@@ -617,6 +618,14 @@ private struct TrophyCelebrationView: View {
             .accessibilityLabel("Trophy earned: \(trophy.title). \(trophy.subtitle)")
 
             NagisenPrimaryButton("Keep moving", action: onDismiss)
+            Button { sharing = true } label: {
+                Label("Share to Feed", systemImage: "square.and.arrow.up")
+                    .font(.subheadline.weight(.semibold)).foregroundStyle(Theme.accentText).frame(minHeight: 44)
+            }
+            .buttonStyle(.plain)
+        }
+        .sheet(isPresented: $sharing) {
+            ShareCardSheet(card: ShareCards.trophy(title: trophy.title, subtitle: trophy.subtitle, symbol: trophy.symbol))
         }
         .padding(22)
         .background { DriftingCircles() }
@@ -831,6 +840,7 @@ private struct PersonalRecordsView: View {
                             HStack {
                                 Text(exercise).font(.system(size: 23, design: .serif))
                                 Spacer()
+                                ShareCardButton { ShareCards.record(best) }
                                 Image(systemName: "medal.fill").foregroundStyle(Theme.red)
                             }
                             Text("\(best.kilograms.formatted(.number.precision(.fractionLength(0...1)))) kg × \(best.reps) reps")
