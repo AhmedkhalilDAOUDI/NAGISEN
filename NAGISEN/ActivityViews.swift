@@ -78,6 +78,7 @@ struct RecordActivityView: View {
     @State private var camera: MapCameraPosition = .userLocation(fallback: .automatic)
     @State private var confirmingFinish = false
     @State private var saving = false
+    @State private var following: SavedRoute?
 
     init(kind: RecordedActivity.Kind) {
         _recorder = StateObject(wrappedValue: ActivityRecorder(kind: kind))
@@ -88,6 +89,9 @@ struct RecordActivityView: View {
     var body: some View {
         VStack(spacing: 0) {
             Map(position: $camera) {
+                if let following {
+                    MapPolyline(coordinates: following.coordinates.map(\.coordinate)).stroke(Theme.ink.opacity(0.45), lineWidth: 6)
+                }
                 UserAnnotation()
                 ForEach(Array(segments(activity.points).enumerated()), id: \.offset) { _, line in
                     MapPolyline(coordinates: line).stroke(Theme.accent, lineWidth: 5)
@@ -108,6 +112,23 @@ struct RecordActivityView: View {
                 .foregroundStyle(Theme.ink)
                 .accessibilityLabel(String(localized: "Close"))
                 .padding(.horizontal, 16).padding(.top, 58)
+            }
+            .overlay(alignment: .topTrailing) {
+                if !store.savedRoutes.isEmpty {
+                    Menu {
+                        Button(String(localized: "No route")) { following = nil }
+                        ForEach(store.savedRoutes) { route in
+                            Button(route.name) { following = route }
+                        }
+                    } label: {
+                        Label(following?.name ?? String(localized: "Follow a route"), systemImage: "point.topleft.down.to.point.bottomright.curvepath")
+                            .font(.subheadline.weight(.medium))
+                            .padding(.horizontal, 14).frame(height: 44)
+                            .nagisenGlass(in: Capsule(), tint: Theme.surface.opacity(0.3))
+                    }
+                    .foregroundStyle(Theme.ink)
+                    .padding(.horizontal, 16).padding(.top, 58)
+                }
             }
 
             VStack(spacing: 22) {
@@ -158,7 +179,13 @@ struct RecordActivityView: View {
         case .paused:
             Text("PAUSED").font(.caption2.weight(.semibold)).nagisenTracking(2).foregroundStyle(Theme.accentText)
         case .recording, .idle:
-            Text(activity.kind.name.uppercased()).font(.caption2.weight(.semibold)).nagisenTracking(2).foregroundStyle(Theme.muted)
+            if let following {
+                let left = max(0, following.distance - activity.distance) / 1000
+                Text("\(following.name.uppercased()) · \(left.formatted(.number.precision(.fractionLength(1)))) KM LEFT")
+                    .font(.caption2.weight(.semibold)).nagisenTracking(2).foregroundStyle(Theme.accentText)
+            } else {
+                Text(activity.kind.name.uppercased()).font(.caption2.weight(.semibold)).nagisenTracking(2).foregroundStyle(Theme.muted)
+            }
         }
     }
 
@@ -255,6 +282,8 @@ struct ActivityDetailView: View {
     @State private var heartRate: Int?
     @State private var confirmingDelete = false
     @State private var sharing = false
+    @State private var markingSegment = false
+    @State private var savedAsRoute = false
 
     var body: some View {
         let splits = activity.splits
@@ -309,6 +338,8 @@ struct ActivityDetailView: View {
                     }
                 }
 
+                ActivitySegmentsSection(activity: activity)
+
                 let profile = elevationProfile
                 if profile.count > 2, activity.elevationGain >= 3 {
                     NagisenSection("Elevation") {
@@ -323,6 +354,18 @@ struct ActivityDetailView: View {
                         .padding(.vertical, 12)
                     }
                 }
+
+                HStack(spacing: 12) {
+                    secondary(String(localized: "Mark a segment"), symbol: "flag.2.crossed") { markingSegment = true }
+                    secondary(savedAsRoute ? String(localized: "Saved as route") : String(localized: "Save as route"),
+                              symbol: savedAsRoute ? "checkmark" : "point.topleft.down.to.point.bottomright.curvepath") {
+                        guard !savedAsRoute else { return }
+                        let name = "\(activity.kind.name) · \(activity.start.formatted(.dateTime.day().month(.abbreviated)))"
+                        store.savedRoutes.insert(SavedRoute(name: name, activity: activity), at: 0)
+                        savedAsRoute = true
+                    }
+                }
+                .disabled(activity.points.count < 2)
 
                 HStack(spacing: 12) {
                     Button { sharing = true } label: {
@@ -348,10 +391,22 @@ struct ActivityDetailView: View {
         .toolbar(.hidden, for: .navigationBar)
         .task { heartRate = await health.averageHeartRate(from: activity.start, to: activity.end) }
         .sheet(isPresented: $sharing) { ShareActivityView(activity: activity) }
+        .sheet(isPresented: $markingSegment) { MarkSegmentView(activity: activity) }
         .nagisenDialog("Delete this activity?", isPresented: $confirmingDelete,
                        message: String(localized: "It is removed from NAGISEN. A copy saved to Apple Health stays there.")) {
             [NagisenAction(title: String(localized: "Delete"), destructive: true) { store.deleteActivity(activity); dismiss() }]
         }
+    }
+
+    private func secondary(_ title: String, symbol: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: symbol)
+                .font(.subheadline.weight(.semibold))
+                .frame(maxWidth: .infinity).frame(height: 48)
+                .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Theme.ink.opacity(0.16), lineWidth: 0.5))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     /// Altitude against distance, thinned to about 120 points so the chart stays light.
@@ -384,6 +439,7 @@ struct ActivityDetailView: View {
 struct ActivityRecordsView: View {
     @EnvironmentObject private var store: NutritionStore
     @Environment(\.dismiss) private var dismiss
+    @State private var drawing = false
 
     var body: some View {
         let activities = store.activities
@@ -395,6 +451,7 @@ struct ActivityRecordsView: View {
                     total(ActivityRecords.kilometres(activities, in: .weekOfYear, of: .now), String(localized: "km this week"))
                     total(ActivityRecords.kilometres(activities, in: .month, of: .now), String(localized: "km this month"))
                 }
+                GoalsSection()
                 NagisenSection("Last 8 weeks") {
                     Chart(weeks, id: \.week) { week in
                         BarMark(x: .value("week", week.week, unit: .weekOfYear), y: .value("km", week.km))
@@ -404,6 +461,57 @@ struct ActivityRecordsView: View {
                     .chartXAxis { AxisMarks(values: .stride(by: .weekOfYear, count: 2)) { AxisValueLabel(format: .dateTime.day().month(.abbreviated)) } }
                     .frame(height: 140)
                     .padding(.vertical, 12)
+                }
+                TrainingLoadSection()
+                NavigationLink { HeatmapView() } label: {
+                    HStack(spacing: 14) {
+                        Image(systemName: "map").foregroundStyle(Theme.accentText)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Your map").font(.system(size: 21, design: .serif))
+                            Text("Every route you've recorded, together").font(.caption).foregroundStyle(Theme.muted)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right").font(.caption).foregroundStyle(Theme.muted)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .softCardStyle()
+                NagisenSection("Your segments") {
+                    if store.segments.isEmpty {
+                        Text("Open an activity and tap Mark a segment to time a stretch you pass often. Only your own times count.")
+                            .font(.subheadline).foregroundStyle(Theme.muted)
+                            .frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 12)
+                    }
+                    ForEach(store.segments) { segment in
+                        NavigationLink { SegmentDetailView(segment: segment) } label: {
+                            HStack {
+                                Text(segment.name)
+                                Spacer()
+                                Text(segment.efforts(activities).first.map { RecordedActivity.durationText($0.seconds) } ?? "–")
+                                    .monospacedDigit().foregroundStyle(Theme.accentText)
+                            }
+                            .font(.subheadline).frame(minHeight: 46).contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                NagisenSection("Routes") {
+                    ForEach(store.savedRoutes) { route in
+                        NavigationLink { RouteDetailView(route: route) } label: {
+                            HStack {
+                                Text(route.name)
+                                Spacer()
+                                Text("\((route.distance / 1000).formatted(.number.precision(.fractionLength(2)))) km")
+                                    .monospacedDigit().foregroundStyle(Theme.muted)
+                            }
+                            .font(.subheadline).frame(minHeight: 46).contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        Divider().overlay(Theme.line)
+                    }
+                    Button(String(localized: "Draw a route")) { drawing = true }
+                        .font(.subheadline.weight(.semibold)).foregroundStyle(Theme.accentText).frame(minHeight: 48)
                 }
                 let efforts = ActivityRecords.bestEfforts(activities)
                 NagisenSection("Fastest runs") {
@@ -459,6 +567,7 @@ struct ActivityRecordsView: View {
         }
         .background(NagisenBackdrop())
         .toolbar(.hidden, for: .navigationBar)
+        .sheet(isPresented: $drawing) { RouteDrawView() }
     }
 
     private func total(_ km: Double, _ label: String) -> some View {

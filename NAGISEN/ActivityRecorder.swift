@@ -1,3 +1,4 @@
+import ActivityKit
 import CoreLocation
 import Foundation
 
@@ -18,6 +19,8 @@ final class ActivityRecorder: NSObject, ObservableObject, CLLocationManagerDeleg
     private let manager = CLLocationManager()
     private var segment = 0
     private var savedSeconds = 0.0
+    private var liveActivity: Activity<RecordingAttributes>?
+    private var lastLiveUpdate = Date.distantPast
 
     init(kind: RecordedActivity.Kind) {
         activity = RecordedActivity(kind: kind, start: .now)
@@ -53,12 +56,14 @@ final class ActivityRecorder: NSObject, ObservableObject, CLLocationManagerDeleg
         segment += 1
         currentSpeed = nil
         state = .paused
+        updateLiveActivity(force: true)
     }
 
     func resume() {
         guard state == .paused else { return }
         stretchStart = .now
         state = .recording
+        updateLiveActivity(force: true)
     }
 
     /// Stops listening and returns the finished activity.
@@ -67,7 +72,37 @@ final class ActivityRecorder: NSObject, ObservableObject, CLLocationManagerDeleg
         manager.allowsBackgroundLocationUpdates = false
         state = .idle
         stretchStart = nil
+        let live = liveActivity
+        liveActivity = nil
+        Task { await live?.end(nil, dismissalPolicy: .immediate) }
         return activity
+    }
+
+    private var liveState: RecordingAttributes.ContentState {
+        let pace: String
+        if activity.kind.showsSpeed {
+            pace = currentSpeed.map { "\(($0 * 3.6).formatted(.number.precision(.fractionLength(1)))) km/h" } ?? "–"
+        } else {
+            pace = currentSpeed.flatMap { $0 > 0.5 ? "\(RecordedActivity.paceText(1000 / $0)) /km" : nil } ?? "–"
+        }
+        return .init(timerStart: Date.now.addingTimeInterval(-elapsed()),
+                     pausedSeconds: state == .paused ? elapsed() : nil,
+                     kilometres: activity.distance / 1000, pace: pace)
+    }
+
+    /// Keeps the Lock Screen and Dynamic Island in step, at most every few seconds unless something changed.
+    private func updateLiveActivity(force: Bool = false) {
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+        if liveActivity == nil {
+            let attributes = RecordingAttributes(kindName: activity.kind.name, symbol: activity.kind.symbol)
+            liveActivity = try? Activity.request(attributes: attributes, content: .init(state: liveState, staleDate: nil))
+            lastLiveUpdate = .now
+            return
+        }
+        guard force || Date.now.timeIntervalSince(lastLiveUpdate) >= 5 else { return }
+        lastLiveUpdate = .now
+        let content = ActivityContent(state: liveState, staleDate: nil)
+        Task { await liveActivity?.update(content) }
     }
 
     private func beginUpdates() {
@@ -107,6 +142,7 @@ final class ActivityRecorder: NSObject, ObservableObject, CLLocationManagerDeleg
         activity.points.append(.init(latitude: location.coordinate.latitude, longitude: location.coordinate.longitude,
                                      altitude: location.altitude, date: location.timestamp, segment: segment))
         lastLocation = location
+        defer { updateLiveActivity() }
         let recent = activity.points.suffix(6).filter { $0.segment == segment }
         if let first = recent.first, let last = recent.last, last.date > first.date {
             let meters = zip(recent, recent.dropFirst()).reduce(0) { $0 + $1.1.location.distance(from: $1.0.location) }

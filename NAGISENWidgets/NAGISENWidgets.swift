@@ -256,5 +256,6 @@ struct NAGISENWidgets: WidgetBundle {
         WaterWidget()
         MacroWidget()
         ActivityWidget()
+        RecordingLiveActivityWidget()
     }
 }
