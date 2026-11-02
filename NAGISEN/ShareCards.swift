@@ -290,3 +290,107 @@ enum ShareCards {
                                  ("\(minutes) min", String(localized: "training"))])
     }
 }
+
+// MARK: - Share from NAGISEN
+
+/// Everything you can share, in one list: your day, your streak, workouts, activities, records and weight.
+struct ShareHubView: View {
+    @EnvironmentObject private var store: NutritionStore
+    @Environment(\.dismiss) private var dismiss
+    @State private var choice: Choice?
+
+    struct Choice: Identifiable {
+        let id = UUID()
+        var card: ShareCard?
+        var activity: RecordedActivity?
+    }
+
+    var body: some View {
+        let streak = store.streakSnapshot(asOf: .now)
+        let activityWorkouts = Set(store.activities.compactMap(\.workoutID))
+        let workouts = store.workouts.filter { !activityWorkouts.contains($0.id) }.sorted { $0.date > $1.date }.prefix(6)
+        let records = Dictionary(grouping: store.strengthRecords, by: \.exercise)
+            .compactMap { $0.value.max { $0.kilograms == $1.kilograms ? $0.reps < $1.reps : $0.kilograms < $1.kilograms } }
+            .sorted { $0.date > $1.date }.prefix(5)
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    NagisenSection("Today") {
+                        row(String(localized: "My day"), detail: "\(store.totals(on: .now).calories.formatted()) kcal", symbol: "sun.horizon") {
+                            choice = Choice(card: ShareCards.day(store, on: .now))
+                        }
+                        if streak.activeStreak > 0 {
+                            Divider().overlay(Theme.line)
+                            row(String(localized: "Streak"), detail: String(localized: "\(streak.activeStreak) days"), symbol: "flame") {
+                                choice = Choice(card: ShareCards.streak(days: streak.activeStreak, longest: streak.longestStreak))
+                            }
+                        }
+                    }
+                    if !store.activities.isEmpty {
+                        NagisenSection("Activities") {
+                            ForEach(Array(store.activities.prefix(4).enumerated()), id: \.offset) { index, activity in
+                                if index > 0 { Divider().overlay(Theme.line) }
+                                row("\(activity.kind.name) · \(activity.start.formatted(.dateTime.day().month(.abbreviated)))",
+                                    detail: activity.summary, symbol: activity.kind.symbol) { choice = Choice(activity: activity) }
+                            }
+                        }
+                    }
+                    if !workouts.isEmpty {
+                        NagisenSection("Workouts") {
+                            ForEach(Array(workouts.enumerated()), id: \.offset) { index, workout in
+                                if index > 0 { Divider().overlay(Theme.line) }
+                                row(workout.activity, detail: "\(workout.minutes) min · \(workout.date.formatted(.dateTime.day().month(.abbreviated)))",
+                                    symbol: "figure.strengthtraining.traditional") { choice = Choice(card: ShareCards.workout(workout)) }
+                            }
+                        }
+                    }
+                    if !records.isEmpty || ShareCards.weight(store.weights) != nil {
+                        NagisenSection("Progress") {
+                            ForEach(Array(records.enumerated()), id: \.offset) { index, record in
+                                if index > 0 { Divider().overlay(Theme.line) }
+                                row(record.exercise, detail: "\(record.kilograms.formatted(.number.precision(.fractionLength(0...1)))) kg × \(record.reps)",
+                                    symbol: "medal") { choice = Choice(card: ShareCards.record(record)) }
+                            }
+                            if let weight = ShareCards.weight(store.weights) {
+                                if !records.isEmpty { Divider().overlay(Theme.line) }
+                                row(String(localized: "Weight progress"), detail: weight.value, symbol: "chart.line.downtrend.xyaxis") {
+                                    choice = Choice(card: weight)
+                                }
+                            }
+                        }
+                    }
+                    Text("Trophies can be shared from the trophy shelf in Workouts.")
+                        .font(.footnote).foregroundStyle(Theme.muted)
+                }
+                .foregroundStyle(Theme.ink)
+                .padding(20)
+            }
+            .background(NagisenBackdrop())
+            .nagisenSheetBar(String(localized: "Share from NAGISEN"), onClose: { dismiss() })
+            .sheet(item: $choice) { choice in
+                if let activity = choice.activity {
+                    ShareCardSheet(card: RouteCard(activity: activity))
+                } else if let card = choice.card {
+                    ShareCardSheet(card: card)
+                }
+            }
+        }
+    }
+
+    private func row(_ title: String, detail: String, symbol: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                Image(systemName: symbol).foregroundStyle(Theme.accentText).frame(width: 26)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(.subheadline.weight(.medium))
+                    Text(detail).font(.caption).foregroundStyle(Theme.muted)
+                }
+                Spacer()
+                Image(systemName: "square.and.arrow.up").font(.caption.weight(.semibold)).foregroundStyle(Theme.muted)
+            }
+            .frame(minHeight: 54)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}

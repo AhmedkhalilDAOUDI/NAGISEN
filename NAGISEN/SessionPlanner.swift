@@ -216,9 +216,10 @@ struct SessionView: View {
 
     private func log() {
         guard let plan else { return }
-        store.workouts.insert(WorkoutEntry(date: .now, activity: plan.type.rawValue, minutes: plan.minutes,
-                                           detail: plan.summary), at: 0)
-        dismiss()
+        let entry = WorkoutEntry(date: .now, activity: plan.type.rawValue, minutes: plan.minutes, detail: plan.summary)
+        store.workouts.insert(entry, at: 0)
+        // Offer to share it straight away; closing the share sheet closes the session too.
+        logged = entry
     }
 
     private func chip(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
@@ -233,6 +234,8 @@ struct SessionView: View {
         }
         .buttonStyle(.plain)
     }
+
+    @State private var logged: WorkoutEntry?
 
     var body: some View {
         ScrollView {
@@ -322,6 +325,9 @@ struct SessionView: View {
         .onAppear {
             if focus == nil { focus = splitFocus }
             if plan == nil { build() }
+        }
+        .sheet(item: $logged, onDismiss: { dismiss() }) { entry in
+            ShareCardSheet(card: ShareCards.workout(entry))
         }
     }
 }

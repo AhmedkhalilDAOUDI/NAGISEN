@@ -13,6 +13,7 @@ struct SocialFeedView: View {
     @AppStorage("nagisen.feed.drafts") private var savedDrafts = Data()
     @AppStorage("nagisen.community.rulesAccepted") private var rulesAccepted = false
     @State private var showingComposer = false
+    @State private var showingShareHub = false
     @State private var showingAccount = false
     @State private var text = ""
     @State private var pickedItem: PhotosPickerItem?
@@ -72,6 +73,7 @@ struct SocialFeedView: View {
             .softTopScrollEdgeEffect()
             .background(NagisenBackdrop())
             .toolbar(.hidden, for: .navigationBar)
+            .sheet(isPresented: $showingShareHub) { ShareHubView() }
             .sheet(isPresented: $showingComposer, onDismiss: clearAttachment) {
                 composer.onAppear { feed.message = nil }
             }
@@ -89,6 +91,7 @@ struct SocialFeedView: View {
             Spacer()
             if feed.state == .ready {
                 iconButton("plus.square", label: String(localized: "New post")) { showingComposer = true }
+                iconButton("square.and.arrow.up", label: String(localized: "Share from NAGISEN")) { showingShareHub = true }
                 iconButton("bell", label: feed.hasNewActivity ? String(localized: "Activity, new") : "Activity") { showingActivity = true }
                     .overlay(alignment: .topTrailing) {
                         if feed.hasNewActivity {

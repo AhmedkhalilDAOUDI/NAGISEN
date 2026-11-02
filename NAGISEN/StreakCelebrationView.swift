@@ -38,6 +38,7 @@ struct StreakCelebrationView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var shown = 0.0
+    @State private var sharing = false
 
     private var week: [Date] { StreakCelebration.week(containing: date) }
     private var average: Int? {
@@ -79,6 +80,14 @@ struct StreakCelebrationView: View {
             .nagisenGlass(in: RoundedRectangle(cornerRadius: 20), tint: Theme.surface.opacity(0.25))
 
             NagisenPrimaryButton("Keep going") { dismiss() }
+            Button { sharing = true } label: {
+                Label("Share to Feed", systemImage: "square.and.arrow.up")
+                    .font(.subheadline.weight(.semibold)).foregroundStyle(Theme.accentText).frame(minHeight: 44)
+            }
+            .buttonStyle(.plain)
+        }
+        .sheet(isPresented: $sharing) {
+            ShareCardSheet(card: ShareCards.streak(days: streak, longest: store.streakSnapshot(asOf: date).longestStreak))
         }
         .padding(22)
         .background { DriftingCircles() }
