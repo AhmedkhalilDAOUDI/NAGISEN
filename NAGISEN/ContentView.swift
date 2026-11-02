@@ -831,8 +831,16 @@ private struct CalorieCard: View {
                         .foregroundStyle(Theme.ink)
                         .padding(.horizontal, 19)
                     } else {
-                        Image(systemName: "flame")
-                            .font(.title3.weight(.light)).foregroundStyle(Theme.accentText)
+                        VStack(spacing: 0) {
+                            Text(eaten.formatted())
+                                .font(.system(size: 21, weight: .regular, design: .serif))
+                                .minimumScaleFactor(0.6).lineLimit(1)
+                                .foregroundStyle(Theme.ink)
+                            Text("EATEN")
+                                .font(.system(size: 7, weight: .bold)).nagisenTracking(1)
+                                .foregroundStyle(Theme.muted)
+                        }
+                        .padding(.horizontal, 14)
                     }
                 }
                 .frame(width: 92, height: 92)
