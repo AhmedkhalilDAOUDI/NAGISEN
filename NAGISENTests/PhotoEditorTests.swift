@@ -56,4 +56,10 @@ final class PhotoEditorTests: XCTestCase {
         XCTAssertEqual(card.caption, "Eggs · Bread")
         XCTAssertTrue(Set(["protein", "carbs", "fat"]).isSubset(of: Set(card.fields)))
     }
+
+    func testPinchingAPieceGrowsFromWhereItWasAndStaysInBounds() {
+        XCTAssertEqual(CardLayout.resized(1.5, by: 2), 3)
+        XCTAssertEqual(CardLayout.resized(1, by: 0.1), 0.4)
+        XCTAssertEqual(CardLayout.resized(1.2, by: 1.5), 1.8, accuracy: 0.0001)
+    }
 }

@@ -48,6 +48,9 @@ enum CardFont: String, CaseIterable, Identifiable {
 struct CardLayout {
     var offsets: [String: CGSize] = [:]
     var onMove: ((String, CGSize, Bool) -> Void)? = nil
+    /// Each piece's own size from a pinch, on top of the overall size.
+    var sizes: [String: CGFloat] = [:]
+    var onResize: ((String, CGFloat, Bool) -> Void)? = nil
     var font = CardFont.serif
     /// Multiplies every text size on the card.
     var scale: Double = 1
@@ -58,6 +61,9 @@ struct CardLayout {
     func font(_ size: CGFloat) -> Font { font.font(size * scale) }
     /// The small labels keep a plain face but follow the size.
     func label(_ size: CGFloat, weight: Font.Weight = .regular) -> Font { .system(size: size * scale, weight: weight) }
+
+    /// A pinch from a starting size, kept between tiny and huge so a piece never vanishes.
+    static func resized(_ start: CGFloat, by pinch: CGFloat) -> CGFloat { min(max(start * pinch, 0.4), 3) }
 
     static let quoteField = String(localized: "Quote")
     static let textField = String(localized: "Your text")
@@ -99,10 +105,17 @@ private struct Movable: ViewModifier {
 
     func body(content: Content) -> some View {
         content
+            .scaleEffect(layout.sizes[field] ?? 1)
             .offset(layout.offsets[field] ?? .zero)
-            .highPriorityGesture(DragGesture(minimumDistance: 2)
-                .onChanged { layout.onMove?(field, $0.translation, false) }
-                .onEnded { layout.onMove?(field, $0.translation, true) },
+            .highPriorityGesture(DragGesture(minimumDistance: 2).simultaneously(with: MagnifyGesture())
+                .onChanged { value in
+                    if let drag = value.first { layout.onMove?(field, drag.translation, false) }
+                    if let pinch = value.second { layout.onResize?(field, pinch.magnification, false) }
+                }
+                .onEnded { value in
+                    if let drag = value.first { layout.onMove?(field, drag.translation, true) }
+                    if let pinch = value.second { layout.onResize?(field, pinch.magnification, true) }
+                },
                 including: layout.onMove == nil ? .none : .all)
     }
 }
@@ -141,7 +154,8 @@ struct ShareCard: PhotoCard {
     var caption: String = ""
     /// Optional trend line drawn under the number, like a weight curve.
     var series: [Double] = []
-    var lines: [(String, String)] = []
+    /// Value, name, and the colour the app gives it (protein, carbs, fat), if any.
+    var lines: [(String, String, Color?)] = []
     var photo: UIImage? = nil
     var hidden: Set<String> = []
     var layout = CardLayout()
@@ -203,7 +217,7 @@ struct ShareCard: PhotoCard {
                 HStack(alignment: .firstTextBaseline) {
                     ForEach(Array(shownLines.enumerated()), id: \.offset) { _, line in
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(line.0).font(layout.font(20)).monospacedDigit()
+                            Text(line.0).font(layout.font(20)).monospacedDigit().foregroundStyle(line.2 ?? Theme.ink)
                             Text(line.1).font(layout.label(11)).foregroundStyle(quiet)
                         }
                         .movable(line.1, layout)
@@ -256,13 +270,15 @@ struct ShareCardSheet<Card: PhotoCard>: View {
     @State private var hidden: Set<String> = []
     @State private var offsets: [String: CGSize] = [:]
     @State private var placed: [String: CGSize] = [:]
+    @State private var sizes: [String: CGFloat] = [:]
+    @State private var sized: [String: CGFloat] = [:]
     @State private var font = CardFont.serif
     @State private var scale = 1.0
     @State private var quote: Quote?
     @State private var text = ""
 
     private var layout: CardLayout {
-        CardLayout(offsets: offsets, font: font, scale: scale, quote: quote, text: text.trimmingCharacters(in: .whitespacesAndNewlines))
+        CardLayout(offsets: offsets, sizes: sizes, font: font, scale: scale, quote: quote, text: text.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
     private var shown: Card { card.on(photo).hiding(hidden).arranged(layout) }
@@ -274,6 +290,10 @@ struct ShareCardSheet<Card: PhotoCard>: View {
             let start = placed[field] ?? .zero
             offsets[field] = CGSize(width: start.width + moved.width, height: start.height + moved.height)
             if ended { placed[field] = offsets[field]; saved = false }
+        }
+        live.onResize = { field, pinch, ended in
+            sizes[field] = CardLayout.resized(sized[field] ?? 1, by: pinch)
+            if ended { sized[field] = sizes[field]; saved = false }
         }
         return card.on(photo).hiding(hidden).arranged(live)
     }
@@ -292,10 +312,10 @@ struct ShareCardSheet<Card: PhotoCard>: View {
                         .scaleEffect(0.85)
                         .frame(height: CardSize.of(photo).height * 0.85)
                     HStack {
-                        Text("Drag the numbers to place them anywhere.").font(.caption).foregroundStyle(Theme.muted)
+                        Text("Drag to move anything. Pinch one to resize it.").font(.caption).foregroundStyle(Theme.muted)
                         Spacer()
-                        if !offsets.isEmpty {
-                            Button(String(localized: "Reset layout")) { offsets = [:]; placed = [:]; saved = false }
+                        if !offsets.isEmpty || !sizes.isEmpty {
+                            Button(String(localized: "Reset layout")) { offsets = [:]; placed = [:]; sizes = [:]; sized = [:]; saved = false }
                                 .font(.caption.weight(.semibold)).foregroundStyle(Theme.accentText)
                         }
                     }
@@ -537,9 +557,9 @@ enum ShareCards {
         return ShareCard(kicker: String(localized: "Meal"), theme: .day, headline: meal.rawValue,
                          value: "\(items.reduce(0) { $0 + $1.calories }.formatted()) kcal",
                          caption: names.prefix(3).joined(separator: " · ") + (names.count > 3 ? " +\(names.count - 3)" : ""),
-                         lines: [(grams(items.reduce(0) { $0 + $1.protein }), String(localized: "protein")),
-                                 (grams(items.reduce(0) { $0 + $1.carbs }), String(localized: "carbs")),
-                                 (grams(items.reduce(0) { $0 + $1.fat }), String(localized: "fat"))])
+                         lines: [(grams(items.reduce(0) { $0 + $1.protein }), String(localized: "protein"), Theme.protein),
+                                 (grams(items.reduce(0) { $0 + $1.carbs }), String(localized: "carbs"), Theme.carbs),
+                                 (grams(items.reduce(0) { $0 + $1.fat }), String(localized: "fat"), Theme.fat)])
     }
 
     static func day(_ store: NutritionStore, on date: Date) -> ShareCard {
@@ -548,9 +568,9 @@ enum ShareCards {
         return ShareCard(kicker: String(localized: "My day"), theme: .day, headline: date.formatted(.dateTime.weekday(.wide).day().month(.wide)),
                          value: "\(totals.calories.formatted()) kcal",
                          caption: String(localized: "Goal \(goals.calories.formatted()) kcal"),
-                         lines: [("\(Int(totals.protein.rounded())) g", String(localized: "protein")),
-                                 ("\((store.waterTotal(on: date)).formatted()) mL", String(localized: "water")),
-                                 ("\(minutes) min", String(localized: "training"))])
+                         lines: [("\(Int(totals.protein.rounded())) g", String(localized: "protein"), Theme.protein),
+                                 ("\((store.waterTotal(on: date)).formatted()) mL", String(localized: "water"), nil),
+                                 ("\(minutes) min", String(localized: "training"), nil)])
     }
 }
 
