@@ -387,6 +387,9 @@ final class NutritionStore: ObservableObject {
     @Published var supplementDays: [String: Set<String>] = [:] { didSet { persist("supplementDays", supplementDays) } }
     /// GPS-recorded runs, walks, rides and hikes, newest first.
     @Published var activities: [RecordedActivity] = [] { didSet { persist("activities", activities) } }
+    @Published var savedRoutes: [SavedRoute] = [] { didSet { persist("savedRoutes", savedRoutes) } }
+    @Published var segments: [PersonalSegment] = [] { didSet { persist("segments", segments) } }
+    @Published var activityGoals: [ActivityGoal] = [] { didSet { persist("activityGoals", activityGoals) } }
     @Published var completedLoggingDays: Set<String> = [] { didSet { persist("completedLoggingDays", completedLoggingDays) } }
     @Published var workouts: [WorkoutEntry] = [] { didSet { persist("workouts", workouts) } }
     @Published var strengthRecords: [StrengthRecord] = [] { didSet { persist("strengthRecords", strengthRecords) } }
@@ -425,6 +428,9 @@ final class NutritionStore: ObservableObject {
         var supplements: [String]?
         var supplementDays: [String: Set<String>]?
         var activities: [RecordedActivity]?
+        var savedRoutes: [SavedRoute]?
+        var segments: [PersonalSegment]?
+        var activityGoals: [ActivityGoal]?
         var completedLoggingDays: Set<String>?
         var workouts: [WorkoutEntry]?
         var strengthRecords: [StrengthRecord]?
@@ -473,6 +479,9 @@ final class NutritionStore: ObservableObject {
             supplements = vault?.read("supplements") ?? Supplement.startingList(tracksCreatine: !creatineTakenDays.isEmpty)
             supplementDays = vault?.read("supplementDays") ?? [:]
             activities = vault?.read("activities") ?? []
+            savedRoutes = vault?.read("savedRoutes") ?? []
+            segments = vault?.read("segments") ?? []
+            activityGoals = vault?.read("activityGoals") ?? []
             completedLoggingDays = vault?.read("completedLoggingDays") ?? []
             workouts = vault?.read("workouts") ?? []
             strengthRecords = vault?.read("strengthRecords") ?? []
@@ -518,6 +527,9 @@ final class NutritionStore: ObservableObject {
         supplements = saved.supplements ?? Supplement.startingList(tracksCreatine: !creatineTakenDays.isEmpty)
         supplementDays = saved.supplementDays ?? [:]
         activities = saved.activities ?? []
+        savedRoutes = saved.savedRoutes ?? []
+        segments = saved.segments ?? []
+        activityGoals = saved.activityGoals ?? []
         completedLoggingDays = saved.completedLoggingDays ?? []
         workouts = saved.workouts ?? []
         strengthRecords = saved.strengthRecords ?? []
@@ -564,6 +576,9 @@ final class NutritionStore: ObservableObject {
             vault.write("supplements", value: supplements) &&
             vault.write("supplementDays", value: supplementDays) &&
             vault.write("activities", value: activities) &&
+            vault.write("savedRoutes", value: savedRoutes) &&
+            vault.write("segments", value: segments) &&
+            vault.write("activityGoals", value: activityGoals) &&
             vault.write("completedLoggingDays", value: completedLoggingDays) &&
             vault.write("workouts", value: workouts) &&
             vault.write("strengthRecords", value: strengthRecords) &&
@@ -597,6 +612,7 @@ final class NutritionStore: ObservableObject {
                               appearance: appearance,
                               creatineTakenDays: creatineTakenDays,
                               supplements: supplements, supplementDays: supplementDays, activities: activities,
+                              savedRoutes: savedRoutes, segments: segments, activityGoals: activityGoals,
                               completedLoggingDays: completedLoggingDays, workouts: workouts,
                               strengthRecords: strengthRecords,
                               workoutSplit: workoutSplit,
@@ -711,6 +727,7 @@ final class NutritionStore: ObservableObject {
                               appearance: appearance,
                               creatineTakenDays: creatineTakenDays,
                               supplements: supplements, supplementDays: supplementDays, activities: activities,
+                              savedRoutes: savedRoutes, segments: segments, activityGoals: activityGoals,
                               completedLoggingDays: completedLoggingDays, workouts: workouts,
                               strengthRecords: strengthRecords,
                               workoutSplit: workoutSplit,
@@ -734,7 +751,7 @@ final class NutritionStore: ObservableObject {
         "entries", "customFoods", "goals", "profile", "dietPreferences", "weights",
         "waterEntries", "waterGoalML", "caffeineEntries", "caffeineHalfLifeHours",
         "caffeineBedtimeHour", "foodPrices", "costFoods", "appearance", "creatineTakenDays",
-        "supplements", "supplementDays", "activities",
+        "supplements", "supplementDays", "activities", "savedRoutes", "segments", "activityGoals",
         "completedLoggingDays", "workouts", "strengthRecords", "workoutSplit", "challengePlans",
         "questSeenIDs", "trophyNames", "goalAdjustments", "weekdayGoals", "foodsToAvoid",
         "savedRecipes", "groceryStock", "groceryPlan", "legacyStreak",
@@ -828,6 +845,9 @@ final class NutritionStore: ObservableObject {
         supplements = saved.supplements ?? Supplement.startingList(tracksCreatine: !creatineTakenDays.isEmpty)
         supplementDays = saved.supplementDays ?? [:]
         activities = saved.activities ?? []
+        savedRoutes = saved.savedRoutes ?? []
+        segments = saved.segments ?? []
+        activityGoals = saved.activityGoals ?? []
         completedLoggingDays = saved.completedLoggingDays ?? []
         workouts = saved.workouts ?? []
         strengthRecords = saved.strengthRecords ?? []
