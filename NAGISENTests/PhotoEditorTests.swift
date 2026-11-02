@@ -66,19 +66,18 @@ final class PhotoEditorTests: XCTestCase {
 
     func testGesturesBuildOnWhereThePieceWasAndTheBinRemovesIt() {
         var draft = CardDraft()
-        let bin = CGPoint(x: 180, y: 390)
-        draft.touch("protein", CardTouch(move: CGSize(width: 30, height: 0), location: CGPoint(x: 50, y: 50), ended: true), trash: bin)
-        draft.touch("protein", CardTouch(move: CGSize(width: 10, height: 5), pinch: 2, turn: .degrees(15), location: CGPoint(x: 60, y: 55)), trash: bin)
+                draft.touch("protein", CardTouch(move: CGSize(width: 30, height: 0), location: CGPoint(x: 50, y: 50), ended: true), cardHeight: 450)
+        draft.touch("protein", CardTouch(move: CGSize(width: 10, height: 5), pinch: 2, turn: .degrees(15), location: CGPoint(x: 60, y: 55)), cardHeight: 450)
         XCTAssertEqual(draft.layout.offsets["protein"], CGSize(width: 40, height: 5))
         XCTAssertEqual(draft.layout.sizes["protein"], 2)
         XCTAssertEqual(draft.layout.turns["protein"], .degrees(15))
         XCTAssertEqual(draft.holding, "protein")
-        draft.touch("protein", CardTouch(move: CGSize(width: 10, height: 5), location: CGPoint(x: 60, y: 55), ended: true), trash: bin)
+        draft.touch("protein", CardTouch(move: CGSize(width: 10, height: 5), location: CGPoint(x: 60, y: 55), ended: true), cardHeight: 450)
         XCTAssertNil(draft.holding)
 
-        draft.touch("protein", CardTouch(location: CGPoint(x: 175, y: 385)), trash: bin)
+        draft.touch("protein", CardTouch(location: CGPoint(x: 175, y: 480)), cardHeight: 450)
         XCTAssertTrue(draft.overTrash)
-        draft.touch("protein", CardTouch(location: CGPoint(x: 175, y: 385), ended: true), trash: bin)
+        draft.touch("protein", CardTouch(location: CGPoint(x: 175, y: 480), ended: true), cardHeight: 450)
         XCTAssertTrue(draft.hidden.contains("protein"), "data goes to hidden so it can come back")
         XCTAssertNil(draft.layout.offsets["protein"])
     }
@@ -104,16 +103,28 @@ final class PhotoEditorTests: XCTestCase {
 
     func testAPinchWithoutADragResizesWithoutShowingTheBin() {
         var draft = CardDraft()
-        draft.touch("Goal label", CardTouch(pinch: 1.5), trash: CGPoint(x: 180, y: 390))
+        draft.touch("Goal label", CardTouch(pinch: 1.5), cardHeight: 450)
         XCTAssertEqual(draft.layout.sizes["Goal label"], 1.5)
         XCTAssertNil(draft.holding)
-        draft.touch("Goal label", CardTouch(pinch: 1.5, ended: true), trash: CGPoint(x: 180, y: 390))
-        draft.touch("Goal label", CardTouch(pinch: 2), trash: CGPoint(x: 180, y: 390))
+        draft.touch("Goal label", CardTouch(pinch: 1.5, ended: true), cardHeight: 450)
+        draft.touch("Goal label", CardTouch(pinch: 2), cardHeight: 450)
         XCTAssertEqual(draft.layout.sizes["Goal label"], 3, "a second pinch builds on the first")
     }
 
     func testEveryCaptionIsAPieceOfItsOwn() {
         XCTAssertEqual(CardLayout.labelField("protein"), "protein label")
         XCTAssertNotEqual(CardLayout.kickerField, CardLayout.quoteField)
+    }
+
+    func testSlightTiltsSnapLevelButRealTurnsStay() {
+        XCTAssertEqual(CardDraft.straightened(.degrees(4)), .zero)
+        XCTAssertEqual(CardDraft.straightened(.degrees(-358)), .zero)
+        XCTAssertEqual(CardDraft.straightened(.degrees(20)), .degrees(20))
+    }
+
+    func testOnlyDroppingBelowTheCardRemovesAPiece() {
+        var draft = CardDraft()
+        draft.touch("water", CardTouch(move: CGSize(width: 0, height: 300), location: CGPoint(x: 180, y: 440), ended: true), cardHeight: 450)
+        XCTAssertFalse(draft.hidden.contains("water"), "the card's own bottom edge is still the card")
     }
 }

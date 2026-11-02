@@ -12,8 +12,8 @@ struct CardDraft {
     private(set) var holding: String?
     private(set) var overTrash = false
 
-    /// Moves, pinches and turns a piece; let go over the bin and it leaves the card.
-    mutating func touch(_ field: String, _ touch: CardTouch, trash: CGPoint) {
+    /// Moves, pinches and turns a piece; let go below the card, over the bin, and it leaves the card.
+    mutating func touch(_ field: String, _ touch: CardTouch, cardHeight: CGFloat) {
         if grip?.field != field {
             grip = (field, layout.offsets[field] ?? .zero, layout.sizes[field] ?? 1, layout.turns[field] ?? .zero)
             layout.selected = field
@@ -23,8 +23,8 @@ struct CardDraft {
             layout.offsets[field] = CGSize(width: grip.offset.width + move.width, height: grip.offset.height + move.height)
         }
         if let pinch = touch.pinch { layout.sizes[field] = CardLayout.resized(grip.size, by: pinch) }
-        if let turn = touch.turn { layout.turns[field] = grip.turn + turn }
-        overTrash = touch.location.map { hypot($0.x - trash.x, $0.y - trash.y) < 48 } ?? overTrash
+        if let turn = touch.turn { layout.turns[field] = Self.straightened(grip.turn + turn) }
+        overTrash = touch.location.map { $0.y > cardHeight + 12 } ?? overTrash
         if touch.move != nil { holding = field }
         if touch.ended { holding = nil }
         if touch.ended {
@@ -32,6 +32,13 @@ struct CardDraft {
             self.grip = nil
             overTrash = false
         }
+    }
+
+    /// A slight tilt snaps back to level, so pinching never leaves a piece crooked by accident.
+    static func straightened(_ angle: Angle) -> Angle {
+        var degrees = angle.degrees.truncatingRemainder(dividingBy: 360)
+        if degrees > 180 { degrees -= 360 } else if degrees < -180 { degrees += 360 }
+        return abs(degrees) < 6 ? .zero : angle
     }
 
     /// Takes a piece off the card: a quote or your own words go, data is hidden and can come back.
@@ -105,7 +112,6 @@ struct ShareCardSheet<Card: PhotoCard>: View {
 
     private static var dark: Color { Color(red: 0.035, green: 0.03, blue: 0.035) }
     private var size: CGSize { CardSize.of(photo) }
-    private var trash: CGPoint { CGPoint(x: size.width / 2, y: size.height - 60) }
 
     private var shown: Card {
         var plain = draft.layout
@@ -115,7 +121,7 @@ struct ShareCardSheet<Card: PhotoCard>: View {
 
     private var editable: Card {
         var live = draft.layout
-        live.onTouch = { field, touch in draft.touch(field, touch, trash: trash) }
+        live.onTouch = { field, touch in draft.touch(field, touch, cardHeight: size.height) }
         live.onTap = { field in
             lastTap = .now
             if let text = draft.tap(field) { typing = text }
@@ -215,28 +221,15 @@ struct ShareCardSheet<Card: PhotoCard>: View {
     private var canvas: some View {
         GeometryReader { geo in
             let fit = min(geo.size.width / size.width, geo.size.height / size.height)
-            ZStack(alignment: .bottom) {
-                editable
-                if draft.holding != nil {
-                    Image(systemName: "trash")
-                        .font(.system(size: 20, weight: .medium))
-                        .frame(width: 56, height: 56)
-                        .background(draft.overTrash ? Theme.accent : Color.black.opacity(0.45), in: Circle())
-                        .overlay(Circle().strokeBorder(.white.opacity(0.5), lineWidth: 1))
-                        .scaleEffect(draft.overTrash ? 1.2 : 1)
-                        .animation(.easeOut(duration: 0.15), value: draft.overTrash)
-                        .padding(.bottom, 32)
-                        .allowsHitTesting(false)
-                }
-            }
+            editable
             .frame(width: size.width, height: size.height)
             .coordinateSpace(name: CardLayout.space)
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             .contentShape(Rectangle())
-            // Two fingers anywhere on the card resize and turn the chosen piece, however small it is.
-            .gesture(MagnifyGesture().simultaneously(with: RotateGesture())
-                .onChanged { value in pinchSelected(value.first?.magnification, value.second?.rotation, ended: false) }
-                .onEnded { value in pinchSelected(value.first?.magnification, value.second?.rotation, ended: true) })
+            // Anywhere on the card, one finger moves the chosen piece and two resize and turn it, however small it is.
+            .gesture(DragGesture(minimumDistance: 2).simultaneously(with: MagnifyGesture()).simultaneously(with: RotateGesture())
+                .onChanged { handleSelected($0, ended: false) }
+                .onEnded { handleSelected($0, ended: true) })
             .onTapGesture {
                 // A tap on a piece can reach the card too; only a tap on empty space clears the choice.
                 if Date.now.timeIntervalSince(lastTap) > 0.3 { draft.layout.selected = nil }
@@ -247,9 +240,12 @@ struct ShareCardSheet<Card: PhotoCard>: View {
         .padding(.horizontal, 10)
     }
 
-    private func pinchSelected(_ pinch: CGFloat?, _ turn: Angle?, ended: Bool) {
+    private func handleSelected(_ value: SimultaneousGesture<SimultaneousGesture<DragGesture, MagnifyGesture>, RotateGesture>.Value,
+                                ended: Bool) {
         guard let field = draft.layout.selected else { return }
-        draft.touch(field, CardTouch(pinch: pinch, turn: turn, ended: ended), trash: trash)
+        draft.touch(field, CardTouch(move: value.first?.first?.translation, pinch: value.first?.second?.magnification,
+                                     turn: value.second?.rotation, location: value.first?.first?.location, ended: ended),
+                    cardHeight: size.height)
     }
 
     private func name(of field: String) -> String {
@@ -258,7 +254,22 @@ struct ShareCardSheet<Card: PhotoCard>: View {
 
     private var bottomBar: some View {
         VStack(alignment: .leading, spacing: 10) {
-            if let field = draft.layout.selected {
+            if draft.holding != nil {
+                // While a piece is held, the bin waits here, below the card, never on top of it.
+                VStack(spacing: 8) {
+                    Image(systemName: "trash")
+                        .font(.system(size: 20, weight: .medium))
+                        .frame(width: 56, height: 56)
+                        .background(draft.overTrash ? Theme.accent : Color.white.opacity(0.08), in: Circle())
+                        .overlay(Circle().strokeBorder(.white.opacity(draft.overTrash ? 0.9 : 0.3), lineWidth: 1))
+                        .scaleEffect(draft.overTrash ? 1.15 : 1)
+                        .animation(.easeOut(duration: 0.15), value: draft.overTrash)
+                    Text(draft.overTrash ? String(localized: "Let go to remove") : String(localized: "Drag below the card to remove"))
+                        .font(.caption).foregroundStyle(Theme.muted)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.top, 20)
+            } else if let field = draft.layout.selected {
                 HStack {
                     Text(name(of: field).uppercased()).font(.caption2.weight(.semibold)).nagisenTracking(2).foregroundStyle(Theme.muted)
                     Spacer()
@@ -274,7 +285,7 @@ struct ShareCardSheet<Card: PhotoCard>: View {
                 fontChips(selected: draft.layout.fonts[field] ?? draft.layout.font) { draft.layout.fonts[field] = $0 }
                 colorSwatches(field)
             } else {
-                Text("Tap any word or number, then pinch or twist anywhere on the card to resize or turn it. Drag to the bin to remove.")
+                Text("Tap any word or number. Then drag, pinch or twist anywhere on the card to move, resize or turn it.")
                     .font(.caption).foregroundStyle(Theme.muted)
                     .frame(minHeight: 28, alignment: .leading)
                 fontChips(selected: draft.layout.font) { draft.layout.font = $0 }
