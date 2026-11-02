@@ -25,7 +25,8 @@ struct CardDraft {
         if let pinch = touch.pinch { layout.sizes[field] = CardLayout.resized(grip.size, by: pinch) }
         if let turn = touch.turn { layout.turns[field] = grip.turn + turn }
         overTrash = touch.location.map { hypot($0.x - trash.x, $0.y - trash.y) < 48 } ?? overTrash
-        holding = touch.ended ? nil : field
+        if touch.move != nil { holding = field }
+        if touch.ended { holding = nil }
         if touch.ended {
             if overTrash { remove(field) }
             self.grip = nil
@@ -232,6 +233,10 @@ struct ShareCardSheet<Card: PhotoCard>: View {
             .coordinateSpace(name: CardLayout.space)
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             .contentShape(Rectangle())
+            // Two fingers anywhere on the card resize and turn the chosen piece, however small it is.
+            .gesture(MagnifyGesture().simultaneously(with: RotateGesture())
+                .onChanged { value in pinchSelected(value.first?.magnification, value.second?.rotation, ended: false) }
+                .onEnded { value in pinchSelected(value.first?.magnification, value.second?.rotation, ended: true) })
             .onTapGesture {
                 // A tap on a piece can reach the card too; only a tap on empty space clears the choice.
                 if Date.now.timeIntervalSince(lastTap) > 0.3 { draft.layout.selected = nil }
@@ -240,6 +245,11 @@ struct ShareCardSheet<Card: PhotoCard>: View {
             .frame(width: geo.size.width, height: geo.size.height)
         }
         .padding(.horizontal, 10)
+    }
+
+    private func pinchSelected(_ pinch: CGFloat?, _ turn: Angle?, ended: Bool) {
+        guard let field = draft.layout.selected else { return }
+        draft.touch(field, CardTouch(pinch: pinch, turn: turn, ended: ended), trash: trash)
     }
 
     private func name(of field: String) -> String {
@@ -264,7 +274,7 @@ struct ShareCardSheet<Card: PhotoCard>: View {
                 fontChips(selected: draft.layout.fonts[field] ?? draft.layout.font) { draft.layout.fonts[field] = $0 }
                 colorSwatches(field)
             } else {
-                Text("Tap a piece to change its lettering and colour. Pinch to resize, twist to turn, drag to the bin to remove.")
+                Text("Tap any word or number, then pinch or twist anywhere on the card to resize or turn it. Drag to the bin to remove.")
                     .font(.caption).foregroundStyle(Theme.muted)
                     .frame(minHeight: 28, alignment: .leading)
                 fontChips(selected: draft.layout.font) { draft.layout.font = $0 }
@@ -351,7 +361,8 @@ struct ShareCardSheet<Card: PhotoCard>: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 110), spacing: 8)], spacing: 8) {
-                        ForEach(card.fields, id: \.self) { field in
+                        // Captions taken off in the bin come back here too.
+                        ForEach(card.fields + draft.hidden.subtracting(card.fields).sorted(), id: \.self) { field in
                             let on = !draft.hidden.contains(field)
                             Button {
                                 if on { draft.remove(field) } else { draft.hidden.remove(field) }

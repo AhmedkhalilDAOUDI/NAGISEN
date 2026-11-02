@@ -101,4 +101,19 @@ final class PhotoEditorTests: XCTestCase {
         XCTAssertNil(draft.layout.quote)
         XCTAssertTrue(draft.hidden.isEmpty)
     }
+
+    func testAPinchWithoutADragResizesWithoutShowingTheBin() {
+        var draft = CardDraft()
+        draft.touch("Goal label", CardTouch(pinch: 1.5), trash: CGPoint(x: 180, y: 390))
+        XCTAssertEqual(draft.layout.sizes["Goal label"], 1.5)
+        XCTAssertNil(draft.holding)
+        draft.touch("Goal label", CardTouch(pinch: 1.5, ended: true), trash: CGPoint(x: 180, y: 390))
+        draft.touch("Goal label", CardTouch(pinch: 2), trash: CGPoint(x: 180, y: 390))
+        XCTAssertEqual(draft.layout.sizes["Goal label"], 3, "a second pinch builds on the first")
+    }
+
+    func testEveryCaptionIsAPieceOfItsOwn() {
+        XCTAssertEqual(CardLayout.labelField("protein"), "protein label")
+        XCTAssertNotEqual(CardLayout.kickerField, CardLayout.quoteField)
+    }
 }

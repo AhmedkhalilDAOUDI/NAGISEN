@@ -89,6 +89,10 @@ struct CardLayout {
     static func resized(_ start: CGFloat, by pinch: CGFloat) -> CGFloat { min(max(start * pinch, 0.4), 3) }
 
     static let quoteField = String(localized: "Quote")
+    /// The small word in the card's top corner, like "My day".
+    static let kickerField = String(localized: "Card label")
+    /// The small word under a number is a piece of its own.
+    static func labelField(_ field: String) -> String { String(localized: "\(field) label") }
     /// The card's own coordinates, so a drag means the same distance however big the card is drawn.
     static let space = "card"
     /// The app's own colours, offered for any piece.
@@ -225,8 +229,11 @@ struct ShareCard: PhotoCard {
                 NagisenMark(ink: Theme.ink, accent: Theme.accent).frame(width: 22, height: 22)
                 Text("NAGISEN").font(.system(size: 13, weight: .semibold)).nagisenTracking(4)
                 Spacer()
-                Text(kicker.uppercased()).font(.system(size: 11, weight: .semibold)).nagisenTracking(2)
-                    .foregroundStyle(quiet)
+                if shows(CardLayout.kickerField) {
+                    Text(kicker.uppercased()).font(layout.label(11, CardLayout.kickerField, weight: .semibold)).nagisenTracking(2)
+                        .foregroundStyle(layout.color(CardLayout.kickerField, quiet))
+                        .movable(CardLayout.kickerField, layout)
+                }
             }
             CardWords(layout: layout, quiet: quiet)
             Spacer(minLength: 0)
@@ -258,7 +265,11 @@ struct ShareCard: PhotoCard {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(line.0).font(layout.font(20, line.1)).monospacedDigit()
                                 .foregroundStyle(layout.color(line.1, line.2 ?? Theme.ink))
-                            Text(line.1).font(layout.label(11, line.1)).foregroundStyle(quiet)
+                            let label = CardLayout.labelField(line.1)
+                            if shows(label) {
+                                Text(line.1).font(layout.label(11, label)).foregroundStyle(layout.color(label, quiet))
+                                    .movable(label, layout)
+                            }
                         }
                         .movable(line.1, layout)
                         .frame(maxWidth: .infinity, alignment: .leading)

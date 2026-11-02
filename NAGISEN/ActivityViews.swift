@@ -606,8 +606,11 @@ struct RouteCard: PhotoCard {
                 Circle().fill(Theme.accent).frame(width: 8, height: 8)
                 Text("NAGISEN").font(.system(size: 13, weight: .semibold)).nagisenTracking(4)
                 Spacer()
-                Text(activity.kind.name.uppercased()).font(.system(size: 11, weight: .semibold)).nagisenTracking(2)
-                    .foregroundStyle(Theme.muted)
+                if !hidden.contains(CardLayout.kickerField) {
+                    Text(activity.kind.name.uppercased()).font(layout.label(11, CardLayout.kickerField, weight: .semibold)).nagisenTracking(2)
+                        .foregroundStyle(layout.color(CardLayout.kickerField, Theme.muted))
+                        .movable(CardLayout.kickerField, layout)
+                }
             }
             CardWords(layout: layout, quiet: photo == nil ? Theme.muted : .white.opacity(0.8))
             if hidden.contains(Self.routeField) {
@@ -651,7 +654,11 @@ struct RouteCard: PhotoCard {
     private func number(_ value: String, _ unit: String, _ field: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(value).font(layout.font(28, field)).monospacedDigit().foregroundStyle(layout.color(field, Theme.ink))
-            Text(unit).font(layout.label(11, field)).foregroundStyle(photo == nil ? Theme.muted : .white.opacity(0.8))
+            let label = CardLayout.labelField(field)
+            if !hidden.contains(label) {
+                Text(unit).font(layout.label(11, label)).foregroundStyle(layout.color(label, photo == nil ? Theme.muted : .white.opacity(0.8)))
+                    .movable(label, layout)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
