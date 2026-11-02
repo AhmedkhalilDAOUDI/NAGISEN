@@ -26,24 +26,26 @@ struct CaffeineCard: View {
             }
 
             HStack(alignment: .firstTextBaseline, spacing: 5) {
-                Text(Int(level.rounded()).formatted())
+                Text(total.formatted())
                     .font(.system(size: 34, weight: .light, design: .serif))
-                Text("mg in you now")
+                Text("mg today")
                     .font(.subheadline).foregroundStyle(Theme.muted)
                 Spacer()
-                Text("\(total) mg today")
-                    .font(.caption.weight(.semibold)).foregroundStyle(Theme.muted)
             }
 
             HStack(spacing: 6) {
                 Image(systemName: bedtimeWarning(bedtime.level) ? "moon.zzz.fill" : "moon.fill")
                     .font(.caption)
-                    .foregroundStyle(bedtimeWarning(bedtime.level) ? Theme.red : Theme.muted)
-                Text("\(Int(bedtime.level.rounded())) mg left at \(bedtime.time.formatted(date: .omitted, time: .shortened))")
+                Text(total == 0 ? String(localized: "No caffeine today")
+                     : bedtimeWarning(bedtime.level) ? String(localized: "May keep you up tonight")
+                     : String(localized: "Mostly gone by bedtime"))
                     .font(.caption)
-                    .foregroundStyle(bedtimeWarning(bedtime.level) ? Theme.red : Theme.muted)
+                if level >= 1 {
+                    Text("· about \(Int(level.rounded())) mg still active").font(.caption)
+                }
                 Spacer()
             }
+            .foregroundStyle(bedtimeWarning(bedtime.level) ? Theme.red : Theme.muted)
 
             HStack(spacing: 9) {
                 ForEach(CaffeineDrink.presets.prefix(3)) { drink in
@@ -100,10 +102,14 @@ private struct CaffeineDetailView: View {
         let peak = max(points.map(\.level).max() ?? 0, 1)
 
         return VStack(alignment: .leading, spacing: 10) {
-            Text("Today's curve")
+            Text("How it fades today")
                 .font(.system(size: 19, design: .serif))
                 .foregroundStyle(Theme.ink)
 
+            if entries.isEmpty {
+                Text("Add a drink below to see how long it stays with you.")
+                    .font(.subheadline).foregroundStyle(Theme.muted)
+            } else {
             Canvas { context, size in
                 guard points.count > 1 else { return }
                 let span = end.timeIntervalSince(start)
@@ -135,12 +141,13 @@ private struct CaffeineDetailView: View {
             .frame(height: 120)
 
             HStack {
-                Text("peak \(Int(peak.rounded())) mg")
+                Text("Highest \(Int(peak.rounded())) mg")
                 Spacer()
-                Text("bedtime \(Int(bedtime.level.rounded())) mg")
+                Text("At bedtime \(Int(bedtime.level.rounded())) mg")
             }
             .font(.caption.monospacedDigit())
             .foregroundStyle(Theme.muted)
+            }
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -150,7 +157,7 @@ private struct CaffeineDetailView: View {
     private var drinks: some View {
         let entries = store.caffeineEntries(on: date)
         return VStack(alignment: .leading, spacing: 12) {
-            Text("Drinks")
+            Text("Add a drink")
                 .font(.system(size: 19, design: .serif))
                 .foregroundStyle(Theme.ink)
 
@@ -173,13 +180,13 @@ private struct CaffeineDetailView: View {
             }
 
             HStack(spacing: 8) {
-                TextField("Custom mg", text: $customMilligrams)
+                TextField("Other amount (mg)", text: $customMilligrams)
                     .keyboardType(.numberPad)
                     .textFieldStyle(.nagisen)
-                    .frame(width: 120)
+                    .frame(width: 170)
                 Button("Add") {
                     if let value = Int(customMilligrams), value > 0 {
-                        store.addCaffeine(milligrams: value, name: "Custom", at: drinkTime())
+                        store.addCaffeine(milligrams: value, name: String(localized: "Other"), at: drinkTime())
                         customMilligrams = ""
                     }
                 }
@@ -222,23 +229,9 @@ private struct CaffeineDetailView: View {
 
     private var settings: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Your curve")
-                .font(.system(size: 19, design: .serif))
-                .foregroundStyle(Theme.ink)
-
-            Stepper(value: $store.caffeineHalfLifeHours, in: 3...7, step: 0.5) {
-                HStack {
-                    Text("Half-life").font(.subheadline)
-                    Spacer()
-                    Text("\(store.caffeineHalfLifeHours.formatted(.number.precision(.fractionLength(1)))) h")
-                        .font(.subheadline.monospacedDigit())
-                        .foregroundStyle(Theme.muted)
-                }
-            }
-
             Stepper(value: $store.caffeineBedtimeHour, in: 18...23) {
                 HStack {
-                    Text("Bedtime").font(.subheadline)
+                    Text("I go to bed at").font(.subheadline)
                     Spacer()
                     Text(String(format: "%02d:00", store.caffeineBedtimeHour))
                         .font(.subheadline.monospacedDigit())
@@ -246,7 +239,7 @@ private struct CaffeineDetailView: View {
                 }
             }
 
-            Text("Most people clear caffeine at about 5 hours. The number at bedtime is what can still keep you awake.")
+            Text("Caffeine fades by about half every 5 hours. More than 50 mg left at bedtime can make it harder to fall asleep.")
                 .font(.caption)
                 .foregroundStyle(Theme.muted)
         }
