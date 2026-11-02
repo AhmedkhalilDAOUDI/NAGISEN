@@ -250,6 +250,10 @@ struct DietPreferences: Codable {
     var equation: EnergyEquation? = nil
     var activity: DietActivity? = nil
     var direction: DietDirection = .automatic
+    /// Chosen kg per week: negative loses, positive gains, 0 maintains. Nil falls back to `direction`.
+    var weeklyRate: Double? = nil
+    /// Daily calories typed by the person ("Custom" budget). Nil means the calculated ("Standard") budget.
+    var customCalories: Int? = nil
 }
 
 struct WeightEntry: Identifiable, Codable {
@@ -663,6 +667,8 @@ final class NutritionStore: ObservableObject {
         } else { direction = dietPreferences.direction }
         let desiredWeeklyChange: Double
         switch direction {
+        case _ where dietPreferences.customCalories == nil && dietPreferences.weeklyRate != nil:
+            desiredWeeklyChange = dietPreferences.weeklyRate ?? 0
         case .lose: desiredWeeklyChange = -0.0035 * last.kilograms
         case .gain: desiredWeeklyChange = 0.002 * last.kilograms
         case .maintain, .automatic: desiredWeeklyChange = 0

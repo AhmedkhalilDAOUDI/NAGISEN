@@ -483,7 +483,8 @@ private struct PlannedMealLogView: View {
     }
 }
 
-/// Estimates a daily calorie target from body details and activity, and can make it the daily goal.
+/// The daily calorie budget: calculated from a weekly rate ("Standard") or typed by the person
+/// ("Custom"), with the weight change, goal date and day-by-day prediction that follow from it.
 struct TargetCalculatorView: View {
     @EnvironmentObject private var store: NutritionStore
     @EnvironmentObject private var health: HealthManager
@@ -491,6 +492,7 @@ struct TargetCalculatorView: View {
     @State private var age = ""
     @State private var height = ""
     @State private var targetWeight = ""
+    @State private var customText = ""
     @State private var applied = false
 
     private var weight: Double? {
@@ -512,20 +514,70 @@ struct TargetCalculatorView: View {
         return PersonalProfile(age: ageValue, heightCm: heightValue, targetWeightKg: targetValue)
     }
 
-    private var target: Int? {
+    private var isCustom: Bool { store.dietPreferences.customCalories != nil }
+
+    private var maintenance: Double? {
         guard let weight, let profile, let age = profile.age, age >= 18, let height = profile.heightCm,
               let equation = store.dietPreferences.equation,
               let activity = store.dietPreferences.activity else { return nil }
-        let direction = DietPlanEngine.direction(store.dietPreferences.direction, weight: weight,
-                                                  target: profile.targetWeightKg)
-        return DietPlanEngine.calories(weight: weight, height: height, age: age,
-                                       equation: equation, activity: activity, direction: direction)
+        return EnergyMath.maintenance(weight: weight, height: height, age: age, equation: equation, activity: activity)
+    }
+
+    private var rate: Double {
+        store.dietPreferences.weeklyRate ?? {
+            switch store.dietPreferences.direction {
+            case .lose: -0.25
+            case .gain: 0.25
+            default: 0
+            }
+        }()
+    }
+
+    private var budget: Int? {
+        if let custom = store.dietPreferences.customCalories { return custom }
+        guard let weight, let profile, let age = profile.age, age >= 18, let height = profile.heightCm,
+              let equation = store.dietPreferences.equation, let activity = store.dietPreferences.activity else { return nil }
+        return EnergyMath.dailyCalories(weight: weight, height: height, age: age, equation: equation,
+                                        activity: activity, weeklyRate: rate)
+    }
+
+    private var projection: WeightProjection? {
+        guard let maintenance, let budget, let weight else { return nil }
+        return WeightProjection(maintenance: maintenance, calories: budget, weight: weight, target: profile?.targetWeightKg)
     }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                NagisenHeader("Calculate your target", subtitle: String(localized: "The basics behind your plan."), onBack: { dismiss() })
+                NagisenHeader("Calorie budget", subtitle: String(localized: "What you eat, and where it takes you."), onBack: { dismiss() })
+                typePicker
+                NagisenSection("Budget") {
+                    if isCustom {
+                        NagisenTextRow("Daily calories", placeholder: "2000", unit: "kcal", text: $customText)
+                    } else {
+                        HStack(alignment: .firstTextBaseline) {
+                            Text(budget.map { $0.formatted() } ?? "—").font(.system(size: 40, design: .serif))
+                            Text("average daily calories").font(.subheadline).foregroundStyle(Theme.muted)
+                        }
+                        .frame(minHeight: 64)
+                        Divider().overlay(Theme.line)
+                        NavigationLink {
+                            WeeklyRateView(maintenance: maintenance, weight: weight, target: profile?.targetWeightKg)
+                        } label: {
+                            LabeledContent("Weekly rate", value: WeeklyRate.name(rate)).frame(minHeight: 54)
+                        }
+                    }
+                    Divider().overlay(Theme.line)
+                    NagisenPicker("Activity", selection: $store.dietPreferences.activity,
+                                  options: [(nil, String(localized: "Choose"))] + DietActivity.allCases.map { (Optional($0), $0.rawValue) })
+                        .frame(minHeight: 52)
+                }
+                if let projection {
+                    projectionCards(projection)
+                } else if isCustom {
+                    Text("Add your age, height, a logged weight, equation and activity below to see how this budget moves your weight.")
+                        .font(.subheadline).foregroundStyle(Theme.muted)
+                }
                 NagisenSection("About you") {
                     NagisenTextRow("Age", placeholder: String(localized: "Years"), text: $age)
                     Divider().overlay(Theme.line)
@@ -540,40 +592,24 @@ struct TargetCalculatorView: View {
                     .frame(minHeight: 54)
                     Divider().overlay(Theme.line)
                     NagisenTextRow("Target weight", placeholder: "0", unit: "kg", text: $targetWeight, keyboard: .decimalPad)
-                }
-                NagisenSection("How you live") {
+                    Divider().overlay(Theme.line)
                     NagisenPicker("Calorie equation", selection: $store.dietPreferences.equation,
                                   options: [(nil, String(localized: "Choose"))] + EnergyEquation.allCases.map { (Optional($0), $0.rawValue) })
-                    .frame(minHeight: 52)
-                    Divider().overlay(Theme.line)
-                    NagisenPicker("Activity", selection: $store.dietPreferences.activity,
-                                  options: [(nil, String(localized: "Choose"))] + DietActivity.allCases.map { (Optional($0), $0.rawValue) })
-                    .frame(minHeight: 52)
-                    Divider().overlay(Theme.line)
-                    NagisenPicker("Goal", selection: $store.dietPreferences.direction,
-                                  options: DietDirection.allCases.map { ($0, $0.rawValue) })
-                    .frame(minHeight: 52)
+                        .frame(minHeight: 52)
                 }
-                if let target {
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack(alignment: .firstTextBaseline) {
-                            Text("\(target.formatted())").font(.system(size: 42, design: .serif))
-                            Text("kcal / day").font(.subheadline).foregroundStyle(Theme.muted)
-                        }
-                        Button(applied ? String(localized: "Set as your daily goal") : String(localized: "Use as my daily goal")) { apply(target) }
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 13)
-                            .background(Theme.accent, in: RoundedRectangle(cornerRadius: 12))
-                            .disabled(applied)
-                    }
-                    .softCardStyle()
-                } else {
-                    Text("Fill in your age (18 or older), height and a logged weight, then choose an equation and activity level.")
+                if let budget {
+                    Button(applied ? String(localized: "Set as your daily goal") : String(localized: "Use \(budget.formatted()) kcal as my daily goal")) { apply(budget) }
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 13)
+                        .background(Theme.accent, in: RoundedRectangle(cornerRadius: 12))
+                        .disabled(applied)
+                } else if !isCustom {
+                    Text("Fill in your age (18 or older), height, a logged weight, equation and activity to calculate a budget.")
                         .font(.subheadline).foregroundStyle(Theme.muted)
                 }
-                Text("Uses the Mifflin–St Jeor or another estimate you choose. Activity and body data affect the result; adjust your goals if your needs differ.")
+                Text("Estimates use about 7,700 kcal per kg of body weight. Real weight moves with water, salt and training, so expect the line to wobble around the prediction.")
                     .font(.footnote).foregroundStyle(Theme.muted)
             }
             .foregroundStyle(Theme.ink)
@@ -587,10 +623,87 @@ struct TargetCalculatorView: View {
             age = store.profile.age.map(String.init) ?? ""
             height = store.profile.heightCm.map { $0.formatted() } ?? ""
             targetWeight = store.profile.targetWeightKg.map { $0.formatted() } ?? ""
+            customText = store.dietPreferences.customCalories.map(String.init) ?? ""
         }
         // Body details save as they become valid, so leaving the screen never loses them.
         .onChange(of: profile) { _, value in if let value { store.profile = value }; applied = false }
-        .onChange(of: target) { _, _ in applied = false }
+        .onChange(of: customText) { _, text in
+            if isCustom, let value = Int(text), (800...8000).contains(value) { store.dietPreferences.customCalories = value }
+        }
+        .onChange(of: budget) { _, _ in applied = false }
+    }
+
+    private var typePicker: some View {
+        HStack(spacing: 12) {
+            typeCard(String(localized: "Standard"), detail: String(localized: "Calculated for you"), selected: !isCustom) {
+                store.dietPreferences.customCalories = nil
+            }
+            typeCard(String(localized: "Custom"), detail: String(localized: "Set by you"), selected: isCustom) {
+                let start = Int(customText) ?? budget ?? store.goals.calories
+                store.dietPreferences.customCalories = start
+                customText = String(start)
+            }
+        }
+    }
+
+    private func typeCard(_ title: String, detail: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 6) {
+                Text(title).font(.system(size: 22, design: .serif))
+                    .foregroundStyle(selected ? Theme.accentText : Theme.ink)
+                Text(detail).font(.caption).foregroundStyle(Theme.muted)
+                Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(selected ? Theme.accentText : Theme.muted)
+                    .padding(.top, 4)
+            }
+            .frame(maxWidth: .infinity, minHeight: 120)
+            .softCardStyle()
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    @ViewBuilder
+    private func projectionCards(_ projection: WeightProjection) -> some View {
+        let perWeek = abs(projection.weeklyChange)
+        let grams = Int((abs(projection.dailyChange) * 1000).rounded())
+        let verb = projection.dailyChange < 0 ? String(localized: "lose") : String(localized: "gain")
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "lightbulb").foregroundStyle(Theme.accentText)
+                VStack(alignment: .leading, spacing: 6) {
+                    if grams == 0 {
+                        Text("At this budget your weight should hold steady.")
+                    } else {
+                        Text("At this budget you'd \(verb) about \(perWeek.formatted(.number.precision(.fractionLength(2)))) kg a week, roughly \(grams) g a day.")
+                    }
+                    if let date = projection.goalDate {
+                        Text("You're projected to reach your goal on \(date.formatted(.dateTime.day().month(.wide).year())).")
+                            .font(.subheadline.weight(.semibold))
+                    } else if projection.target != nil, grams > 0 {
+                        Text("This budget moves you away from your target weight.").foregroundStyle(Theme.accentText)
+                    }
+                }
+                .font(.subheadline)
+            }
+        }
+        .softCardStyle()
+        if grams > 0 {
+            NagisenSection("Next 7 days") {
+                ForEach(Array(projection.forecast(days: 7).enumerated()), id: \.offset) { index, day in
+                    if index > 0 { Divider().overlay(Theme.line) }
+                    HStack {
+                        Text(day.date.formatted(.dateTime.weekday(.wide).day().month(.abbreviated)))
+                        Spacer()
+                        Text("\(day.kilograms.formatted(.number.precision(.fractionLength(2)))) kg")
+                            .monospacedDigit().foregroundStyle(Theme.muted)
+                    }
+                    .font(.subheadline)
+                    .frame(minHeight: 44)
+                }
+            }
+        }
     }
 
     private func apply(_ calories: Int) {
@@ -602,5 +715,66 @@ struct TargetCalculatorView: View {
             store.goals = NutritionGoals(calories: calories, protein: current.protein, carbs: 0, fat: current.fat).balanced
         }
         applied = true
+    }
+}
+
+/// Maintain or lose (gain) a set amount each week, with the calories and the date each choice means.
+private struct WeeklyRateView: View {
+    @EnvironmentObject private var store: NutritionStore
+    @Environment(\.dismiss) private var dismiss
+    let maintenance: Double?
+    let weight: Double?
+    let target: Double?
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                NagisenHeader("Weekly rate", subtitle: String(localized: "How fast you want to get there."), onBack: { dismiss() })
+                VStack(spacing: 0) {
+                    let options = WeeklyRate.options(weight: weight ?? 0, target: target)
+                    ForEach(options, id: \.self) { rate in
+                        if rate != options.first { Divider().overlay(Theme.line) }
+                        row(rate)
+                    }
+                }
+                .padding(.horizontal, 18)
+                .nagisenPanel()
+            }
+            .foregroundStyle(Theme.ink)
+            .padding(.horizontal, 24).padding(.top, 10).padding(.bottom, 32)
+        }
+        .background(NagisenBackdrop())
+        .toolbar(.hidden, for: .navigationBar)
+    }
+
+    private func row(_ rate: Double) -> some View {
+        let selected = (store.dietPreferences.weeklyRate ?? 0) == rate && store.dietPreferences.weeklyRate != nil
+        return Button {
+            store.dietPreferences.weeklyRate = rate
+            store.dietPreferences.direction = rate < 0 ? .lose : rate > 0 ? .gain : .maintain
+            dismiss()
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(WeeklyRate.name(rate)).font(.body.weight(.medium))
+                        .foregroundStyle(selected ? Theme.accentText : Theme.ink)
+                    HStack(spacing: 16) {
+                        if let maintenance {
+                            Label("\(EnergyMath.rounded(maintenance + rate * 7700 / 7).formatted()) kcal", systemImage: "flame")
+                        }
+                        if let weight, let date = WeeklyRate.goalDate(weight: weight, target: target, rate: rate) {
+                            Label(date.formatted(.dateTime.day().month(.abbreviated).year()), systemImage: "calendar")
+                        }
+                    }
+                    .font(.subheadline).foregroundStyle(Theme.muted)
+                }
+                Spacer()
+                if selected { Image(systemName: "checkmark").foregroundStyle(Theme.accentText) }
+            }
+            .frame(minHeight: 64)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }

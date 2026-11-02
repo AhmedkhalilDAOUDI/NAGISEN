@@ -2,12 +2,68 @@ import SwiftUI
 
 /// Mifflin–St Jeor daily calories, shared by the diet plan and first-launch setup.
 enum EnergyMath {
+    static func maintenance(weight: Double, height: Double, age: Int, equation: EnergyEquation,
+                            activity: DietActivity) -> Double {
+        let resting = 10 * weight + 6.25 * height - 5 * Double(age) + (equation == .male ? 5 : -161)
+        return resting * activity.factor
+    }
+
     static func dailyCalories(weight: Double, height: Double, age: Int, equation: EnergyEquation,
                               activity: DietActivity, direction: DietDirection) -> Int {
-        let resting = 10 * weight + 6.25 * height - 5 * Double(age) + (equation == .male ? 5 : -161)
-        let maintenance = resting * activity.factor
         let adjustment: Double = direction == .lose ? -300 : direction == .gain ? 250 : 0
-        return Int((max(1200, maintenance + adjustment) / 25).rounded() * 25)
+        return rounded(maintenance(weight: weight, height: height, age: age, equation: equation, activity: activity) + adjustment)
+    }
+
+    /// Calories for a chosen weekly change: 1 kg of body weight is about 7,700 kcal.
+    static func dailyCalories(weight: Double, height: Double, age: Int, equation: EnergyEquation,
+                              activity: DietActivity, weeklyRate: Double) -> Int {
+        rounded(maintenance(weight: weight, height: height, age: age, equation: equation, activity: activity)
+                + weeklyRate * 7700 / 7)
+    }
+
+    static func rounded(_ calories: Double) -> Int { Int((max(1200, calories) / 25).rounded() * 25) }
+}
+
+/// The weekly change choices and when each would reach the target weight.
+enum WeeklyRate {
+    /// Losing choices, or gaining ones when the target weight is above the current weight.
+    static func options(weight: Double, target: Double?) -> [Double] {
+        if let target, target > weight + 0.5 { return [0, 0.25, 0.5] }
+        return [0, -0.25, -0.5, -0.75, -1]
+    }
+
+    static func name(_ rate: Double) -> String {
+        guard rate != 0 else { return String(localized: "Maintain") }
+        let amount = ["0.25": "¼", "0.5": "½", "0.75": "¾", "1.0": "1"][String(abs(rate))] ?? abs(rate).formatted()
+        return rate < 0 ? String(localized: "Lose \(amount) kg a week") : String(localized: "Gain \(amount) kg a week")
+    }
+
+    /// Nil when the rate doesn't move toward the target, or there is no target.
+    static func goalDate(weight: Double, target: Double?, rate: Double, from start: Date = .now) -> Date? {
+        guard rate != 0, let target else { return nil }
+        let weeks = (target - weight) / rate
+        guard weeks > 0, weeks.isFinite else { return nil }
+        return Calendar.current.date(byAdding: .day, value: Int((weeks * 7).rounded()), to: start)
+    }
+}
+
+/// What a daily calorie budget means for body weight, at about 7,700 kcal per kg.
+struct WeightProjection {
+    let maintenance: Double
+    let calories: Int
+    let weight: Double
+    let target: Double?
+
+    /// Negative while eating below maintenance.
+    var dailyChange: Double { (Double(calories) - maintenance) / 7700 }
+    var weeklyChange: Double { dailyChange * 7 }
+    var goalDate: Date? { WeeklyRate.goalDate(weight: weight, target: target, rate: weeklyChange) }
+
+    /// Predicted weight at the end of each of the next `days` days.
+    func forecast(days: Int, from start: Date = .now) -> [(date: Date, kilograms: Double)] {
+        (1...max(days, 1)).compactMap { day in
+            Calendar.current.date(byAdding: .day, value: day, to: start).map { ($0, weight + dailyChange * Double(day)) }
+        }
     }
 }
 

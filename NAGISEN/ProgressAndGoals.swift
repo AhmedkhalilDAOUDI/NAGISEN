@@ -55,8 +55,8 @@ struct ProgressViewScreen: View {
                         HStack(spacing: 14) {
                             Image(systemName: "function").foregroundStyle(Theme.accentText)
                             VStack(alignment: .leading, spacing: 3) {
-                                Text("Calculate your target").font(.system(size: 21, design: .serif))
-                                Text("Age, height, target weight and activity").font(.caption).foregroundStyle(Theme.muted)
+                                Text("Calorie budget").font(.system(size: 21, design: .serif))
+                                Text("Weekly rate, custom calories and your goal date").font(.caption).foregroundStyle(Theme.muted)
                             }
                             Spacer()
                             Image(systemName: "chevron.right").font(.caption).foregroundStyle(Theme.muted)
