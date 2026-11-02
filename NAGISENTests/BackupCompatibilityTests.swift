@@ -105,6 +105,24 @@ final class BackupCompatibilityTests: XCTestCase {
         XCTAssertEqual(Supplement.find("custom:Beetroot")?.name, "Beetroot")
     }
 
+    func testRecordedActivitiesSurviveExportAndRestore() throws {
+        let start = Date(timeIntervalSince1970: 1_790_000_000)
+        let activity = RecordedActivity(kind: .run, start: start, points: [
+            .init(latitude: 33.5, longitude: -7.6, altitude: 12, date: start, segment: 0),
+            .init(latitude: 33.505, longitude: -7.6, altitude: 15, date: start.addingTimeInterval(180), segment: 0),
+        ])
+        store.saveActivity(activity)
+        XCTAssertEqual(store.workouts.first?.activity, "Run", "the activity also counts as a workout")
+        let restored = NutritionStore()
+        XCTAssertTrue(restored.restoreJSON(try XCTUnwrap(store.exportJSON())))
+        XCTAssertEqual(restored.activities.count, 1)
+        XCTAssertEqual(restored.activities.first?.points.count, 2)
+        XCTAssertEqual(restored.activities.first?.workoutID, restored.workouts.first?.id)
+        restored.deleteActivity(try XCTUnwrap(restored.activities.first))
+        XCTAssertTrue(restored.activities.isEmpty)
+        XCTAssertFalse(restored.workouts.contains { $0.activity == "Run" })
+    }
+
     func testOlderBackupWithCreatineHistoryStartsWithCreatineChosen() {
         XCTAssertTrue(store.restoreJSON(Self.minimalBackup(extra: #""creatineTakenDays": ["2026-10-01"]"#)))
         XCTAssertEqual(store.supplements, [Supplement.creatineID])

@@ -385,6 +385,8 @@ final class NutritionStore: ObservableObject {
     @Published var supplements: [String] = [] { didSet { persist("supplements", supplements) } }
     /// Days each supplement was taken, by id. Creatine stays in creatineTakenDays so older backups keep working.
     @Published var supplementDays: [String: Set<String>] = [:] { didSet { persist("supplementDays", supplementDays) } }
+    /// GPS-recorded runs, walks, rides and hikes, newest first.
+    @Published var activities: [RecordedActivity] = [] { didSet { persist("activities", activities) } }
     @Published var completedLoggingDays: Set<String> = [] { didSet { persist("completedLoggingDays", completedLoggingDays) } }
     @Published var workouts: [WorkoutEntry] = [] { didSet { persist("workouts", workouts) } }
     @Published var strengthRecords: [StrengthRecord] = [] { didSet { persist("strengthRecords", strengthRecords) } }
@@ -422,6 +424,7 @@ final class NutritionStore: ObservableObject {
         var creatineTakenDays: Set<String>?
         var supplements: [String]?
         var supplementDays: [String: Set<String>]?
+        var activities: [RecordedActivity]?
         var completedLoggingDays: Set<String>?
         var workouts: [WorkoutEntry]?
         var strengthRecords: [StrengthRecord]?
@@ -469,6 +472,7 @@ final class NutritionStore: ObservableObject {
             creatineTakenDays = vault?.read("creatineTakenDays") ?? []
             supplements = vault?.read("supplements") ?? Supplement.startingList(tracksCreatine: !creatineTakenDays.isEmpty)
             supplementDays = vault?.read("supplementDays") ?? [:]
+            activities = vault?.read("activities") ?? []
             completedLoggingDays = vault?.read("completedLoggingDays") ?? []
             workouts = vault?.read("workouts") ?? []
             strengthRecords = vault?.read("strengthRecords") ?? []
@@ -513,6 +517,7 @@ final class NutritionStore: ObservableObject {
         creatineTakenDays = saved.creatineTakenDays ?? []
         supplements = saved.supplements ?? Supplement.startingList(tracksCreatine: !creatineTakenDays.isEmpty)
         supplementDays = saved.supplementDays ?? [:]
+        activities = saved.activities ?? []
         completedLoggingDays = saved.completedLoggingDays ?? []
         workouts = saved.workouts ?? []
         strengthRecords = saved.strengthRecords ?? []
@@ -558,6 +563,7 @@ final class NutritionStore: ObservableObject {
             vault.write("creatineTakenDays", value: creatineTakenDays) &&
             vault.write("supplements", value: supplements) &&
             vault.write("supplementDays", value: supplementDays) &&
+            vault.write("activities", value: activities) &&
             vault.write("completedLoggingDays", value: completedLoggingDays) &&
             vault.write("workouts", value: workouts) &&
             vault.write("strengthRecords", value: strengthRecords) &&
@@ -590,7 +596,7 @@ final class NutritionStore: ObservableObject {
                               costFoods: costFoods,
                               appearance: appearance,
                               creatineTakenDays: creatineTakenDays,
-                              supplements: supplements, supplementDays: supplementDays,
+                              supplements: supplements, supplementDays: supplementDays, activities: activities,
                               completedLoggingDays: completedLoggingDays, workouts: workouts,
                               strengthRecords: strengthRecords,
                               workoutSplit: workoutSplit,
@@ -704,7 +710,7 @@ final class NutritionStore: ObservableObject {
                               costFoods: costFoods,
                               appearance: appearance,
                               creatineTakenDays: creatineTakenDays,
-                              supplements: supplements, supplementDays: supplementDays,
+                              supplements: supplements, supplementDays: supplementDays, activities: activities,
                               completedLoggingDays: completedLoggingDays, workouts: workouts,
                               strengthRecords: strengthRecords,
                               workoutSplit: workoutSplit,
@@ -728,7 +734,7 @@ final class NutritionStore: ObservableObject {
         "entries", "customFoods", "goals", "profile", "dietPreferences", "weights",
         "waterEntries", "waterGoalML", "caffeineEntries", "caffeineHalfLifeHours",
         "caffeineBedtimeHour", "foodPrices", "costFoods", "appearance", "creatineTakenDays",
-        "supplements", "supplementDays",
+        "supplements", "supplementDays", "activities",
         "completedLoggingDays", "workouts", "strengthRecords", "workoutSplit", "challengePlans",
         "questSeenIDs", "trophyNames", "goalAdjustments", "weekdayGoals", "foodsToAvoid",
         "savedRecipes", "groceryStock", "groceryPlan", "legacyStreak",
@@ -821,6 +827,7 @@ final class NutritionStore: ObservableObject {
         creatineTakenDays = saved.creatineTakenDays ?? []
         supplements = saved.supplements ?? Supplement.startingList(tracksCreatine: !creatineTakenDays.isEmpty)
         supplementDays = saved.supplementDays ?? [:]
+        activities = saved.activities ?? []
         completedLoggingDays = saved.completedLoggingDays ?? []
         workouts = saved.workouts ?? []
         strengthRecords = saved.strengthRecords ?? []
@@ -1151,6 +1158,22 @@ final class NutritionStore: ObservableObject {
         let key = dayKey(date)
         if taken { creatineTakenDays.insert(key) }
         else { creatineTakenDays.remove(key) }
+    }
+
+    /// Keeps the activity and logs it as a workout, so streaks, points and awards count it.
+    func saveActivity(_ recorded: RecordedActivity) {
+        var activity = recorded
+        let entry = WorkoutEntry(date: activity.start, activity: activity.kind.name,
+                                 minutes: max(1, Int((activity.movingSeconds / 60).rounded())),
+                                 detail: activity.summary, healthSampleID: activity.healthUUID)
+        activity.workoutID = entry.id
+        workouts.insert(entry, at: 0)
+        activities.insert(activity, at: 0)
+    }
+
+    func deleteActivity(_ activity: RecordedActivity) {
+        activities.removeAll { $0.id == activity.id }
+        if let workoutID = activity.workoutID { workouts.removeAll { $0.id == workoutID } }
     }
 
     func supplementTaken(_ id: String, on date: Date) -> Bool {
