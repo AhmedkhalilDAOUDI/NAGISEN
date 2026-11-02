@@ -15,15 +15,25 @@ struct LogFoodView: View {
     @State private var unit = PortionUnit.serving
     @State private var correctedFood: Food?
     @State private var showingCorrection = false
+    /// The logged entry being changed; nil when adding a new one.
+    let editing: DiaryEntry?
     let onLogged: (Meal) -> Void
 
     private var selectedFood: Food { correctedFood ?? food }
 
-    init(food: Food, date: Date, initialMeal: Meal, onLogged: @escaping (Meal) -> Void) {
+    init(food: Food, date: Date, initialMeal: Meal, editing: DiaryEntry? = nil, onLogged: @escaping (Meal) -> Void) {
         self.food = food
         self.date = date
+        self.editing = editing
         self._meal = State(initialValue: initialMeal)
         self.onLogged = onLogged
+        if let editing {
+            // Reopen in the unit it was logged in: grams stay grams, servings stay servings.
+            let inGrams = editing.loggedUnit == "g" && food.gramsPerServing != nil
+            _unit = State(initialValue: inGrams ? .grams : .serving)
+            let value = inGrams ? (editing.loggedQuantity ?? editing.servings * (food.gramsPerServing ?? 100)) : editing.servings
+            _amount = State(initialValue: value.formatted(.number.precision(.fractionLength(0...2)).grouping(.never)))
+        }
     }
 
     private var quantity: Double? {
@@ -47,7 +57,9 @@ struct LogFoodView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                NagisenHeader("Log food", subtitle: String(localized: "Add it to your day."), onBack: { dismiss() })
+                NagisenHeader(editing == nil ? "Log food" : "Edit food",
+                              subtitle: editing == nil ? String(localized: "Add it to your day.") : String(localized: "Change the amount or the meal."),
+                              onBack: { dismiss() })
                 Text(selectedFood.name).font(.system(size: 26, design: .serif))
                 Text([selectedFood.brand, selectedFood.serving].filter { !$0.isEmpty }.joined(separator: " · "))
                     .foregroundStyle(Theme.muted)
@@ -134,11 +146,20 @@ struct LogFoodView: View {
             }
         }
         .safeAreaInset(edge: .bottom) {
-            NagisenPrimaryButton("Add to \(meal.rawValue)", enabled: effectiveServings != nil) {
+            NagisenPrimaryButton(editing == nil ? "Add to \(meal.rawValue)" : String(localized: "Save changes"), enabled: effectiveServings != nil) {
                 guard let quantity, let servings = effectiveServings else { return }
                 if let correctedFood { store.customFoods.insert(correctedFood, at: 0) }
-                store.add(selectedFood, to: meal, servings: servings, on: date,
-                          quantity: quantity, unit: unit == .grams ? "g" : "serving")
+                if var entry = editing {
+                    entry.food = selectedFood
+                    entry.meal = meal
+                    entry.servings = servings
+                    entry.loggedQuantity = quantity
+                    entry.loggedUnit = unit == .grams ? "g" : "serving"
+                    store.update(entry)
+                } else {
+                    store.add(selectedFood, to: meal, servings: servings, on: date,
+                              quantity: quantity, unit: unit == .grams ? "g" : "serving")
+                }
                 dismiss()
                 onLogged(meal)
             }

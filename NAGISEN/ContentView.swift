@@ -1136,6 +1136,7 @@ private struct MacroRow: View {
 private struct MealCard: View {
     @EnvironmentObject private var store: NutritionStore
     @State private var showingDeleteMeal = false
+    @State private var editing: DiaryEntry?
     let meal: Meal
     let date: Date
     let onAdd: () -> Void
@@ -1180,15 +1181,22 @@ private struct MealCard: View {
                 Rectangle().fill(Theme.line.opacity(0.7)).frame(height: 1)
                 ForEach(items) { item in
                     HStack(alignment: .center, spacing: 11) {
-                        RoundedRectangle(cornerRadius: 2).fill(meal.highlight.opacity(0.8))
-                            .frame(width: 3, height: 30)
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(item.food.name).font(.subheadline.weight(.medium))
-                            Text(item.portionDescription)
-                                .font(.caption).foregroundStyle(Theme.muted)
+                        Button { editing = item } label: {
+                            HStack(alignment: .center, spacing: 11) {
+                                RoundedRectangle(cornerRadius: 2).fill(meal.highlight.opacity(0.8))
+                                    .frame(width: 3, height: 30)
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(item.food.name).font(.subheadline.weight(.medium))
+                                    Text(item.portionDescription)
+                                        .font(.caption).foregroundStyle(Theme.muted)
+                                }
+                                Spacer()
+                                Text("\(item.calories)").font(.subheadline.weight(.medium)).foregroundStyle(Theme.muted)
+                            }
+                            .contentShape(Rectangle())
                         }
-                        Spacer()
-                        Text("\(item.calories)").font(.subheadline.weight(.medium)).foregroundStyle(Theme.muted)
+                        .buttonStyle(.plain)
+                        .accessibilityHint(String(localized: "Edit amount or meal"))
                         Button(role: .destructive) { store.delete(item) } label: {
                             Image(systemName: "minus.circle")
                                 .font(.body).foregroundStyle(Theme.muted)
@@ -1224,6 +1232,11 @@ private struct MealCard: View {
         .nagisenDialog("Clear \(meal.rawValue)?", isPresented: $showingDeleteMeal,
                        message: String(localized: "This removes every food logged for \(meal.rawValue) on this day.")) {
             [NagisenAction(title: String(localized: "Delete whole meal"), destructive: true) { store.deleteMeal(meal, on: date) }]
+        }
+        .sheet(item: $editing) { entry in
+            NavigationStack {
+                LogFoodView(food: entry.food, date: entry.date, initialMeal: entry.meal, editing: entry) { _ in }
+            }
         }
     }
 

@@ -900,6 +900,12 @@ final class NutritionStore: ObservableObject {
         return (newWorkouts.count, newWeights.count)
     }
 
+    /// Replaces a logged entry with its edited copy, keeping its place, time and id.
+    func update(_ entry: DiaryEntry) {
+        guard let index = entries.firstIndex(where: { $0.id == entry.id }) else { return }
+        entries[index] = entry
+    }
+
     func delete(_ entry: DiaryEntry) {
         entries.removeAll { $0.id == entry.id }
     }

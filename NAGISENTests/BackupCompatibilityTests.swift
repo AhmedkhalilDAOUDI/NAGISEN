@@ -105,6 +105,20 @@ final class BackupCompatibilityTests: XCTestCase {
         XCTAssertEqual(Supplement.find("custom:Beetroot")?.name, "Beetroot")
     }
 
+    func testEditingALoggedFoodKeepsItsPlaceAndTime() {
+        let food = Food(name: "Oats", brand: "", serving: "40 g", calories: 150, protein: 5, carbs: 27, fat: 3)
+        let day = Date(timeIntervalSince1970: 1_790_000_000)
+        store.add(food, to: .breakfast, servings: 1, on: day, quantity: 1, unit: "serving")
+        var entry = store.entries.last!
+        entry.servings = 2
+        entry.meal = .snacks
+        store.update(entry)
+        XCTAssertEqual(store.entries.filter { $0.id == entry.id }.count, 1)
+        XCTAssertEqual(store.entries.last?.calories, 300)
+        XCTAssertEqual(store.entries.last?.meal, .snacks)
+        XCTAssertEqual(store.entries.last?.date, day)
+    }
+
     func testRecordedActivitiesSurviveExportAndRestore() throws {
         let start = Date(timeIntervalSince1970: 1_790_000_000)
         let activity = RecordedActivity(kind: .run, start: start, points: [
