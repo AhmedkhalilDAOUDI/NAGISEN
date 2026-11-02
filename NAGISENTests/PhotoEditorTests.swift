@@ -127,4 +127,33 @@ final class PhotoEditorTests: XCTestCase {
         draft.touch("water", CardTouch(move: CGSize(width: 0, height: 300), location: CGPoint(x: 180, y: 440), ended: true), cardHeight: 450)
         XCTAssertFalse(draft.hidden.contains("water"), "the card's own bottom edge is still the card")
     }
+
+    func testNothingIsCroppedOrFilteredUnlessChosen() {
+        let fresh = PhotoEdits()
+        XCTAssertEqual(fresh.crop, .original)
+        XCTAssertEqual(fresh.filter, .original)
+        let photo = image(width: 1200, height: 900)
+        XCTAssertEqual(PhotoEditor.apply(fresh, to: photo).size, CGSize(width: 1200, height: 900))
+        var filtered = PhotoEdits(); filtered.filter = .noir; filtered.filterStrength = 0.4
+        XCTAssertEqual(PhotoEditor.apply(filtered, to: photo).size, CGSize(width: 1200, height: 900), "a filter never changes the shape")
+    }
+
+    func testAChosenCropKeepsTheLargestFrameOfThatShape() {
+        let photo = image(width: 1200, height: 900)
+        var square = PhotoEdits(); square.crop = .square
+        XCTAssertEqual(PhotoEditor.apply(square, to: photo).size, CGSize(width: 900, height: 900))
+        var story = PhotoEdits(); story.crop = .story
+        let tall = PhotoEditor.apply(story, to: photo).size
+        XCTAssertEqual(tall.width / tall.height, 9.0 / 16, accuracy: 0.01)
+        var turned = PhotoEdits(); turned.quarterTurns = 1
+        XCTAssertEqual(PhotoEditor.apply(turned, to: photo).size, CGSize(width: 900, height: 1200))
+    }
+
+    func testTheCropFrameSlidesAndZoomsInsideThePhoto() {
+        let extent = CGRect(x: 0, y: 0, width: 1200, height: 900)
+        XCTAssertEqual(PhotoEditor.cropRect(in: extent, ratio: nil, zoom: 2, offset: .zero), extent, "Original keeps everything")
+        XCTAssertEqual(PhotoEditor.cropRect(in: extent, ratio: 1, zoom: 1, offset: CGSize(width: 1, height: 0)).maxX, 1200)
+        XCTAssertEqual(PhotoEditor.cropRect(in: extent, ratio: 1, zoom: 1, offset: CGSize(width: -5, height: 0)).minX, 0, "never past the edge")
+        XCTAssertEqual(PhotoEditor.cropRect(in: extent, ratio: 1, zoom: 2, offset: .zero).width, 450)
+    }
 }
