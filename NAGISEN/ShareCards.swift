@@ -1,7 +1,35 @@
+import PhotosUI
 import SwiftUI
 
+/// A share card that can sit on one of your photos instead of the dark background.
+protocol PhotoCard: View {
+    func on(_ photo: UIImage?) -> Self
+    /// The pieces of data on the card, by name, that can be left out.
+    var fields: [String] { get }
+    func hiding(_ hidden: Set<String>) -> Self
+}
+
+/// The photo filling the card, darkened at the top and bottom so the numbers always read.
+struct CardBackground: View {
+    let photo: UIImage?
+
+    var body: some View {
+        if let photo {
+            ZStack {
+                Image(uiImage: photo).resizable().scaledToFill()
+                    .frame(width: 360, height: 450).clipped()
+                LinearGradient(stops: [.init(color: .black.opacity(0.55), location: 0), .init(color: .clear, location: 0.3),
+                                       .init(color: .clear, location: 0.45), .init(color: .black.opacity(0.8), location: 1)],
+                               startPoint: .top, endPoint: .bottom)
+            }
+        } else {
+            Color(red: 0.035, green: 0.03, blue: 0.035)
+        }
+    }
+}
+
 /// The image every share turns into: dark, quiet, the NAGISEN mark, one big number.
-struct ShareCard: View {
+struct ShareCard: PhotoCard {
     let kicker: String
     var symbol: String? = nil
     let headline: String
@@ -10,6 +38,26 @@ struct ShareCard: View {
     /// Optional trend line drawn under the number, like a weight curve.
     var series: [Double] = []
     var lines: [(String, String)] = []
+    var photo: UIImage? = nil
+    var hidden: Set<String> = []
+
+    func on(_ photo: UIImage?) -> ShareCard { var card = self; card.photo = photo; return card }
+    func hiding(_ hidden: Set<String>) -> ShareCard { var card = self; card.hidden = hidden; return card }
+
+    private static let titleField = String(localized: "Title")
+    private static let valueField = String(localized: "Main number")
+    private static let captionField = String(localized: "Details")
+    private static let seriesField = String(localized: "Trend")
+
+    var fields: [String] {
+        [Self.titleField] + (value.isEmpty ? [] : [Self.valueField]) + (series.count > 1 ? [Self.seriesField] : [])
+            + lines.map(\.1) + (caption.isEmpty ? [] : [Self.captionField])
+    }
+
+    private func shows(_ field: String) -> Bool { !hidden.contains(field) }
+
+    /// Softer greys disappear on a photo; there the small text goes near-white.
+    private var quiet: Color { photo == nil ? Theme.muted : .white.opacity(0.8) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -18,41 +66,45 @@ struct ShareCard: View {
                 Text("NAGISEN").font(.system(size: 13, weight: .semibold)).nagisenTracking(4)
                 Spacer()
                 Text(kicker.uppercased()).font(.system(size: 11, weight: .semibold)).nagisenTracking(2)
-                    .foregroundStyle(Theme.muted)
+                    .foregroundStyle(quiet)
             }
             Spacer(minLength: 0)
             if let symbol {
                 Image(systemName: symbol).font(.system(size: 30, weight: .light)).foregroundStyle(Theme.accentText)
             }
-            Text(headline).font(.system(size: 30, design: .serif)).lineLimit(2).minimumScaleFactor(0.7)
-            if !value.isEmpty {
+            if shows(Self.titleField) {
+                Text(headline).font(.system(size: 30, design: .serif)).lineLimit(2).minimumScaleFactor(0.7)
+            }
+            if !value.isEmpty, shows(Self.valueField) {
                 Text(value).font(.system(size: 54, design: .serif)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.5)
                     .foregroundStyle(Theme.ink)
             }
-            if series.count > 1 {
+            if series.count > 1, shows(Self.seriesField) {
                 SeriesLine(values: series)
                     .stroke(Theme.accent, style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
                     .frame(height: 60)
             }
-            if !lines.isEmpty {
+            let shownLines = lines.filter { shows($0.1) }
+            if !shownLines.isEmpty {
                 HStack(alignment: .firstTextBaseline) {
-                    ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
+                    ForEach(Array(shownLines.enumerated()), id: \.offset) { _, line in
                         VStack(alignment: .leading, spacing: 2) {
                             Text(line.0).font(.system(size: 20, design: .serif)).monospacedDigit()
-                            Text(line.1).font(.system(size: 11)).foregroundStyle(Theme.muted)
+                            Text(line.1).font(.system(size: 11)).foregroundStyle(quiet)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
             }
             Spacer(minLength: 0)
-            if !caption.isEmpty {
-                Text(caption).font(.system(size: 13)).foregroundStyle(Theme.muted)
+            if !caption.isEmpty, shows(Self.captionField) {
+                Text(caption).font(.system(size: 13)).foregroundStyle(quiet)
             }
         }
         .padding(28)
         .frame(width: 360, height: 450, alignment: .leading)
-        .background(Color(red: 0.035, green: 0.03, blue: 0.035))
+        .background(CardBackground(photo: photo))
+        .shadow(color: photo == nil ? .clear : .black.opacity(0.5), radius: 6)
         .foregroundStyle(Theme.ink)
         .environment(\.colorScheme, .dark)
     }
@@ -76,10 +128,15 @@ private struct SeriesLine: Shape {
 }
 
 /// Preview a card, add a line, post it to the Feed as an image.
-struct ShareCardSheet<Card: View>: View {
+struct ShareCardSheet<Card: PhotoCard>: View {
     @EnvironmentObject private var feed: FeedService
     @Environment(\.dismiss) private var dismiss
     let card: Card
+    @State private var photo: UIImage?
+    @State private var picked: PhotosPickerItem?
+    @State private var hidden: Set<String> = []
+
+    private var shown: Card { card.on(photo).hiding(hidden) }
     @State private var caption = ""
     @State private var posting = false
     @State private var failed = false
@@ -88,10 +145,40 @@ struct ShareCardSheet<Card: View>: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
-                    card
+                    shown
                         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                         .scaleEffect(0.85)
                         .frame(height: 400)
+                    HStack(spacing: 18) {
+                        PhotosPicker(selection: $picked, matching: .images) {
+                            Label(photo == nil ? String(localized: "Add a photo") : String(localized: "Change photo"), systemImage: "photo")
+                                .font(.subheadline.weight(.semibold)).foregroundStyle(Theme.accentText).frame(minHeight: 44)
+                        }
+                        if photo != nil {
+                            Button(String(localized: "No photo")) { photo = nil; picked = nil }
+                                .font(.subheadline.weight(.semibold)).foregroundStyle(Theme.muted).frame(minHeight: 44)
+                        }
+                    }
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("SHOW").font(.caption2.weight(.semibold)).nagisenTracking(2).foregroundStyle(Theme.muted)
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 8)], spacing: 8) {
+                            ForEach(card.fields, id: \.self) { field in
+                                let on = !hidden.contains(field)
+                                Button {
+                                    if on { hidden.insert(field) } else { hidden.remove(field) }
+                                } label: {
+                                    Label(field, systemImage: on ? "checkmark" : "eye.slash")
+                                        .font(.caption.weight(.semibold))
+                                        .frame(maxWidth: .infinity, minHeight: 36)
+                                        .foregroundStyle(on ? Theme.ink : Theme.muted)
+                                        .background(on ? Theme.accent.opacity(0.25) : Color.clear, in: Capsule())
+                                        .overlay(Capsule().strokeBorder(Theme.ink.opacity(0.16), lineWidth: 0.5))
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityAddTraits(on ? .isSelected : [])
+                            }
+                        }
+                    }
                     if feed.state == .ready {
                         TextField("Say something (optional)", text: $caption, axis: .vertical)
                             .lineLimit(1...4)
@@ -110,6 +197,13 @@ struct ShareCardSheet<Card: View>: View {
                 .padding(20)
             }
             .background(NagisenBackdrop())
+            .onChange(of: picked) { _, item in
+                Task {
+                    if let data = try? await item?.loadTransferable(type: Data.self), let image = UIImage(data: data) {
+                        photo = image
+                    }
+                }
+            }
             .nagisenSheetBar(String(localized: "Share to Feed"), onClose: { dismiss() },
                              actionTitle: String(localized: "Post"), actionEnabled: feed.state == .ready && !posting,
                              busy: posting) { post() }
@@ -117,7 +211,7 @@ struct ShareCardSheet<Card: View>: View {
     }
 
     private func post() {
-        let renderer = ImageRenderer(content: card)
+        let renderer = ImageRenderer(content: shown)
         renderer.scale = 3
         guard let data = renderer.uiImage?.jpegData(compressionQuality: 0.9),
               let attachment = try? PostMedia.photo(from: data) else { failed = true; return }
@@ -130,7 +224,7 @@ struct ShareCardSheet<Card: View>: View {
 }
 
 /// A small share mark that opens the sheet for a card.
-struct ShareCardButton<Card: View>: View {
+struct ShareCardButton<Card: PhotoCard>: View {
     let card: () -> Card
     @State private var sharing = false
 

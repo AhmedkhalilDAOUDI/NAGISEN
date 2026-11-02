@@ -87,7 +87,7 @@ struct RouteDetailView: View {
                     .font(.subheadline.weight(.semibold)).foregroundStyle(Theme.danger)
             }
             .foregroundStyle(Theme.ink)
-            .padding(.horizontal, 22).padding(.top, 10).padding(.bottom, 32)
+            .padding(.horizontal, 22).padding(.top, 10).padding(.bottom, 130)
         }
         .background(NagisenBackdrop())
         .toolbar(.hidden, for: .navigationBar)
@@ -207,7 +207,7 @@ struct SegmentDetailView: View {
                     .font(.subheadline.weight(.semibold)).foregroundStyle(Theme.danger)
             }
             .foregroundStyle(Theme.ink)
-            .padding(.horizontal, 22).padding(.top, 10).padding(.bottom, 32)
+            .padding(.horizontal, 22).padding(.top, 10).padding(.bottom, 130)
         }
         .background(NagisenBackdrop())
         .toolbar(.hidden, for: .navigationBar)

@@ -385,7 +385,7 @@ struct ActivityDetailView: View {
                 .buttonStyle(.plain)
             }
             .foregroundStyle(Theme.ink)
-            .padding(.horizontal, 22).padding(.top, 10).padding(.bottom, 32)
+            .padding(.horizontal, 22).padding(.top, 10).padding(.bottom, 130)
         }
         .background(NagisenBackdrop())
         .toolbar(.hidden, for: .navigationBar)
@@ -563,7 +563,7 @@ struct ActivityRecordsView: View {
                 }
             }
             .foregroundStyle(Theme.ink)
-            .padding(.horizontal, 22).padding(.top, 10).padding(.bottom, 32)
+            .padding(.horizontal, 22).padding(.top, 10).padding(.bottom, 130)
         }
         .background(NagisenBackdrop())
         .toolbar(.hidden, for: .navigationBar)
@@ -583,8 +583,19 @@ struct ActivityRecordsView: View {
 // MARK: - Sharing
 
 /// The image posted to the Feed: the route's shape and the numbers, never a map or an address.
-struct RouteCard: View {
+struct RouteCard: PhotoCard {
     let activity: RecordedActivity
+    var photo: UIImage? = nil
+    var hidden: Set<String> = []
+
+    func on(_ photo: UIImage?) -> RouteCard { var card = self; card.photo = photo; return card }
+    func hiding(_ hidden: Set<String>) -> RouteCard { var card = self; card.hidden = hidden; return card }
+
+    private static let routeField = String(localized: "Route")
+    private static let distanceField = String(localized: "Distance")
+    private static let timeField = String(localized: "Time")
+    private var paceField: String { activity.kind.showsSpeed ? String(localized: "Speed") : String(localized: "Pace") }
+    var fields: [String] { [Self.routeField, Self.distanceField, Self.timeField, paceField] }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -595,14 +606,25 @@ struct RouteCard: View {
                 Text(activity.kind.name.uppercased()).font(.system(size: 11, weight: .semibold)).nagisenTracking(2)
                     .foregroundStyle(Theme.muted)
             }
-            RouteShape(points: activity.points)
-                .stroke(Theme.accent, style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .padding(20)
+            if hidden.contains(Self.routeField) {
+                Spacer()
+            } else {
+                RouteShape(points: activity.points)
+                    .stroke(photo == nil ? Theme.accent : .white, style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
+                    .shadow(color: .black.opacity(photo == nil ? 0 : 0.6), radius: 4)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(20)
+            }
             HStack(alignment: .firstTextBaseline) {
-                number((activity.distance / 1000).formatted(.number.precision(.fractionLength(2))), String(localized: "km"))
-                number(RecordedActivity.durationText(activity.movingSeconds), String(localized: "time"))
-                if activity.kind.showsSpeed {
+                if !hidden.contains(Self.distanceField) {
+                    number((activity.distance / 1000).formatted(.number.precision(.fractionLength(2))), String(localized: "km"))
+                }
+                if !hidden.contains(Self.timeField) {
+                    number(RecordedActivity.durationText(activity.movingSeconds), String(localized: "time"))
+                }
+                if hidden.contains(paceField) {
+                    EmptyView()
+                } else if activity.kind.showsSpeed {
                     number(activity.speedKmh.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "–", String(localized: "km/h"))
                 } else {
                     number(activity.pace.map(RecordedActivity.paceText) ?? "–", String(localized: "/km"))
@@ -611,7 +633,7 @@ struct RouteCard: View {
         }
         .padding(28)
         .frame(width: 360, height: 450)
-        .background(Color(red: 0.035, green: 0.03, blue: 0.035))
+        .background(CardBackground(photo: photo))
         .foregroundStyle(Theme.ink)
         .environment(\.colorScheme, .dark)
     }
