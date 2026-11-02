@@ -1174,6 +1174,7 @@ private struct MealCard: View {
                     Text("kcal").font(.caption2).foregroundStyle(Theme.muted)
                 }
                 if !items.isEmpty {
+                    ShareCardButton { ShareCards.meal(meal, items) }
                     Button { showingDeleteMeal = true } label: {
                         Image(systemName: "trash")
                             .font(.system(size: 15, weight: .medium))

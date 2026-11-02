@@ -45,4 +45,15 @@ final class PhotoEditorTests: XCTestCase {
             XCTAssertNotEqual(Quotes.pick(for: theme, after: first), first)
         }
     }
+
+    func testAMealCardAddsUpItsFoodsAndLetsEachMacroBeHidden() {
+        let eggs = Food(name: "Eggs", serving: "1", calories: 70, protein: 6, carbs: 0.5, fat: 5)
+        let bread = Food(name: "Bread", serving: "1 slice", calories: 80, protein: 3, carbs: 15, fat: 1)
+        let card = ShareCards.meal(.breakfast, [DiaryEntry(food: eggs, meal: .breakfast, servings: 2, date: .now),
+                                                DiaryEntry(food: bread, meal: .breakfast, servings: 1, date: .now)])
+        XCTAssertEqual(card.value, "220 kcal")
+        XCTAssertEqual(card.lines.map(\.0), ["15 g", "16 g", "11 g"])
+        XCTAssertEqual(card.caption, "Eggs · Bread")
+        XCTAssertTrue(Set(["protein", "carbs", "fat"]).isSubset(of: Set(card.fields)))
+    }
 }

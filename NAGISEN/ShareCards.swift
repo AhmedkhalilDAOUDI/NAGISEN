@@ -530,6 +530,18 @@ enum ShareCards {
                   caption: longest > days ? String(localized: "Longest: \(longest) days") : String(localized: "My longest yet"))
     }
 
+    /// One meal: its calories as the big number, each macro as a line you can hide or move.
+    static func meal(_ meal: Meal, _ items: [DiaryEntry]) -> ShareCard {
+        let grams = { (value: Double) in "\(Int(value.rounded())) g" }
+        let names = items.map(\.food.name)
+        return ShareCard(kicker: String(localized: "Meal"), theme: .day, headline: meal.rawValue,
+                         value: "\(items.reduce(0) { $0 + $1.calories }.formatted()) kcal",
+                         caption: names.prefix(3).joined(separator: " · ") + (names.count > 3 ? " +\(names.count - 3)" : ""),
+                         lines: [(grams(items.reduce(0) { $0 + $1.protein }), String(localized: "protein")),
+                                 (grams(items.reduce(0) { $0 + $1.carbs }), String(localized: "carbs")),
+                                 (grams(items.reduce(0) { $0 + $1.fat }), String(localized: "fat"))])
+    }
+
     static func day(_ store: NutritionStore, on date: Date) -> ShareCard {
         let totals = store.totals(on: date), goals = store.goals(on: date)
         let minutes = store.workouts.filter { Calendar.current.isDate($0.date, inSameDayAs: date) }.reduce(0) { $0 + $1.minutes }
@@ -569,6 +581,15 @@ struct ShareHubView: View {
                     NagisenSection("Today") {
                         row(String(localized: "My day"), detail: "\(store.totals(on: .now).calories.formatted()) kcal", symbol: "sun.horizon") {
                             choice = Choice(card: ShareCards.day(store, on: .now))
+                        }
+                        ForEach(Meal.allCases) { meal in
+                            let items = store.entries(on: .now, meal: meal)
+                            if !items.isEmpty {
+                                Divider().overlay(Theme.line)
+                                row(meal.rawValue, detail: "\(items.reduce(0) { $0 + $1.calories }.formatted()) kcal", symbol: meal.symbol) {
+                                    choice = Choice(card: ShareCards.meal(meal, items))
+                                }
+                            }
                         }
                         if streak.activeStreak > 0 {
                             Divider().overlay(Theme.line)
