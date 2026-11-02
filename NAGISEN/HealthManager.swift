@@ -61,6 +61,54 @@ final class HealthManager: ObservableObject {
                    [HKObjectType.workoutType(), HKObjectType.categoryType(forIdentifier: .appleStandHour)!])
     }
 
+    /// Saves a recorded activity to Apple Health as a workout with its route.
+    /// Returns the workout's id, or nil when Health is unavailable or access was declined.
+    func save(_ activity: RecordedActivity) async -> UUID? {
+        guard isAvailable, activity.points.count > 1 else { return nil }
+        let distanceType = HKQuantityType(activity.kind == .ride ? .distanceCycling : .distanceWalkingRunning)
+        let share: Set<HKSampleType> = [HKObjectType.workoutType(), HKSeriesType.workoutRoute(), distanceType]
+        do {
+            try await healthStore.requestAuthorization(toShare: share, read: [])
+            let configuration = HKWorkoutConfiguration()
+            configuration.activityType = switch activity.kind {
+            case .run: .running
+            case .walk: .walking
+            case .ride: .cycling
+            case .hike: .hiking
+            }
+            configuration.locationType = .outdoor
+            let builder = HKWorkoutBuilder(healthStore: healthStore, configuration: configuration, device: .local())
+            try await builder.beginCollection(at: activity.start)
+            let distance = HKQuantitySample(type: distanceType,
+                                            quantity: HKQuantity(unit: .meter(), doubleValue: activity.distance),
+                                            start: activity.start, end: activity.end)
+            try await builder.addSamples([distance])
+            try await builder.endCollection(at: activity.end)
+            guard let workout = try await builder.finishWorkout() else { return nil }
+            let route = HKWorkoutRouteBuilder(healthStore: healthStore, device: .local())
+            try await route.insertRouteData(activity.points.map(\.location))
+            _ = try await route.finishRoute(with: workout, metadata: nil)
+            return workout.uuid
+        } catch {
+            return nil
+        }
+    }
+
+    /// Average heart rate recorded by any device between two moments, if there is any.
+    func averageHeartRate(from start: Date, to end: Date) async -> Int? {
+        guard isAvailable else { return nil }
+        let type = HKQuantityType(.heartRate)
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end)
+        return await withCheckedContinuation { continuation in
+            let query = HKStatisticsQuery(quantityType: type, quantitySamplePredicate: predicate,
+                                          options: .discreteAverage) { _, statistics, _ in
+                let value = statistics?.averageQuantity()?.doubleValue(for: .count().unitDivided(by: .minute()))
+                continuation.resume(returning: value.map { Int($0.rounded()) })
+            }
+            healthStore.execute(query)
+        }
+    }
+
     func requestAccess() {
         guard isAvailable else {
             errorMessage = String(localized: "Apple Health is unavailable on this device.")

@@ -1171,6 +1171,15 @@ final class NutritionStore: ObservableObject {
         activities.insert(activity, at: 0)
     }
 
+    /// Remembers the Apple Health copy, so importing from Health later does not count the activity twice.
+    func linkActivity(_ id: UUID, toHealthWorkout healthID: UUID) {
+        guard let index = activities.firstIndex(where: { $0.id == id }) else { return }
+        activities[index].healthUUID = healthID
+        if let workoutIndex = workouts.firstIndex(where: { $0.id == activities[index].workoutID }) {
+            workouts[workoutIndex].healthSampleID = healthID
+        }
+    }
+
     func deleteActivity(_ activity: RecordedActivity) {
         activities.removeAll { $0.id == activity.id }
         if let workoutID = activity.workoutID { workouts.removeAll { $0.id == workoutID } }
