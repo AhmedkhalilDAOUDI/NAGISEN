@@ -587,8 +587,10 @@ struct RouteCard: PhotoCard {
     let activity: RecordedActivity
     var photo: UIImage? = nil
     var hidden: Set<String> = []
+    var layout = CardLayout()
 
     func on(_ photo: UIImage?) -> RouteCard { var card = self; card.photo = photo; return card }
+    func arranged(_ layout: CardLayout) -> RouteCard { var card = self; card.layout = layout; return card }
     func hiding(_ hidden: Set<String>) -> RouteCard { var card = self; card.hidden = hidden; return card }
 
     private static let routeField = String(localized: "Route")
@@ -614,20 +616,26 @@ struct RouteCard: PhotoCard {
                     .shadow(color: .black.opacity(photo == nil ? 0 : 0.6), radius: 4)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding(20)
+                    .movable(Self.routeField, layout)
             }
             HStack(alignment: .firstTextBaseline) {
                 if !hidden.contains(Self.distanceField) {
                     number((activity.distance / 1000).formatted(.number.precision(.fractionLength(2))), String(localized: "km"))
+                        .movable(Self.distanceField, layout)
                 }
                 if !hidden.contains(Self.timeField) {
                     number(RecordedActivity.durationText(activity.movingSeconds), String(localized: "time"))
+                        .movable(Self.timeField, layout)
                 }
-                if hidden.contains(paceField) {
-                    EmptyView()
-                } else if activity.kind.showsSpeed {
-                    number(activity.speedKmh.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "–", String(localized: "km/h"))
-                } else {
-                    number(activity.pace.map(RecordedActivity.paceText) ?? "–", String(localized: "/km"))
+                if !hidden.contains(paceField) {
+                    Group {
+                        if activity.kind.showsSpeed {
+                            number(activity.speedKmh.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "–", String(localized: "km/h"))
+                        } else {
+                            number(activity.pace.map(RecordedActivity.paceText) ?? "–", String(localized: "/km"))
+                        }
+                    }
+                    .movable(paceField, layout)
                 }
             }
         }

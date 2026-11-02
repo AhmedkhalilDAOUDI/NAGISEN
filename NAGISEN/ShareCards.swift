@@ -1,12 +1,40 @@
+import Photos
 import PhotosUI
 import SwiftUI
 
 /// A share card that can sit on one of your photos instead of the dark background.
 protocol PhotoCard: View {
     func on(_ photo: UIImage?) -> Self
-    /// The pieces of data on the card, by name, that can be left out.
+    /// The pieces of data on the card, by name, that can be left out or moved.
     var fields: [String] { get }
     func hiding(_ hidden: Set<String>) -> Self
+    /// Where each piece has been dragged; `layout.onMove` is set only while editing in the share sheet.
+    func arranged(_ layout: CardLayout) -> Self
+}
+
+/// How far each piece of a card has been moved from its place, and who to tell while it is dragged.
+struct CardLayout {
+    var offsets: [String: CGSize] = [:]
+    var onMove: ((String, CGSize, Bool) -> Void)? = nil
+}
+
+private struct Movable: ViewModifier {
+    let field: String
+    let layout: CardLayout
+
+    func body(content: Content) -> some View {
+        content
+            .offset(layout.offsets[field] ?? .zero)
+            .highPriorityGesture(DragGesture(minimumDistance: 2)
+                .onChanged { layout.onMove?(field, $0.translation, false) }
+                .onEnded { layout.onMove?(field, $0.translation, true) },
+                including: layout.onMove == nil ? .none : .all)
+    }
+}
+
+extension View {
+    /// Lets this piece of a share card be dragged, and keeps it where it was left.
+    func movable(_ field: String, _ layout: CardLayout) -> some View { modifier(Movable(field: field, layout: layout)) }
 }
 
 /// The photo filling the card, darkened at the top and bottom so the numbers always read.
@@ -40,8 +68,10 @@ struct ShareCard: PhotoCard {
     var lines: [(String, String)] = []
     var photo: UIImage? = nil
     var hidden: Set<String> = []
+    var layout = CardLayout()
 
     func on(_ photo: UIImage?) -> ShareCard { var card = self; card.photo = photo; return card }
+    func arranged(_ layout: CardLayout) -> ShareCard { var card = self; card.layout = layout; return card }
     func hiding(_ hidden: Set<String>) -> ShareCard { var card = self; card.hidden = hidden; return card }
 
     private static let titleField = String(localized: "Title")
@@ -69,20 +99,25 @@ struct ShareCard: PhotoCard {
                     .foregroundStyle(quiet)
             }
             Spacer(minLength: 0)
-            if let symbol {
-                Image(systemName: symbol).font(.system(size: 30, weight: .light)).foregroundStyle(Theme.accentText)
-            }
             if shows(Self.titleField) {
-                Text(headline).font(.system(size: 30, design: .serif)).lineLimit(2).minimumScaleFactor(0.7)
+                VStack(alignment: .leading, spacing: 12) {
+                    if let symbol {
+                        Image(systemName: symbol).font(.system(size: 30, weight: .light)).foregroundStyle(Theme.accentText)
+                    }
+                    Text(headline).font(.system(size: 30, design: .serif)).lineLimit(2).minimumScaleFactor(0.7)
+                }
+                .movable(Self.titleField, layout)
             }
             if !value.isEmpty, shows(Self.valueField) {
                 Text(value).font(.system(size: 54, design: .serif)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.5)
                     .foregroundStyle(Theme.ink)
+                    .movable(Self.valueField, layout)
             }
             if series.count > 1, shows(Self.seriesField) {
                 SeriesLine(values: series)
                     .stroke(Theme.accent, style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
                     .frame(height: 60)
+                    .movable(Self.seriesField, layout)
             }
             let shownLines = lines.filter { shows($0.1) }
             if !shownLines.isEmpty {
@@ -92,6 +127,7 @@ struct ShareCard: PhotoCard {
                             Text(line.0).font(.system(size: 20, design: .serif)).monospacedDigit()
                             Text(line.1).font(.system(size: 11)).foregroundStyle(quiet)
                         }
+                        .movable(line.1, layout)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
@@ -99,6 +135,7 @@ struct ShareCard: PhotoCard {
             Spacer(minLength: 0)
             if !caption.isEmpty, shows(Self.captionField) {
                 Text(caption).font(.system(size: 13)).foregroundStyle(quiet)
+                    .movable(Self.captionField, layout)
             }
         }
         .padding(28)
@@ -133,29 +170,59 @@ struct ShareCardSheet<Card: PhotoCard>: View {
     @Environment(\.dismiss) private var dismiss
     let card: Card
     @State private var photo: UIImage?
+    @State private var original: UIImage?
+    @State private var edits = PhotoEdits()
+    @State private var editing = false
     @State private var picked: PhotosPickerItem?
     @State private var hidden: Set<String> = []
+    @State private var offsets: [String: CGSize] = [:]
+    @State private var placed: [String: CGSize] = [:]
 
-    private var shown: Card { card.on(photo).hiding(hidden) }
+    private var shown: Card { card.on(photo).hiding(hidden).arranged(CardLayout(offsets: offsets)) }
+
+    /// The preview: the same card, but every piece answers to a drag.
+    private var editable: Card {
+        card.on(photo).hiding(hidden).arranged(CardLayout(offsets: offsets) { field, moved, ended in
+            let start = placed[field] ?? .zero
+            offsets[field] = CGSize(width: start.width + moved.width, height: start.height + moved.height)
+            if ended { placed[field] = offsets[field]; saved = false }
+        })
+    }
     @State private var caption = ""
     @State private var posting = false
     @State private var failed = false
+    @State private var saved = false
+    @State private var saveFailed = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
-                    shown
+                    editable
                         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                         .scaleEffect(0.85)
                         .frame(height: 400)
+                    HStack {
+                        Text("Drag the numbers to place them anywhere.").font(.caption).foregroundStyle(Theme.muted)
+                        Spacer()
+                        if !offsets.isEmpty {
+                            Button(String(localized: "Reset layout")) { offsets = [:]; placed = [:]; saved = false }
+                                .font(.caption.weight(.semibold)).foregroundStyle(Theme.accentText)
+                        }
+                    }
                     HStack(spacing: 18) {
                         PhotosPicker(selection: $picked, matching: .images) {
                             Label(photo == nil ? String(localized: "Add a photo") : String(localized: "Change photo"), systemImage: "photo")
                                 .font(.subheadline.weight(.semibold)).foregroundStyle(Theme.accentText).frame(minHeight: 44)
                         }
+                        if original != nil {
+                            Button { editing = true } label: {
+                                Label(String(localized: "Edit photo"), systemImage: "slider.horizontal.3")
+                                    .font(.subheadline.weight(.semibold)).foregroundStyle(Theme.accentText).frame(minHeight: 44)
+                            }
+                        }
                         if photo != nil {
-                            Button(String(localized: "No photo")) { photo = nil; picked = nil }
+                            Button(String(localized: "No photo")) { photo = nil; original = nil; picked = nil }
                                 .font(.subheadline.weight(.semibold)).foregroundStyle(Theme.muted).frame(minHeight: 44)
                         }
                     }
@@ -179,6 +246,19 @@ struct ShareCardSheet<Card: PhotoCard>: View {
                             }
                         }
                     }
+                    Button(action: save) {
+                        Label(saved ? String(localized: "Saved to Photos") : String(localized: "Save to Photos"),
+                              systemImage: saved ? "checkmark" : "arrow.down.to.line")
+                            .font(.subheadline.weight(.semibold))
+                            .frame(maxWidth: .infinity, minHeight: 48)
+                            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Theme.ink.opacity(0.16), lineWidth: 0.5))
+                            .foregroundStyle(saved ? Theme.accentText : Theme.ink)
+                    }
+                    .buttonStyle(.plain)
+                    if saveFailed {
+                        Text("NAGISEN can't save to Photos. Allow it in iPhone Settings → NAGISEN → Photos.")
+                            .font(.caption).foregroundStyle(Theme.accentText)
+                    }
                     if feed.state == .ready {
                         TextField("Say something (optional)", text: $caption, axis: .vertical)
                             .lineLimit(1...4)
@@ -197,10 +277,23 @@ struct ShareCardSheet<Card: PhotoCard>: View {
                 .padding(20)
             }
             .background(NagisenBackdrop())
+            .onChange(of: photo) { _, _ in saved = false }
+            .onChange(of: hidden) { _, _ in saved = false }
             .onChange(of: picked) { _, item in
                 Task {
                     if let data = try? await item?.loadTransferable(type: Data.self), let image = UIImage(data: data) {
-                        photo = image
+                        original = image
+                        edits = PhotoEdits()
+                        photo = PhotoEditor.render(edits, from: image)
+                        editing = true
+                    }
+                }
+            }
+            .fullScreenCover(isPresented: $editing) {
+                if let original {
+                    PhotoEditorView(original: original, edits: edits) { rendered, chosen in
+                        photo = rendered
+                        edits = chosen
                     }
                 }
             }
@@ -210,10 +303,32 @@ struct ShareCardSheet<Card: PhotoCard>: View {
         }
     }
 
-    private func post() {
+    /// The card exactly as previewed: photo, edits and the data left on.
+    private var finished: UIImage? {
         let renderer = ImageRenderer(content: shown)
         renderer.scale = 3
-        guard let data = renderer.uiImage?.jpegData(compressionQuality: 0.9),
+        return renderer.uiImage
+    }
+
+    /// Keeps the finished card in the photo library, to post anywhere or just keep.
+    private func save() {
+        guard let image = finished else { return }
+        saveFailed = false
+        PHPhotoLibrary.requestAuthorization(for: .addOnly) { status in
+            guard status == .authorized || status == .limited else {
+                Task { @MainActor in saveFailed = true }
+                return
+            }
+            PHPhotoLibrary.shared().performChanges({
+                PHAssetChangeRequest.creationRequestForAsset(from: image)
+            }) { success, _ in
+                Task { @MainActor in if success { saved = true } else { saveFailed = true } }
+            }
+        }
+    }
+
+    private func post() {
+        guard let data = finished?.jpegData(compressionQuality: 0.9),
               let attachment = try? PostMedia.photo(from: data) else { failed = true; return }
         posting = true
         Task {
