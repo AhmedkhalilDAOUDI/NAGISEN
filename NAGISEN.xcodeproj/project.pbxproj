@@ -6,8 +6,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A000000000000000000000DF /* MoveFigure.swift in Sources */ = {isa = PBXBuildFile; fileRef = A000000000000000000000DE /* MoveFigure.swift */; };
-		B00000000000000000000055 /* MoveFigure.swift in Widget Sources */ = {isa = PBXBuildFile; fileRef = A000000000000000000000DE /* MoveFigure.swift */; };
+		A000000000000000000000DF /* NagisenMark.swift in Sources */ = {isa = PBXBuildFile; fileRef = A000000000000000000000DE /* NagisenMark.swift */; };
+		B00000000000000000000055 /* NagisenMark.swift in Widget Sources */ = {isa = PBXBuildFile; fileRef = A000000000000000000000DE /* NagisenMark.swift */; };
 		A000000000000000000000DD /* MoveScreens.swift in Sources */ = {isa = PBXBuildFile; fileRef = A000000000000000000000DC /* MoveScreens.swift */; };
 		B00000000000000000000054 /* RecordingLiveActivityWidget.swift in Widget Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000053 /* RecordingLiveActivityWidget.swift */; };
 		B00000000000000000000052 /* RecordingLiveActivity.swift in Widget Sources */ = {isa = PBXBuildFile; fileRef = A000000000000000000000DA /* RecordingLiveActivity.swift */; };
@@ -98,7 +98,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		A000000000000000000000DE /* MoveFigure.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoveFigure.swift; sourceTree = "<group>"; };
+		A000000000000000000000DE /* NagisenMark.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NagisenMark.swift; sourceTree = "<group>"; };
 		A000000000000000000000DC /* MoveScreens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MoveScreens.swift"; sourceTree = "<group>"; };
 		B00000000000000000000053 /* RecordingLiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingLiveActivityWidget.swift; sourceTree = "<group>"; };
 		A000000000000000000000DA /* RecordingLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingLiveActivity.swift; sourceTree = "<group>"; };

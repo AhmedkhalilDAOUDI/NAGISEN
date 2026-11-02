@@ -95,13 +95,13 @@ final class ActivityRecorder: NSObject, ObservableObject, CLLocationManagerDeleg
     private func updateLiveActivity(force: Bool = false) {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         if liveActivity == nil {
-            let attributes = RecordingAttributes(kindName: activity.kind.name, symbol: activity.kind.symbol,
-                                                 motion: activity.kind.rawValue)
+            let attributes = RecordingAttributes(kindName: activity.kind.name, symbol: activity.kind.symbol)
             liveActivity = try? Activity.request(attributes: attributes, content: .init(state: liveState, staleDate: nil))
             lastLiveUpdate = .now
             return
         }
-        guard force || Date.now.timeIntervalSince(lastLiveUpdate) >= 5 else { return }
+        // Every ~2.5 s, so the floating mark keeps drifting while you move.
+        guard force || Date.now.timeIntervalSince(lastLiveUpdate) >= 2.5 else { return }
         lastLiveUpdate = .now
         if state == .recording { liveFrame += 1 }
         let content = ActivityContent(state: liveState, staleDate: nil)

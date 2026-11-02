@@ -11,15 +11,10 @@ struct RecordingLiveActivityWidget: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: RecordingAttributes.self) { context in
             HStack(alignment: .center, spacing: 14) {
-                MoveFigure(motion: context.attributes.figureMotion, phase: Double(context.state.frame) * .pi / 2,
-                           ink: Self.ink, accent: Self.wine)
-                    .frame(width: 52, height: 52)
+                floatingMark(context.state, size: 46)
                 VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 6) {
-                        NagisenMark(ink: Self.ink, accent: Self.wine).frame(width: 14, height: 14)
-                        Text(context.attributes.kindName.uppercased())
-                            .font(.caption2.weight(.semibold)).foregroundStyle(Self.muted)
-                    }
+                    Text(context.attributes.kindName.uppercased())
+                        .font(.caption2.weight(.semibold)).foregroundStyle(Self.muted)
                     time(context.state).font(.system(size: 32, design: .serif)).monospacedDigit()
                 }
                 Spacer()
@@ -44,16 +39,23 @@ struct RecordingLiveActivityWidget: Widget {
                         .font(.caption).foregroundStyle(Self.muted)
                 }
             } compactLeading: {
-                MoveFigure(motion: context.attributes.figureMotion, phase: Double(context.state.frame) * .pi / 2,
-                           ink: Self.ink, accent: Self.wine)
-                    .frame(width: 22, height: 22)
+                floatingMark(context.state, size: 22)
             } compactTrailing: {
                 Text(context.state.kilometres.formatted(.number.precision(.fractionLength(1))))
                     .monospacedDigit().foregroundStyle(Self.ink)
             } minimal: {
-                NagisenMark(ink: Self.ink, accent: Self.wine).frame(width: 20, height: 20)
+                floatingMark(context.state, size: 20)
             }
         }
+    }
+
+    /// The NAGISEN sun drifting up and down between updates, glowing a little brighter at the top.
+    private func floatingMark(_ state: RecordingAttributes.ContentState, size: CGFloat) -> some View {
+        let up = state.frame % 2 == 0 && state.pausedSeconds == nil
+        return NagisenMark(breath: up ? 1 : 0.2, ink: Self.ink, accent: Self.wine)
+            .frame(width: size, height: size)
+            .offset(y: up ? -size * 0.22 : size * 0.22)
+            .animation(.easeInOut(duration: 2.2), value: state.frame)
     }
 
     @ViewBuilder

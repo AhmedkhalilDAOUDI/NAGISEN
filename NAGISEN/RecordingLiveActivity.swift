@@ -12,21 +12,10 @@ struct RecordingAttributes: ActivityAttributes {
         var kilometres: Double
         /// "5:12 /km" or "24.3 km/h", already formatted for the kind of activity.
         var pace: String
-        /// Advances with every update, so the figure takes its next pose.
+        /// Advances with every update; the mark drifts up or down with each one.
         var frame: Int = 0
     }
 
     var kindName: String
     var symbol: String
-    /// "run", "walk", "ride" or "hike".
-    var motion: String
-
-    var figureMotion: MoveFigure.Motion {
-        switch motion {
-        case "walk": .walk
-        case "ride": .ride
-        case "hike": .hike
-        default: .run
-        }
-    }
 }

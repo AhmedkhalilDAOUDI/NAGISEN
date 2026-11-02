@@ -25,15 +25,6 @@ struct RecordedActivity: Codable, Identifiable, Equatable {
             }
         }
 
-        var figureMotion: MoveFigure.Motion {
-            switch self {
-            case .run: .run
-            case .walk: .walk
-            case .ride: .ride
-            case .hike: .hike
-            }
-        }
-
         /// Rides read as speed; everything on foot reads as pace.
         var showsSpeed: Bool { self == .ride }
         /// Anything faster is a GPS jump, not the person.
