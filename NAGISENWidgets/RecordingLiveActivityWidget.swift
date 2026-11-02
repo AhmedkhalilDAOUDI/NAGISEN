@@ -10,11 +10,17 @@ struct RecordingLiveActivityWidget: Widget {
 
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: RecordingAttributes.self) { context in
-            HStack(alignment: .firstTextBaseline, spacing: 18) {
+            HStack(alignment: .center, spacing: 14) {
+                MoveFigure(motion: context.attributes.figureMotion, phase: Double(context.state.frame) * .pi / 2,
+                           ink: Self.ink, accent: Self.wine)
+                    .frame(width: 52, height: 52)
                 VStack(alignment: .leading, spacing: 4) {
-                    Label(context.attributes.kindName.uppercased(), systemImage: context.attributes.symbol)
-                        .font(.caption2.weight(.semibold)).foregroundStyle(Self.muted)
-                    time(context.state).font(.system(size: 34, design: .serif)).monospacedDigit()
+                    HStack(spacing: 6) {
+                        NagisenMark(ink: Self.ink, accent: Self.wine).frame(width: 14, height: 14)
+                        Text(context.attributes.kindName.uppercased())
+                            .font(.caption2.weight(.semibold)).foregroundStyle(Self.muted)
+                    }
+                    time(context.state).font(.system(size: 32, design: .serif)).monospacedDigit()
                 }
                 Spacer()
                 stat(context.state.kilometres.formatted(.number.precision(.fractionLength(2))), "km")
@@ -38,12 +44,14 @@ struct RecordingLiveActivityWidget: Widget {
                         .font(.caption).foregroundStyle(Self.muted)
                 }
             } compactLeading: {
-                Image(systemName: context.attributes.symbol).foregroundStyle(Self.wine)
+                MoveFigure(motion: context.attributes.figureMotion, phase: Double(context.state.frame) * .pi / 2,
+                           ink: Self.ink, accent: Self.wine)
+                    .frame(width: 22, height: 22)
             } compactTrailing: {
                 Text(context.state.kilometres.formatted(.number.precision(.fractionLength(1))))
                     .monospacedDigit().foregroundStyle(Self.ink)
             } minimal: {
-                Image(systemName: context.attributes.symbol).foregroundStyle(Self.wine)
+                NagisenMark(ink: Self.ink, accent: Self.wine).frame(width: 20, height: 20)
             }
         }
     }

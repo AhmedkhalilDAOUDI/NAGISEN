@@ -21,6 +21,7 @@ final class ActivityRecorder: NSObject, ObservableObject, CLLocationManagerDeleg
     private var savedSeconds = 0.0
     private var liveActivity: Activity<RecordingAttributes>?
     private var lastLiveUpdate = Date.distantPast
+    private var liveFrame = 0
 
     init(kind: RecordedActivity.Kind) {
         activity = RecordedActivity(kind: kind, start: .now)
@@ -87,20 +88,22 @@ final class ActivityRecorder: NSObject, ObservableObject, CLLocationManagerDeleg
         }
         return .init(timerStart: Date.now.addingTimeInterval(-elapsed()),
                      pausedSeconds: state == .paused ? elapsed() : nil,
-                     kilometres: activity.distance / 1000, pace: pace)
+                     kilometres: activity.distance / 1000, pace: pace, frame: liveFrame)
     }
 
     /// Keeps the Lock Screen and Dynamic Island in step, at most every few seconds unless something changed.
     private func updateLiveActivity(force: Bool = false) {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         if liveActivity == nil {
-            let attributes = RecordingAttributes(kindName: activity.kind.name, symbol: activity.kind.symbol)
+            let attributes = RecordingAttributes(kindName: activity.kind.name, symbol: activity.kind.symbol,
+                                                 motion: activity.kind.rawValue)
             liveActivity = try? Activity.request(attributes: attributes, content: .init(state: liveState, staleDate: nil))
             lastLiveUpdate = .now
             return
         }
         guard force || Date.now.timeIntervalSince(lastLiveUpdate) >= 5 else { return }
         lastLiveUpdate = .now
+        if state == .recording { liveFrame += 1 }
         let content = ActivityContent(state: liveState, staleDate: nil)
         Task { await liveActivity?.update(content) }
     }

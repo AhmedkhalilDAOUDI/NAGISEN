@@ -132,7 +132,17 @@ struct RecordActivityView: View {
             }
 
             VStack(spacing: 22) {
-                status
+                TimelineView(.animation(paused: recorder.state != .recording)) { context in
+                    let seconds = context.date.timeIntervalSinceReferenceDate
+                    HStack(spacing: 16) {
+                        MoveFigure(motion: activity.kind.figureMotion, phase: seconds * stridesPerSecond * 2 * .pi,
+                                   ink: Theme.ink, accent: Theme.accent)
+                            .frame(width: 64, height: 64)
+                        status.frame(maxWidth: .infinity)
+                        NagisenMark(breath: (sin(seconds * 2 * .pi / 4) + 1) / 2, ink: Theme.ink, accent: Theme.accent)
+                            .frame(width: 34, height: 34)
+                    }
+                }
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     HStack(alignment: .firstTextBaseline) {
                         stat(RecordedActivity.durationText(recorder.elapsed(at: context.date)), String(localized: "time"))
@@ -162,6 +172,12 @@ struct RecordActivityView: View {
             [NagisenAction(title: String(localized: "Save")) { save() },
              NagisenAction(title: String(localized: "Discard"), destructive: true) { _ = recorder.finish(); dismiss() }]
         }
+    }
+
+    /// Strides (or pedal turns) per second: quicker when you go quicker, calm when the GPS has no speed yet.
+    private var stridesPerSecond: Double {
+        let speed = recorder.currentSpeed ?? (activity.kind == .ride ? 6 : 2.5)
+        return activity.kind == .ride ? min(max(speed / 5, 0.6), 1.8) : min(max(speed * 0.33, 0.5), 1.6)
     }
 
     @ViewBuilder private var status: some View {
