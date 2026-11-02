@@ -8,14 +8,89 @@ protocol PhotoCard: View {
     /// The pieces of data on the card, by name, that can be left out or moved.
     var fields: [String] { get }
     func hiding(_ hidden: Set<String>) -> Self
-    /// Where each piece has been dragged; `layout.onMove` is set only while editing in the share sheet.
+    /// Where each piece has been dragged, the lettering, and any quote or text of your own.
     func arranged(_ layout: CardLayout) -> Self
+    /// Which quotes fit this card.
+    var quoteTheme: Quote.Theme { get }
 }
 
-/// How far each piece of a card has been moved from its place, and who to tell while it is dragged.
+/// The lettering for everything written on a card.
+enum CardFont: String, CaseIterable, Identifiable {
+    case serif, sans, rounded, mono, didot, futura, avenir
+    var id: String { rawValue }
+
+    var name: String {
+        switch self {
+        case .serif: String(localized: "Serif")
+        case .sans: String(localized: "Sans")
+        case .rounded: String(localized: "Rounded")
+        case .mono: String(localized: "Mono")
+        case .didot: "Didot"
+        case .futura: "Futura"
+        case .avenir: "Avenir"
+        }
+    }
+
+    func font(_ size: CGFloat) -> Font {
+        switch self {
+        case .serif: .system(size: size, design: .serif)
+        case .sans: .system(size: size, weight: .medium)
+        case .rounded: .system(size: size, design: .rounded)
+        case .mono: .system(size: size * 0.9, design: .monospaced)
+        case .didot: .custom("Didot", size: size)
+        case .futura: .custom("Futura-Medium", size: size)
+        case .avenir: .custom("AvenirNext-Medium", size: size)
+        }
+    }
+}
+
+/// Everything the share sheet adds to a card: positions, lettering, a quote, your own words.
 struct CardLayout {
     var offsets: [String: CGSize] = [:]
     var onMove: ((String, CGSize, Bool) -> Void)? = nil
+    var font = CardFont.serif
+    /// Multiplies every text size on the card.
+    var scale: Double = 1
+    var quote: Quote? = nil
+    var text = ""
+
+    /// Lettering for the big words and numbers, at the chosen size.
+    func font(_ size: CGFloat) -> Font { font.font(size * scale) }
+    /// The small labels keep a plain face but follow the size.
+    func label(_ size: CGFloat, weight: Font.Weight = .regular) -> Font { .system(size: size * scale, weight: weight) }
+
+    static let quoteField = String(localized: "Quote")
+    static let textField = String(localized: "Your text")
+}
+
+/// A card is as wide as always and as tall as its photo needs, so the whole photo shows.
+enum CardSize {
+    static func of(_ photo: UIImage?) -> CGSize {
+        guard let photo, photo.size.width > 0 else { return CGSize(width: 360, height: 450) }
+        return CGSize(width: 360, height: (360 * photo.size.height / photo.size.width).rounded())
+    }
+}
+
+/// The quote and the words you typed, set on any card and moved like the rest.
+struct CardWords: View {
+    let layout: CardLayout
+    let quiet: Color
+
+    var body: some View {
+        if let quote = layout.quote {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("\u{201C}\(quote.text)\u{201D}").font(layout.font(22)).italic().lineLimit(4).minimumScaleFactor(0.6)
+                if let author = quote.author {
+                    Text("— \(author)").font(layout.label(11)).foregroundStyle(quiet)
+                }
+            }
+            .movable(CardLayout.quoteField, layout)
+        }
+        if !layout.text.isEmpty {
+            Text(layout.text).font(layout.font(24)).lineLimit(6).minimumScaleFactor(0.5)
+                .movable(CardLayout.textField, layout)
+        }
+    }
 }
 
 private struct Movable: ViewModifier {
@@ -44,8 +119,8 @@ struct CardBackground: View {
     var body: some View {
         if let photo {
             ZStack {
-                Image(uiImage: photo).resizable().scaledToFill()
-                    .frame(width: 360, height: 450).clipped()
+                // The card already has the photo's shape, so the whole photo fits with nothing cut.
+                Image(uiImage: photo).resizable()
                 LinearGradient(stops: [.init(color: .black.opacity(0.55), location: 0), .init(color: .clear, location: 0.3),
                                        .init(color: .clear, location: 0.45), .init(color: .black.opacity(0.8), location: 1)],
                                startPoint: .top, endPoint: .bottom)
@@ -59,6 +134,7 @@ struct CardBackground: View {
 /// The image every share turns into: dark, quiet, the NAGISEN mark, one big number.
 struct ShareCard: PhotoCard {
     let kicker: String
+    var theme = Quote.Theme.any
     var symbol: String? = nil
     let headline: String
     let value: String
@@ -69,6 +145,8 @@ struct ShareCard: PhotoCard {
     var photo: UIImage? = nil
     var hidden: Set<String> = []
     var layout = CardLayout()
+
+    var quoteTheme: Quote.Theme { theme }
 
     func on(_ photo: UIImage?) -> ShareCard { var card = self; card.photo = photo; return card }
     func arranged(_ layout: CardLayout) -> ShareCard { var card = self; card.layout = layout; return card }
@@ -98,18 +176,19 @@ struct ShareCard: PhotoCard {
                 Text(kicker.uppercased()).font(.system(size: 11, weight: .semibold)).nagisenTracking(2)
                     .foregroundStyle(quiet)
             }
+            CardWords(layout: layout, quiet: quiet)
             Spacer(minLength: 0)
             if shows(Self.titleField) {
                 VStack(alignment: .leading, spacing: 12) {
                     if let symbol {
                         Image(systemName: symbol).font(.system(size: 30, weight: .light)).foregroundStyle(Theme.accentText)
                     }
-                    Text(headline).font(.system(size: 30, design: .serif)).lineLimit(2).minimumScaleFactor(0.7)
+                    Text(headline).font(layout.font(30)).lineLimit(2).minimumScaleFactor(0.7)
                 }
                 .movable(Self.titleField, layout)
             }
             if !value.isEmpty, shows(Self.valueField) {
-                Text(value).font(.system(size: 54, design: .serif)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.5)
+                Text(value).font(layout.font(54)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.5)
                     .foregroundStyle(Theme.ink)
                     .movable(Self.valueField, layout)
             }
@@ -124,8 +203,8 @@ struct ShareCard: PhotoCard {
                 HStack(alignment: .firstTextBaseline) {
                     ForEach(Array(shownLines.enumerated()), id: \.offset) { _, line in
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(line.0).font(.system(size: 20, design: .serif)).monospacedDigit()
-                            Text(line.1).font(.system(size: 11)).foregroundStyle(quiet)
+                            Text(line.0).font(layout.font(20)).monospacedDigit()
+                            Text(line.1).font(layout.label(11)).foregroundStyle(quiet)
                         }
                         .movable(line.1, layout)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -134,12 +213,12 @@ struct ShareCard: PhotoCard {
             }
             Spacer(minLength: 0)
             if !caption.isEmpty, shows(Self.captionField) {
-                Text(caption).font(.system(size: 13)).foregroundStyle(quiet)
+                Text(caption).font(layout.label(13)).foregroundStyle(quiet)
                     .movable(Self.captionField, layout)
             }
         }
         .padding(28)
-        .frame(width: 360, height: 450, alignment: .leading)
+        .frame(width: CardSize.of(photo).width, height: CardSize.of(photo).height, alignment: .leading)
         .background(CardBackground(photo: photo))
         .shadow(color: photo == nil ? .clear : .black.opacity(0.5), radius: 6)
         .foregroundStyle(Theme.ink)
@@ -177,16 +256,26 @@ struct ShareCardSheet<Card: PhotoCard>: View {
     @State private var hidden: Set<String> = []
     @State private var offsets: [String: CGSize] = [:]
     @State private var placed: [String: CGSize] = [:]
+    @State private var font = CardFont.serif
+    @State private var scale = 1.0
+    @State private var quote: Quote?
+    @State private var text = ""
 
-    private var shown: Card { card.on(photo).hiding(hidden).arranged(CardLayout(offsets: offsets)) }
+    private var layout: CardLayout {
+        CardLayout(offsets: offsets, font: font, scale: scale, quote: quote, text: text.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
+    private var shown: Card { card.on(photo).hiding(hidden).arranged(layout) }
 
     /// The preview: the same card, but every piece answers to a drag.
     private var editable: Card {
-        card.on(photo).hiding(hidden).arranged(CardLayout(offsets: offsets) { field, moved, ended in
+        var live = layout
+        live.onMove = { field, moved, ended in
             let start = placed[field] ?? .zero
             offsets[field] = CGSize(width: start.width + moved.width, height: start.height + moved.height)
             if ended { placed[field] = offsets[field]; saved = false }
-        })
+        }
+        return card.on(photo).hiding(hidden).arranged(live)
     }
     @State private var caption = ""
     @State private var posting = false
@@ -201,7 +290,7 @@ struct ShareCardSheet<Card: PhotoCard>: View {
                     editable
                         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                         .scaleEffect(0.85)
-                        .frame(height: 400)
+                        .frame(height: CardSize.of(photo).height * 0.85)
                     HStack {
                         Text("Drag the numbers to place them anywhere.").font(.caption).foregroundStyle(Theme.muted)
                         Spacer()
@@ -225,6 +314,52 @@ struct ShareCardSheet<Card: PhotoCard>: View {
                             Button(String(localized: "No photo")) { photo = nil; original = nil; picked = nil }
                                 .font(.subheadline.weight(.semibold)).foregroundStyle(Theme.muted).frame(minHeight: 44)
                         }
+                    }
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("WORDS").font(.caption2.weight(.semibold)).nagisenTracking(2).foregroundStyle(Theme.muted)
+                        HStack(spacing: 10) {
+                            Button {
+                                quote = Quotes.pick(for: card.quoteTheme, after: quote)
+                                saved = false
+                            } label: {
+                                Label(quote == nil ? String(localized: "Add a quote") : String(localized: "Another quote"), systemImage: "sparkles")
+                                    .font(.subheadline.weight(.semibold)).foregroundStyle(Theme.accentText)
+                                    .frame(maxWidth: .infinity, minHeight: 44)
+                                    .overlay(Capsule().strokeBorder(Theme.ink.opacity(0.16), lineWidth: 0.5))
+                            }
+                            .buttonStyle(.plain)
+                            if quote != nil {
+                                Button(String(localized: "No quote")) { quote = nil; saved = false }
+                                    .font(.subheadline.weight(.semibold)).foregroundStyle(Theme.muted).frame(minHeight: 44)
+                            }
+                        }
+                        TextField("Write anything on the picture", text: $text, axis: .vertical)
+                            .lineLimit(1...4)
+                            .padding(14)
+                            .nagisenPanel()
+                        Text("LETTERING").font(.caption2.weight(.semibold)).nagisenTracking(2).foregroundStyle(Theme.muted)
+                            .padding(.top, 6)
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(CardFont.allCases) { choice in
+                                    Button { font = choice; saved = false } label: {
+                                        Text(choice.name).font(choice.font(15))
+                                            .padding(.horizontal, 14).frame(height: 38)
+                                            .foregroundStyle(font == choice ? Theme.ink : Theme.muted)
+                                            .background(font == choice ? Theme.accent.opacity(0.3) : .clear, in: Capsule())
+                                            .overlay(Capsule().strokeBorder(Theme.ink.opacity(0.16), lineWidth: 0.5))
+                                    }
+                                    .buttonStyle(.plain)
+                                    .accessibilityAddTraits(font == choice ? .isSelected : [])
+                                }
+                            }
+                        }
+                        HStack(spacing: 12) {
+                            Image(systemName: "textformat.size.smaller").foregroundStyle(Theme.muted)
+                            Slider(value: $scale, in: 0.6...1.6) { _ in saved = false }
+                            Image(systemName: "textformat.size.larger").foregroundStyle(Theme.muted)
+                        }
+                        .tint(Theme.accentText)
                     }
                     VStack(alignment: .leading, spacing: 8) {
                         Text("SHOW").font(.caption2.weight(.semibold)).nagisenTracking(2).foregroundStyle(Theme.muted)
@@ -279,12 +414,13 @@ struct ShareCardSheet<Card: PhotoCard>: View {
             .background(NagisenBackdrop())
             .onChange(of: photo) { _, _ in saved = false }
             .onChange(of: hidden) { _, _ in saved = false }
+            .onChange(of: text) { _, _ in saved = false }
             .onChange(of: picked) { _, item in
                 Task {
                     if let data = try? await item?.loadTransferable(type: Data.self), let image = UIImage(data: data) {
                         original = image
                         edits = PhotoEdits()
-                        photo = PhotoEditor.render(edits, from: image)
+                        photo = PhotoEditor.apply(edits, to: image)
                         editing = true
                     }
                 }
@@ -361,17 +497,17 @@ struct ShareCardButton<Card: PhotoCard>: View {
 
 enum ShareCards {
     static func trophy(title: String, subtitle: String, symbol: String) -> ShareCard {
-        ShareCard(kicker: String(localized: "Trophy"), symbol: symbol, headline: title, value: "", caption: subtitle)
+        ShareCard(kicker: String(localized: "Trophy"), theme: .trophy, symbol: symbol, headline: title, value: "", caption: subtitle)
     }
 
     static func record(_ record: StrengthRecord) -> ShareCard {
-        ShareCard(kicker: String(localized: "Personal record"), symbol: "medal", headline: record.exercise,
+        ShareCard(kicker: String(localized: "Personal record"), theme: .strength, symbol: "medal", headline: record.exercise,
                   value: "\(record.kilograms.formatted(.number.precision(.fractionLength(0...1)))) kg × \(record.reps)",
                   caption: record.date.formatted(.dateTime.day().month(.wide).year()))
     }
 
     static func workout(_ workout: WorkoutEntry) -> ShareCard {
-        ShareCard(kicker: String(localized: "Workout"), headline: workout.activity, value: "\(workout.minutes) min",
+        ShareCard(kicker: String(localized: "Workout"), theme: .strength, headline: workout.activity, value: "\(workout.minutes) min",
                   caption: [workout.detail?.isEmpty == false && workout.detail != "Imported from Apple Health" ? workout.detail : nil,
                             workout.date.formatted(.dateTime.weekday(.wide).day().month(.wide))].compactMap { $0 }.joined(separator: " · "))
     }
@@ -382,14 +518,14 @@ enum ShareCards {
         guard let first = sorted.first, let last = sorted.last, sorted.count > 1 else { return nil }
         let change = last.kilograms - first.kilograms
         let sign = change > 0 ? "+" : change < 0 ? "−" : ""
-        return ShareCard(kicker: String(localized: "Progress"), headline: String(localized: "Weight"),
+        return ShareCard(kicker: String(localized: "Progress"), theme: .weight, headline: String(localized: "Weight"),
                          value: "\(sign)\(abs(change).formatted(.number.precision(.fractionLength(1)))) kg",
                          caption: String(localized: "Since \(first.date.formatted(.dateTime.day().month(.wide).year()))"),
                          series: sorted.suffix(60).map(\.kilograms))
     }
 
     static func streak(days: Int, longest: Int) -> ShareCard {
-        ShareCard(kicker: String(localized: "Streak"), symbol: "flame", headline: String(localized: "Showing up"),
+        ShareCard(kicker: String(localized: "Streak"), theme: .streak, symbol: "flame", headline: String(localized: "Showing up"),
                   value: String(localized: "\(days) days"),
                   caption: longest > days ? String(localized: "Longest: \(longest) days") : String(localized: "My longest yet"))
     }
@@ -397,7 +533,7 @@ enum ShareCards {
     static func day(_ store: NutritionStore, on date: Date) -> ShareCard {
         let totals = store.totals(on: date), goals = store.goals(on: date)
         let minutes = store.workouts.filter { Calendar.current.isDate($0.date, inSameDayAs: date) }.reduce(0) { $0 + $1.minutes }
-        return ShareCard(kicker: String(localized: "My day"), headline: date.formatted(.dateTime.weekday(.wide).day().month(.wide)),
+        return ShareCard(kicker: String(localized: "My day"), theme: .day, headline: date.formatted(.dateTime.weekday(.wide).day().month(.wide)),
                          value: "\(totals.calories.formatted()) kcal",
                          caption: String(localized: "Goal \(goals.calories.formatted()) kcal"),
                          lines: [("\(Int(totals.protein.rounded())) g", String(localized: "protein")),

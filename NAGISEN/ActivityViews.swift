@@ -588,6 +588,7 @@ struct RouteCard: PhotoCard {
     var photo: UIImage? = nil
     var hidden: Set<String> = []
     var layout = CardLayout()
+    var quoteTheme: Quote.Theme { .move }
 
     func on(_ photo: UIImage?) -> RouteCard { var card = self; card.photo = photo; return card }
     func arranged(_ layout: CardLayout) -> RouteCard { var card = self; card.layout = layout; return card }
@@ -608,6 +609,7 @@ struct RouteCard: PhotoCard {
                 Text(activity.kind.name.uppercased()).font(.system(size: 11, weight: .semibold)).nagisenTracking(2)
                     .foregroundStyle(Theme.muted)
             }
+            CardWords(layout: layout, quiet: photo == nil ? Theme.muted : .white.opacity(0.8))
             if hidden.contains(Self.routeField) {
                 Spacer()
             } else {
@@ -640,7 +642,7 @@ struct RouteCard: PhotoCard {
             }
         }
         .padding(28)
-        .frame(width: 360, height: 450)
+        .frame(width: CardSize.of(photo).width, height: CardSize.of(photo).height)
         .background(CardBackground(photo: photo))
         .foregroundStyle(Theme.ink)
         .environment(\.colorScheme, .dark)
@@ -648,8 +650,8 @@ struct RouteCard: PhotoCard {
 
     private func number(_ value: String, _ unit: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(value).font(.system(size: 28, design: .serif)).monospacedDigit()
-            Text(unit).font(.system(size: 11)).foregroundStyle(Theme.muted)
+            Text(value).font(layout.font(28)).monospacedDigit()
+            Text(unit).font(layout.label(11)).foregroundStyle(photo == nil ? Theme.muted : .white.opacity(0.8))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

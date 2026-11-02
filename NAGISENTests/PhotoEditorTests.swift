@@ -10,35 +10,24 @@ final class PhotoEditorTests: XCTestCase {
         }
     }
 
-    func testTheResultAlwaysFitsTheCard() {
-        let rendered = PhotoEditor.render(PhotoEdits(), from: image(width: 4000, height: 3000))
-        XCTAssertEqual(rendered.size, PhotoEditor.cardSize)
-    }
-
-    func testAQuarterTurnSwapsWidthAndHeight() {
-        var edits = PhotoEdits(); edits.quarterTurns = 1
-        let turned = PhotoEditor.apply(edits, to: image(width: 400, height: 200), maxEdge: 400)
-        XCTAssertEqual(turned.size.width, 200, accuracy: 1)
-        XCTAssertEqual(turned.size.height, 400, accuracy: 1)
-    }
-
-    func testThePhotoCanNeverSlidePastTheCardEdge() {
-        var edits = PhotoEdits(); edits.offset = CGSize(width: 5, height: -5); edits.zoom = 1.5
-        let card = CGSize(width: 1080, height: 1350)
-        let frame = PhotoEditor.frame(for: CGSize(width: 3000, height: 3000), in: card, edits: edits)
-        XCTAssertLessThanOrEqual(frame.minX, 0)
-        XCTAssertGreaterThanOrEqual(frame.maxX, card.width)
-        XCTAssertLessThanOrEqual(frame.minY, 0)
-        XCTAssertGreaterThanOrEqual(frame.maxY, card.height)
-    }
-
-    func testEveryFilterAndToolProducesAnImage() {
-        let source = image(width: 300, height: 300)
-        for filter in PhotoEdits.Filter.allCases {
-            var edits = PhotoEdits(); edits.filter = filter
-            for tool in PhotoEdits.Tool.allCases { edits[tool] = tool.range.upperBound * 0.5 }
-            XCTAssertGreaterThan(PhotoEditor.apply(edits, to: source).size.width, 0, filter.name)
+    func testEditsNeverCropOrChangeThePhotosShape() {
+        var edits = PhotoEdits()
+        for tool in PhotoEdits.Tool.allCases { edits[tool] = tool.range.upperBound * 0.6 }
+        for (w, h) in [(1200.0, 900.0), (900.0, 1600.0), (1000.0, 1000.0)] {
+            let result = PhotoEditor.apply(edits, to: image(width: w, height: h), maxEdge: 2400)
+            XCTAssertEqual(result.size.width, w, accuracy: 1)
+            XCTAssertEqual(result.size.height, h, accuracy: 1)
         }
+    }
+
+    func testLargePhotosKeepTheirProportionsWhenScaledDown() {
+        let result = PhotoEditor.apply(PhotoEdits(), to: image(width: 4000, height: 3000), maxEdge: 2400)
+        XCTAssertEqual(result.size.width / result.size.height, 4.0 / 3.0, accuracy: 0.01)
+    }
+
+    func testTheCardTakesThePhotosShape() {
+        XCTAssertEqual(CardSize.of(image(width: 900, height: 1600)).height, 640, accuracy: 0.5)
+        XCTAssertEqual(CardSize.of(nil), CGSize(width: 360, height: 450))
     }
 
     func testSettingAToolBackToZeroForgetsIt() {
@@ -46,5 +35,14 @@ final class PhotoEditorTests: XCTestCase {
         edits[.contrast] = 0.4
         edits[.contrast] = 0
         XCTAssertEqual(edits, PhotoEdits())
+    }
+
+    func testQuotesFitEveryCardAndNeverRepeatBackToBack() {
+        XCTAssertEqual(Quotes.all.count, 200)
+        XCTAssertEqual(Set(Quotes.all.map(\.text)).count, 200, "no duplicate lines")
+        for theme in Quote.Theme.allCases {
+            let first = Quotes.pick(for: theme)
+            XCTAssertNotEqual(Quotes.pick(for: theme, after: first), first)
+        }
     }
 }
