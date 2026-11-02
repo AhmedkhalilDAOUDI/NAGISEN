@@ -163,7 +163,7 @@ struct ShareCardSheet<Card: PhotoCard>: View {
     // MARK: Editor
 
     private var tools: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 2) {
             toolButton("xmark", String(localized: "Close")) { dismiss() }
             Spacer()
             PhotosPicker(selection: $picked, matching: .images) { toolIcon("photo") }
@@ -184,21 +184,22 @@ struct ShareCardSheet<Card: PhotoCard>: View {
                 finishing = true
             } label: {
                 Text("Next").font(.subheadline.weight(.semibold))
-                    .padding(.horizontal, 16).frame(height: 38)
+                    .lineLimit(1).fixedSize()
+                    .padding(.horizontal, 14).frame(height: 38)
                     .background(Theme.accent, in: Capsule())
                     .foregroundStyle(.white)
             }
             .buttonStyle(.plain)
             .padding(.leading, 4)
         }
-        .padding(.horizontal, 14)
+        .padding(.horizontal, 8)
         .padding(.top, 6)
     }
 
     private func toolIcon(_ symbol: String) -> some View {
         Image(systemName: symbol)
             .font(.system(size: 17, weight: .medium))
-            .frame(width: 40, height: 40)
+            .frame(width: 38, height: 38)
             .background(Color.white.opacity(0.08), in: Circle())
             .frame(width: 44, height: 44)
             .contentShape(Rectangle())

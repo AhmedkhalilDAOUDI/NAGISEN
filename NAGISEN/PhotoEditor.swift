@@ -163,6 +163,11 @@ struct PhotoEditorView: View {
     @State private var comparing = false
 
     var body: some View {
+        // The stack keeps the bars clear of the status bar and home indicator inside a full-screen cover.
+        NavigationStack { content.toolbar(.hidden, for: .navigationBar) }
+    }
+
+    private var content: some View {
         VStack(spacing: 0) {
             HStack {
                 Button(String(localized: "Cancel")) { dismiss() }
