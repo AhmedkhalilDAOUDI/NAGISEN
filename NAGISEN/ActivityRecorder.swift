@@ -20,8 +20,9 @@ final class ActivityRecorder: NSObject, ObservableObject, CLLocationManagerDeleg
     private var segment = 0
     private var savedSeconds = 0.0
     private var liveActivity: Activity<RecordingAttributes>?
-    private var lastLiveUpdate = Date.distantPast
     private var liveFrame = 0
+    /// Ticks the Lock Screen on its own clock, so the mark keeps floating even when no new GPS point comes in.
+    private var floatTimer: Timer?
 
     init(kind: RecordedActivity.Kind) {
         activity = RecordedActivity(kind: kind, start: .now)
@@ -57,14 +58,14 @@ final class ActivityRecorder: NSObject, ObservableObject, CLLocationManagerDeleg
         segment += 1
         currentSpeed = nil
         state = .paused
-        updateLiveActivity(force: true)
+        updateLiveActivity()
     }
 
     func resume() {
         guard state == .paused else { return }
         stretchStart = .now
         state = .recording
-        updateLiveActivity(force: true)
+        updateLiveActivity()
     }
 
     /// Stops listening and returns the finished activity.
@@ -73,6 +74,8 @@ final class ActivityRecorder: NSObject, ObservableObject, CLLocationManagerDeleg
         manager.allowsBackgroundLocationUpdates = false
         state = .idle
         stretchStart = nil
+        floatTimer?.invalidate()
+        floatTimer = nil
         let live = liveActivity
         liveActivity = nil
         Task { await live?.end(nil, dismissalPolicy: .immediate) }
@@ -91,21 +94,23 @@ final class ActivityRecorder: NSObject, ObservableObject, CLLocationManagerDeleg
                      kilometres: activity.distance / 1000, pace: pace, frame: liveFrame)
     }
 
-    /// Keeps the Lock Screen and Dynamic Island in step, at most every few seconds unless something changed.
-    private func updateLiveActivity(force: Bool = false) {
+    /// Keeps the Lock Screen and Dynamic Island in step. The first call starts the Live Activity and
+    /// its clock; every tick after that moves the mark and refreshes the numbers, paused or not.
+    private func updateLiveActivity(advance: Bool = false) {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
-        if liveActivity == nil {
+        guard let liveActivity else {
             let attributes = RecordingAttributes(kindName: activity.kind.name, symbol: activity.kind.symbol)
             liveActivity = try? Activity.request(attributes: attributes, content: .init(state: liveState, staleDate: nil))
-            lastLiveUpdate = .now
+            let timer = Timer(timeInterval: 2.5, repeats: true) { [weak self] _ in
+                Task { @MainActor in self?.updateLiveActivity(advance: true) }
+            }
+            RunLoop.main.add(timer, forMode: .common)
+            floatTimer = timer
             return
         }
-        // Every ~2.5 s, so the floating mark keeps drifting while you move.
-        guard force || Date.now.timeIntervalSince(lastLiveUpdate) >= 2.5 else { return }
-        lastLiveUpdate = .now
-        if state == .recording { liveFrame += 1 }
+        if advance { liveFrame += 1 }
         let content = ActivityContent(state: liveState, staleDate: nil)
-        Task { await liveActivity?.update(content) }
+        Task { await liveActivity.update(content) }
     }
 
     private func beginUpdates() {
@@ -145,7 +150,7 @@ final class ActivityRecorder: NSObject, ObservableObject, CLLocationManagerDeleg
         activity.points.append(.init(latitude: location.coordinate.latitude, longitude: location.coordinate.longitude,
                                      altitude: location.altitude, date: location.timestamp, segment: segment))
         lastLocation = location
-        defer { updateLiveActivity() }
+        if liveActivity == nil { updateLiveActivity() }
         let recent = activity.points.suffix(6).filter { $0.segment == segment }
         if let first = recent.first, let last = recent.last, last.date > first.date {
             let meters = zip(recent, recent.dropFirst()).reduce(0) { $0 + $1.1.location.distance(from: $1.0.location) }

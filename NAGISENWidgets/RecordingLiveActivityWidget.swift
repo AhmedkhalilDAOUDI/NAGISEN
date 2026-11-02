@@ -49,9 +49,9 @@ struct RecordingLiveActivityWidget: Widget {
         }
     }
 
-    /// The NAGISEN sun drifting up and down between updates, glowing a little brighter at the top.
+    /// The NAGISEN sun drifting up and down with every tick, glowing a little brighter at the top.
     private func floatingMark(_ state: RecordingAttributes.ContentState, size: CGFloat) -> some View {
-        let up = state.frame % 2 == 0 && state.pausedSeconds == nil
+        let up = state.frame % 2 == 0
         return NagisenMark(breath: up ? 1 : 0.2, ink: Self.ink, accent: Self.wine)
             .frame(width: size, height: size)
             .offset(y: up ? -size * 0.22 : size * 0.22)
