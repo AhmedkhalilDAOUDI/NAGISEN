@@ -1163,25 +1163,33 @@ private struct MealCard: View {
                     .background(meal.highlight.opacity(0.14), in: RoundedRectangle(cornerRadius: 13))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(ui: meal.rawValue).font(.system(size: 22, design: .serif))
+                        .lineLimit(1).minimumScaleFactor(0.7)
                     Text(items.isEmpty ? "Ready when you are" : "\(items.count) \(items.count == 1 ? "food" : "foods") logged")
                         .font(.caption).foregroundStyle(Theme.muted)
+                        .lineLimit(1).minimumScaleFactor(0.8)
                 }
-                Spacer()
+                .layoutPriority(1)
+                Spacer(minLength: 4)
                 VStack(alignment: .trailing, spacing: 1) {
                     Text(calories.formatted())
                         .font(.system(size: 22, weight: .medium, design: .rounded))
                         .foregroundStyle(items.isEmpty ? Theme.muted : meal.highlight)
                     Text("kcal").font(.caption2).foregroundStyle(Theme.muted)
                 }
+                .fixedSize()
                 if !items.isEmpty {
-                    ShareCardButton { ShareCards.meal(meal, items) }
-                    Button { showingDeleteMeal = true } label: {
-                        Image(systemName: "trash")
-                            .font(.system(size: 15, weight: .medium))
-                            .foregroundStyle(Theme.muted)
-                            .frame(width: 44, height: 44)
+                    // The two buttons sit together so the meal's name keeps its line.
+                    HStack(spacing: 0) {
+                        ShareCardButton { ShareCards.meal(meal, items) }
+                        Button { showingDeleteMeal = true } label: {
+                            Image(systemName: "trash")
+                                .font(.system(size: 15, weight: .medium))
+                                .foregroundStyle(Theme.muted)
+                                .frame(width: 44, height: 44)
+                        }
+                        .accessibilityLabel("Delete all foods from \(meal.rawValue)")
                     }
-                    .accessibilityLabel("Delete all foods from \(meal.rawValue)")
+                    .padding(.trailing, -10)
                 }
             }
             if items.isEmpty {

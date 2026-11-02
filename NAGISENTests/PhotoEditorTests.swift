@@ -156,4 +156,27 @@ final class PhotoEditorTests: XCTestCase {
         XCTAssertEqual(PhotoEditor.cropRect(in: extent, ratio: 1, zoom: 1, offset: CGSize(width: -5, height: 0)).minX, 0, "never past the edge")
         XCTAssertEqual(PhotoEditor.cropRect(in: extent, ratio: 1, zoom: 2, offset: .zero).width, 450)
     }
+
+    func testAFreeCropKeepsExactlyTheFrameYouDrew() {
+        var free = PhotoEdits(); free.crop = .free
+        XCTAssertEqual(PhotoEditor.apply(free, to: image(width: 1200, height: 900)).size, CGSize(width: 1200, height: 900),
+                       "picking Free alone cuts nothing")
+        free.freeRect = CGRect(x: 0, y: 0, width: 0.5, height: 1)
+        XCTAssertEqual(PhotoEditor.apply(free, to: image(width: 1200, height: 900)).size, CGSize(width: 600, height: 900))
+        let extent = CGRect(x: 0, y: 0, width: 1000, height: 800)
+        XCTAssertEqual(PhotoEditor.freeCropRect(in: extent, CGRect(x: 0, y: 0, width: 1, height: 0.25)),
+                       CGRect(x: 0, y: 600, width: 1000, height: 200), "the top of the photo is the top of the frame")
+    }
+
+    func testTheFreeFrameStaysOnThePhotoAndNeverVanishes() {
+        let full = CGRect(x: 0, y: 0, width: 1, height: 1)
+        let shrunk = PhotoEditor.adjusted(full, corner: .topLeft, by: CGSize(width: 0.3, height: 2))
+        XCTAssertEqual(shrunk.minX, 0.3, accuracy: 0.0001)
+        XCTAssertEqual(shrunk.height, 0.1, accuracy: 0.0001, "never smaller than a tenth")
+        let half = CGRect(x: 0.2, y: 0.2, width: 0.5, height: 0.5)
+        let moved = PhotoEditor.adjusted(half, corner: nil, by: CGSize(width: 1, height: -1))
+        XCTAssertEqual(moved.maxX, 1, accuracy: 0.0001)
+        XCTAssertEqual(moved.minY, 0, accuracy: 0.0001)
+        XCTAssertEqual(moved.size, half.size)
+    }
 }

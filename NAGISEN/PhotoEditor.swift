@@ -25,21 +25,22 @@ struct PhotoEdits: Equatable {
     }
 
     enum Crop: String, CaseIterable, Identifiable {
-        case original, square, portrait, story, wide
+        case original, free, square, portrait, story, wide
         var id: String { rawValue }
         var name: String {
             switch self {
             case .original: String(localized: "Original")
+            case .free: String(localized: "Free")
             case .square: "1:1"
             case .portrait: "4:5"
             case .story: "9:16"
             case .wide: "16:9"
             }
         }
-        /// Width over height; nil keeps the whole photo.
+        /// Width over height; nil for the whole photo or a free frame.
         var ratio: CGFloat? {
             switch self {
-            case .original: nil
+            case .original, .free: nil
             case .square: 1
             case .portrait: 4.0 / 5
             case .story: 9.0 / 16
@@ -98,6 +99,8 @@ struct PhotoEdits: Equatable {
     var zoom: Double = 1
     /// Inside a crop: where the frame sits, from -1 (left or top) to 1 (right or bottom).
     var offset = CGSize.zero
+    /// A free crop, as fractions of the photo measured from its top left.
+    var freeRect = CGRect(x: 0, y: 0, width: 1, height: 1)
 
     subscript(tool: Tool) -> Double {
         get { values[tool] ?? 0 }
@@ -116,7 +119,8 @@ enum PhotoEditor {
         for _ in 0..<((edits.quarterTurns % 4 + 4) % 4) { input = input.oriented(.right) }
         if edits.flipped { input = input.oriented(.upMirrored) }
         input = input.transformed(by: CGAffineTransform(translationX: -input.extent.minX, y: -input.extent.minY))
-        let frame = cropRect(in: input.extent, ratio: edits.crop.ratio, zoom: edits.zoom, offset: edits.offset)
+        let frame = edits.crop == .free ? freeCropRect(in: input.extent, edits.freeRect)
+            : cropRect(in: input.extent, ratio: edits.crop.ratio, zoom: edits.zoom, offset: edits.offset)
         input = input.cropped(to: frame).transformed(by: CGAffineTransform(translationX: -frame.minX, y: -frame.minY))
         let extent = input.extent
 
@@ -215,6 +219,31 @@ enum PhotoEditor {
         return rect.integral.intersection(extent)
     }
 
+    /// A free frame in Core Image's pixels, which count y from the bottom.
+    static func freeCropRect(in extent: CGRect, _ fraction: CGRect) -> CGRect {
+        CGRect(x: extent.minX + fraction.minX * extent.width, y: extent.minY + (1 - fraction.maxY) * extent.height,
+               width: fraction.width * extent.width, height: fraction.height * extent.height).integral.intersection(extent)
+    }
+
+    enum CropCorner: CaseIterable { case topLeft, topRight, bottomLeft, bottomRight
+        var left: Bool { self == .topLeft || self == .bottomLeft }
+        var top: Bool { self == .topLeft || self == .topRight }
+    }
+
+    /// A free frame after a drag: a corner reshapes it, the middle (nil) moves it. It stays on the photo
+    /// and never shrinks below a tenth of it.
+    static func adjusted(_ rect: CGRect, corner: CropCorner?, by delta: CGSize) -> CGRect {
+        let least: CGFloat = 0.1
+        guard let corner else {
+            return CGRect(x: min(max(rect.minX + delta.width, 0), 1 - rect.width),
+                          y: min(max(rect.minY + delta.height, 0), 1 - rect.height), width: rect.width, height: rect.height)
+        }
+        var (minX, maxX, minY, maxY) = (rect.minX, rect.maxX, rect.minY, rect.maxY)
+        if corner.left { minX = min(max(minX + delta.width, 0), maxX - least) } else { maxX = max(min(maxX + delta.width, 1), minX + least) }
+        if corner.top { minY = min(max(minY + delta.height, 0), maxY - least) } else { maxY = max(min(maxY + delta.height, 1), minY + least) }
+        return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+    }
+
     private static func filtered(_ input: CIImage, _ filter: PhotoEdits.Filter) -> CIImage {
         let effect: CIFilter?
         switch filter {
@@ -278,6 +307,8 @@ struct PhotoEditorView: View {
     @State private var comparing = false
 
     private var panelOpen: Bool { tool != nil || cropping }
+    /// While choosing a free frame the whole photo shows, with the frame on top.
+    private var freeCropping: Bool { cropping && edits.crop == .free }
     private var title: String {
         if let tool { return tool.name }
         return cropping ? String(localized: "Crop") : String(localized: "Edit")
@@ -346,13 +377,19 @@ struct PhotoEditorView: View {
             thumbnails = thumbs
         }
         .onChange(of: edits) { _, _ in refresh() }
+        .onChange(of: cropping) { _, _ in refresh() }
     }
 
     private var photo: some View {
         ZStack(alignment: .top) {
             if let shown = comparing ? small : preview {
                 Image(uiImage: shown).resizable().scaledToFit()
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay {
+                        if freeCropping {
+                            GeometryReader { geo in FreeCropFrame(rect: $edits.freeRect, size: geo.size) }
+                        }
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: freeCropping ? 0 : 12, style: .continuous))
             } else {
                 ProgressView()
             }
@@ -409,15 +446,16 @@ struct PhotoEditorView: View {
 
     private var cropPanel: some View {
         VStack(spacing: 12) {
-            HStack(spacing: 8) {
+            HStack(spacing: 6) {
                 ForEach(PhotoEdits.Crop.allCases) { shape in
                     Button {
                         edits.crop = shape
                         edits.zoom = 1
                         edits.offset = .zero
+                        edits.freeRect = CGRect(x: 0, y: 0, width: 1, height: 1)
                     } label: {
                         Text(shape.name).font(.caption.weight(.semibold))
-                            .padding(.horizontal, 10).frame(height: 32)
+                            .padding(.horizontal, 9).frame(height: 32)
                             .foregroundStyle(edits.crop == shape ? Theme.ink : Theme.muted)
                             .background(edits.crop == shape ? Theme.accent.opacity(0.35) : .clear, in: Capsule())
                             .overlay(Capsule().strokeBorder(Theme.ink.opacity(0.16), lineWidth: 0.5))
@@ -435,7 +473,10 @@ struct PhotoEditorView: View {
                     Image(systemName: "arrow.left.and.right.righttriangle.left.righttriangle.right").frame(width: 44, height: 44)
                 }
                 .accessibilityLabel(String(localized: "Flip"))
-                if edits.crop != .original {
+                if edits.crop == .free {
+                    Text("Drag the corners, or the middle to move it").font(.caption).foregroundStyle(Theme.muted)
+                    Spacer()
+                } else if edits.crop != .original {
                     Image(systemName: "minus.magnifyingglass").foregroundStyle(Theme.muted)
                     Slider(value: $edits.zoom, in: 1...3)
                     Image(systemName: "plus.magnifyingglass").foregroundStyle(Theme.muted)
@@ -521,6 +562,54 @@ struct PhotoEditorView: View {
 
     private func refresh() {
         guard let small else { return }
-        preview = PhotoEditor.apply(edits, to: small, maxEdge: 1000)
+        var shown = edits
+        if freeCropping { shown.crop = .original }
+        preview = PhotoEditor.apply(shown, to: small, maxEdge: 1000)
+    }
+}
+
+/// The free crop frame over the whole photo: outside it is dimmed, corners reshape it, the middle moves it.
+private struct FreeCropFrame: View {
+    @Binding var rect: CGRect
+    let size: CGSize
+    @State private var start: CGRect?
+
+    var body: some View {
+        let frame = CGRect(x: rect.minX * size.width, y: rect.minY * size.height,
+                           width: rect.width * size.width, height: rect.height * size.height)
+        ZStack(alignment: .topLeading) {
+            Path { path in
+                path.addRect(CGRect(origin: .zero, size: size))
+                path.addRect(frame)
+            }
+            .fill(Color.black.opacity(0.55), style: FillStyle(eoFill: true))
+            .allowsHitTesting(false)
+            Rectangle()
+                .strokeBorder(.white.opacity(0.9), lineWidth: 1.5)
+                .contentShape(Rectangle())
+                .frame(width: frame.width, height: frame.height)
+                .offset(x: frame.minX, y: frame.minY)
+                .gesture(drag(nil))
+                .accessibilityLabel(String(localized: "Crop frame"))
+            ForEach(PhotoEditor.CropCorner.allCases, id: \.self) { corner in
+                Circle().fill(.white)
+                    .frame(width: 16, height: 16)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+                    .offset(x: (corner.left ? frame.minX : frame.maxX) - 22, y: (corner.top ? frame.minY : frame.maxY) - 22)
+                    .gesture(drag(corner))
+            }
+        }
+    }
+
+    private func drag(_ corner: PhotoEditor.CropCorner?) -> some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { value in
+                let from = start ?? rect
+                start = from
+                rect = PhotoEditor.adjusted(from, corner: corner, by: CGSize(width: value.translation.width / max(size.width, 1),
+                                                                               height: value.translation.height / max(size.height, 1)))
+            }
+            .onEnded { _ in start = nil }
     }
 }
