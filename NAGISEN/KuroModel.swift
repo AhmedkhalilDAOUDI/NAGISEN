@@ -24,11 +24,17 @@ enum Ink {
     _lightingContribution.diffuse += band * _light.intensity.rgb;
     """
 
+    /// A thin warm light around every edge facing away from you, so shapes stand off what is behind them.
+    private static let rim = """
+    float rim = 1.0 - saturate(dot(_surface.normal, _surface.view));
+    _output.color.rgb += pow(rim, 3.0) * 0.18 * float3(1.0, 0.94, 0.84);
+    """
+
     static func material(_ colour: InkColor, glow: CGFloat = 0) -> SCNMaterial {
         let material = SCNMaterial()
         material.lightingModel = .lambert
         material.diffuse.contents = colour
-        material.shaderModifiers = [.lightingModel: toon]
+        material.shaderModifiers = [.lightingModel: toon, .fragment: rim]
         if glow > 0 { material.emission.contents = colour; material.emission.intensity = glow }
         return material
     }
@@ -67,7 +73,7 @@ enum Ink {
 /// Kuro in 3D: a calico (mike-neko) built from soft shapes, white with orange and black tabby patches,
 /// with golden eyes, a red collar and, as Kuro grows, a gold bell and finally a dojo master's headband.
 final class KuroModel {
-    enum Pose { case sit, stand, sleep, eat, swipe }
+    enum Pose { case sit, stand, sleep, eat, swipe, crouch, pounce, groom }
 
     static let fur = Ink.colour(0xF3EDE2)
     static let ginger = Ink.colour(0xD07A3A)
@@ -137,6 +143,9 @@ final class KuroModel {
             pupil.scale = SCNVector3(0.3, 1, 0.6)
             pupil.position = SCNVector3(0, 0, 0.012)
             eye.addChildNode(pupil)
+            let shine = Ink.part(SCNSphere(radius: 0.006), .white, outlined: false, glow: 1)
+            shine.position = SCNVector3(0.008 * side, 0.009, 0.02)
+            eye.addChildNode(shine)
             let lid = Ink.part(SCNCapsule(capRadius: 0.006, height: 0.05), Ink.sumi, outlined: false)
             lid.eulerAngles = SCNVector3(0, 0, .pi / 2 + 0.25 * side)
             lid.position = SCNVector3(0.05 * side, 0.005, 0.112)
@@ -258,6 +267,47 @@ final class KuroModel {
             curlTail([0, 0.3, 0.35, 0.35, 0.4, 0.45], pitch: -0.7)
             tail[0].position = SCNVector3(0, 0.23, -0.19)
             setEyes(open: true)
+        case .crouch:
+            // Low to the boards, weight back, eyes on whatever it is about to catch.
+            place(body, 0, 0.12, 0, scale: SCNVector3(0.95, 0.7, 1.4))
+            place(head, 0, 0.2, 0.27, pitch: 0.12)
+            place(collar, 0, 0.18, 0.19, pitch: 0.9)
+            for (index, (x, z)) in [(-0.065, 0.16), (0.065, 0.16), (-0.065, -0.12), (0.065, -0.12)].enumerated() {
+                place(legs[index], Float(x), 0.05, Float(z), pitch: index < 2 ? 0.5 : -0.6, scale: SCNVector3(1, 0.55, 1))
+            }
+            place(haunches[0], -0.08, 0.13, -0.12, scale: SCNVector3(0.9, 0.95, 1.05))
+            place(haunches[1], 0.08, 0.13, -0.12, scale: SCNVector3(0.9, 0.95, 1.05))
+            curlTail([0, 0.05, 0.05, 0.1, 0.12, 0.18], pitch: -1.35)
+            tail[0].position = SCNVector3(0, 0.13, -0.2)
+            setEyes(open: true)
+        case .pounce:
+            // Stretched out in the air: front paws reaching, back legs pushing away.
+            place(body, 0, 0.22, 0.05, pitch: -0.2, scale: SCNVector3(0.85, 0.8, 1.55))
+            place(head, 0, 0.36, 0.33, pitch: -0.15)
+            place(collar, 0, 0.29, 0.24, pitch: 0.6)
+            place(legs[0], -0.06, 0.25, 0.31, pitch: -1.2)
+            place(legs[1], 0.06, 0.25, 0.31, pitch: -1.2)
+            place(legs[2], -0.065, 0.13, -0.2, pitch: 0.8)
+            place(legs[3], 0.065, 0.13, -0.2, pitch: 0.8)
+            place(haunches[0], -0.07, 0.2, -0.13, scale: SCNVector3(0.8, 0.9, 1))
+            place(haunches[1], 0.07, 0.2, -0.13, scale: SCNVector3(0.8, 0.9, 1))
+            curlTail([0, 0.08, 0.08, 0.1, 0.1, 0.12], pitch: -1.05)
+            tail[0].position = SCNVector3(0, 0.24, -0.22)
+            setEyes(open: true)
+        case .groom:
+            // Sitting, one paw up at the mouth, head bent to it.
+            place(body, 0, 0.17, -0.02, pitch: -0.25, scale: SCNVector3(1, 1.25, 0.95))
+            place(head, 0.01, 0.35, 0.06, pitch: 0.35, yaw: -0.2, roll: -0.15)
+            place(collar, 0, 0.27, 0.02, pitch: 0.3)
+            place(legs[0], -0.055, 0.1, 0.085)
+            place(legs[1], 0.035, 0.27, 0.15, pitch: -2.1)
+            place(legs[2], -0.1, 0.03, 0.06, pitch: .pi / 2, scale: SCNVector3(1, 0.55, 1))
+            place(legs[3], 0.1, 0.03, 0.06, pitch: .pi / 2, scale: SCNVector3(1, 0.55, 1))
+            place(haunches[0], -0.095, 0.075, -0.05, scale: SCNVector3(0.85, 1, 1.25))
+            place(haunches[1], 0.095, 0.075, -0.05, scale: SCNVector3(0.85, 1, 1.25))
+            curlTail([0, 0.45, 0.5, 0.5, 0.45, 0.4], pitch: -1.45, yaw: 0.9)
+            tail[0].position = SCNVector3(0, 0.03, -0.17)
+            setEyes(open: false)
         case .sleep:
             place(body, 0, 0.095, 0, scale: SCNVector3(1.25, 0.66, 1.25))
             place(head, 0.05, 0.13, 0.15, pitch: 0.35, yaw: 0.35, roll: 0.15)
@@ -302,6 +352,38 @@ final class KuroModel {
     }
 
     func standStill() { legs.forEach { $0.removeAction(forKey: "walk") } }
+
+    /// Faster legs for a trot or a dash.
+    func runCycle() {
+        for (index, leg) in legs.enumerated() {
+            let forward = (index == 0 || index == 3) ? 1.0 : -1.0
+            let step = SCNAction.rotateBy(x: CGFloat(0.7 * forward), y: 0, z: 0, duration: 0.1)
+            leg.runAction(.repeatForever(.sequence([step, step.reversed(), step.reversed(), step])), forKey: "walk")
+        }
+    }
+
+    /// The bottom wiggle before a pounce.
+    func wiggle() {
+        let sway = SCNAction.rotateBy(x: 0, y: 0, z: 0.09, duration: 0.09)
+        body.runAction(.repeat(.sequence([sway, sway.reversed(), sway.reversed(), sway]), count: 4), forKey: "wiggle")
+        tail[4].runAction(.repeat(.sequence([.rotateBy(x: 0, y: 0, z: 0.4, duration: 0.08),
+                                             .rotateBy(x: 0, y: 0, z: -0.4, duration: 0.08)]), count: 8))
+    }
+
+    /// Licking a paw and wiping it over an ear, over and over.
+    func groomCycle() {
+        let paw = legs[1]
+        let lick = SCNAction.sequence([.moveBy(x: 0, y: 0.015, z: 0.01, duration: 0.18), .moveBy(x: 0, y: -0.015, z: -0.01, duration: 0.18)])
+        paw.runAction(.repeat(lick, count: 12), forKey: "groom")
+        head.runAction(.repeat(.sequence([.rotateBy(x: 0.12, y: 0, z: 0, duration: 0.18),
+                                          .rotateBy(x: -0.12, y: 0, z: 0, duration: 0.18)]), count: 12), forKey: "groom")
+    }
+
+    /// Purring under your hand: eyes shut in contentment and the head pushed into the stroke.
+    func lean(_ amount: Float) {
+        setEyes(open: amount < 0.3)
+        head.eulerAngles.z = .init(-0.25 * amount)
+    }
 
     func bob() {
         head.runAction(.repeat(.sequence([.moveBy(x: 0, y: -0.025, z: 0.01, duration: 0.25),
@@ -361,6 +443,19 @@ enum Calico {
         context.setFillColor(KuroModel.fur.cgColor)
         context.fill(CGRect(x: 0, y: 0, width: width, height: height))
         work(context)
+        // Short fur strokes all over, a little darker and lighter, so the coat reads as fur, not plastic.
+        var generator = SeededRandom(seed: 21)
+        context.setLineCap(.round)
+        context.setLineWidth(1.6)
+        for _ in 0..<2600 {
+            let x = generator.double(0...Double(width)), y = generator.double(0...Double(height))
+            let lean = generator.double(-3...3)
+            context.setStrokeColor(generator.double(0...1) > 0.5 ? CGColor(red: 0, green: 0, blue: 0, alpha: 0.07)
+                                                                 : CGColor(red: 1, green: 1, blue: 1, alpha: 0.1))
+            context.move(to: CGPoint(x: x, y: y))
+            context.addLine(to: CGPoint(x: x + lean, y: y - generator.double(5...9)))
+            context.strokePath()
+        }
         return context.makeImage()!
     }
 

@@ -104,7 +104,7 @@ enum CoachProvider: String, CaseIterable, Identifiable {
 }
 
 enum CoachError: LocalizedError {
-    case badEndpoint, invalidResponse, http(Int, String)
+    case badEndpoint, invalidResponse, http(Int, String), refused(Int, String, String)
     var errorDescription: String? {
         switch self {
         case .badEndpoint: String(localized: "The service address isn't valid. Check it in Chat settings.")
@@ -114,6 +114,7 @@ enum CoachError: LocalizedError {
         case .http(404, _): String(localized: "The model wasn't found. Check the model name in Chat settings.")
         case .http(429, let name): String(localized: "\(name) is busy or your limit was reached. Try again later.")
         case .http(let code, let name): String(localized: "\(name) returned error \(code). Try again.")
+        case .refused(let code, let name, let reason): String(localized: "\(name) returned error \(code): \(reason)")
         }
     }
 }
@@ -129,6 +130,8 @@ final class CoachChat: ObservableObject {
     private let historyKey = "nagisen.deepseek.chat.v2"
     static let providerKey = "nagisen.coach.provider"
     static let baseURLKey = "nagisen.coach.baseURL"
+    /// Set after a saved key was refused and the built-in one worked; cleared when you save a new key.
+    static let preferBuiltInKey = "nagisen.coach.preferBuiltInKey"
     static func modelKey(_ provider: CoachProvider) -> String { "nagisen.coach.model.\(provider.rawValue)" }
 
     init() {
@@ -146,8 +149,10 @@ final class CoachChat: ObservableObject {
         return Self.loadKey(for: .deepSeek) != nil ? .deepSeek : .openAI
     }
 
-    var model: String {
-        let saved = UserDefaults.standard.string(forKey: Self.modelKey(provider))?
+    var model: String { Self.model(for: provider) }
+
+    static func model(for provider: CoachProvider) -> String {
+        let saved = UserDefaults.standard.string(forKey: modelKey(provider))?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return saved.isEmpty ? provider.defaultModel : saved
     }
@@ -157,6 +162,7 @@ final class CoachChat: ObservableObject {
     func setKey(_ value: String, for provider: CoachProvider) -> Bool {
         let cleaned = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleaned.isEmpty, let data = cleaned.data(using: .utf8) else { return false }
+        UserDefaults.standard.set(false, forKey: Self.preferBuiltInKey)
         let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
                                     kSecAttrService as String: "NAGISEN",
                                     kSecAttrAccount as String: provider.keychainAccount]
@@ -199,12 +205,44 @@ final class CoachChat: ObservableObject {
                 systemPrompt += "\n\nNAGISEN data, supplied for this reply when relevant: \(context)"
             }
             let history = messages.suffix(12).map { ["role": $0.role, "content": $0.content] }
-            let request = try provider.request(key: key, model: model,
-                                               customBase: UserDefaults.standard.string(forKey: Self.baseURLKey) ?? "",
-                                               system: systemPrompt, messages: history)
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let base = UserDefaults.standard.string(forKey: Self.baseURLKey) ?? ""
+            var provider = provider
+            var (data, response) = try await URLSession.shared.data(for: provider.request(key: key, model: model, customBase: base,
+                                                                                         system: systemPrompt, messages: history))
+            // A saved key was refused, but this build carries a DeepSeek key: use that one, now and from now on.
+            if let refused = response as? HTTPURLResponse, [401, 403].contains(refused.statusCode),
+               let builtIn = Self.developmentKey(for: .deepSeek), !(provider == .deepSeek && key == builtIn) {
+                provider = .deepSeek
+                UserDefaults.standard.set(CoachProvider.deepSeek.rawValue, forKey: Self.providerKey)
+                UserDefaults.standard.set(true, forKey: Self.preferBuiltInKey)
+                (data, response) = try await URLSession.shared.data(for: provider.request(key: builtIn, model: Self.model(for: .deepSeek),
+                                                                                         customBase: base, system: systemPrompt,
+                                                                                         messages: history))
+            }
+            // A model name the service doesn't offer (an old one, or another service's): retry with this
+            // service's own default and forget the saved name.
+            if let refused = response as? HTTPURLResponse, refused.statusCode == 400 || refused.statusCode == 404 {
+                let used = Self.model(for: provider), fallback = provider.defaultModel
+                if !fallback.isEmpty, used != fallback, let key = Self.loadKey(for: provider) {
+                    let retry = try await URLSession.shared.data(for: provider.request(key: key, model: fallback, customBase: base,
+                                                                                       system: systemPrompt, messages: history))
+                    if let fixed = retry.1 as? HTTPURLResponse, (200..<300).contains(fixed.statusCode) {
+                        UserDefaults.standard.removeObject(forKey: Self.modelKey(provider))
+                    }
+                    (data, response) = retry
+                }
+            }
             guard let http = response as? HTTPURLResponse else { throw CoachError.invalidResponse }
-            guard (200..<300).contains(http.statusCode) else { throw CoachError.http(http.statusCode, provider.name) }
+            guard (200..<300).contains(http.statusCode) else {
+                // Most services explain a refusal in {"error": {"message": …}}; show that rather than only a number.
+                if ![401, 403, 402, 429].contains(http.statusCode),
+                   let body = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let reason = (body["error"] as? [String: Any])?["message"] as? String ?? body["message"] as? String,
+                   !reason.isEmpty {
+                    throw CoachError.refused(http.statusCode, provider.name, String(reason.prefix(200)))
+                }
+                throw CoachError.http(http.statusCode, provider.name)
+            }
             guard let answer = provider.answer(from: data) else { throw CoachError.invalidResponse }
             messages.append(CoachMessage(role: "assistant", content: answer))
         } catch {
@@ -221,6 +259,7 @@ final class CoachChat: ObservableObject {
     }
 
     static func loadKey(for provider: CoachProvider) -> String? {
+        if UserDefaults.standard.bool(forKey: preferBuiltInKey), let builtIn = developmentKey(for: provider) { return builtIn }
         var result: CFTypeRef?
         let status = SecItemCopyMatching([kSecClass: kSecClassGenericPassword,
                                           kSecAttrService: "NAGISEN",
