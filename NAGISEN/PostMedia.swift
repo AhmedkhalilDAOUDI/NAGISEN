@@ -214,11 +214,11 @@ enum PostMedia {
         return (try? jpeg.write(to: url)) != nil ? url : nil
     }
 
-    /// Width ÷ height a post's media is shown at: its own shape, but never taller than 4:5
-    /// or wider than 1.91:1, so one post never takes over the screen.
+    /// Width ÷ height a post's media is shown at: its own shape, so a card or a phone photo shows
+    /// whole, but never taller than 9:16 or wider than 1.91:1.
     static func feedAspectRatio(width: CGFloat, height: CGFloat) -> CGFloat {
         guard width > 0, height > 0 else { return 4.0 / 5.0 }
-        return min(max(width / height, 4.0 / 5.0), 1.91)
+        return min(max(width / height, 9.0 / 16.0), 1.91)
     }
 
     static func temporaryURL(extension ext: String) -> URL {

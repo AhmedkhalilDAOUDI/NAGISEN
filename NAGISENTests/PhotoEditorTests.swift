@@ -199,4 +199,12 @@ final class PhotoEditorTests: XCTestCase {
         let sound = try await asset.loadTracks(withMediaType: .audio)
         XCTAssertEqual(sound.count, 1)
     }
+
+    func testAPostNamesTheTrackItWasPostedWith() {
+        XCTAssertEqual(CardMusic.named(inPath: "abc/1f2e-music-dusk.mp4"), .dusk)
+        XCTAssertEqual(CardMusic.named(inPath: "abc/1f2e-music-dusk-poster.jpg"), .dusk)
+        XCTAssertNil(CardMusic.named(inPath: "abc/1f2e.mp4"))
+        XCTAssertNil(CardMusic.named(inPath: nil))
+        XCTAssertNil(CardMusic.named(inPath: "abc/1f2e-music-unknown.mp4"))
+    }
 }

@@ -51,6 +51,7 @@ struct FeedPost: Identifiable, Decodable, Equatable {
     var likedByMe: Bool
 
     var username: String { author.username }
+    var music: CardMusic? { CardMusic.named(inPath: mediaPath) }
 
     private struct Count: Decodable { let count: Int }
     private struct Mine: Decodable { let member_id: UUID }
@@ -138,6 +139,8 @@ struct PostAttachment {
     let fileURL: URL
     /// The first frame of a video, as a JPEG, for grids and story rings.
     var posterURL: URL? = nil
+    /// The card track playing under a card video, so the post can name it.
+    var music: CardMusic? = nil
 
     var contentType: String { kind == .photo ? "image/jpeg" : "video/mp4" }
     var fileExtension: String { kind == .photo ? "jpg" : "mp4" }

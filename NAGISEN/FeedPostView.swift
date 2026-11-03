@@ -94,7 +94,8 @@ private struct PlayerLayerView: UIViewRepresentable {
 
     func makeUIView(context: Context) -> LayerView {
         let view = LayerView()
-        view.playerLayer.videoGravity = .resizeAspectFill
+        // Whole video, never cropped; the post's frame already takes the video's shape.
+        view.playerLayer.videoGravity = .resizeAspect
         view.backgroundColor = .black
         return view
     }
@@ -111,6 +112,7 @@ struct FeedPostView: View {
     @EnvironmentObject private var feed: FeedService
     @State private var post: FeedPost
     @State private var photo: UIImage?
+    @State private var videoRatio: CGFloat?
     @State private var heartVisible = false
     @State private var showingComments = false
     @State private var showingLikers = false
@@ -190,7 +192,14 @@ struct FeedPostView: View {
                 HStack(spacing: 10) {
                     AvatarView(url: feed.avatarURL(post.author.avatarPath), username: post.username,
                                tier: post.author.borderTier, special: post.author.special, size: 34)
-                    Text(post.username).font(.subheadline.weight(.semibold)).memberName(post.author.special)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(post.username).font(.subheadline.weight(.semibold)).memberName(post.author.special)
+                        if let music = post.music {
+                            Label("NAGISEN · \(music.title)", systemImage: "music.note")
+                                .font(.caption).foregroundStyle(Theme.muted)
+                                .accessibilityLabel("Music: \(music.title)")
+                        }
+                    }
                 }
             }
             .buttonStyle(.plain)
@@ -239,7 +248,13 @@ struct FeedPostView: View {
         Group {
             if let url = feed.mediaURL(for: post), post.mediaKind == .video {
                 LoopingVideo(url: url)
-                    .aspectRatio(4.0 / 5.0, contentMode: .fit)
+                    .aspectRatio(videoRatio ?? 4.0 / 5.0, contentMode: .fit)
+                    .task(id: url) {
+                        guard let track = try? await AVURLAsset(url: url).loadTracks(withMediaType: .video).first,
+                              let (size, turn) = try? await track.load(.naturalSize, .preferredTransform) else { return }
+                        let shown = size.applying(turn)
+                        videoRatio = PostMedia.feedAspectRatio(width: abs(shown.width), height: abs(shown.height))
+                    }
             } else if let url = feed.mediaURL(for: post) {
                 ZStack {
                     Rectangle().fill(Theme.surface.opacity(0.35))

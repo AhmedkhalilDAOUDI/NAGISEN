@@ -155,6 +155,7 @@ extension FeedService {
     func upload(_ attachment: PostAttachment, prefix: String) async throws -> (media: String, poster: String?) {
         guard let client, let userID else { throw URLError(.userAuthenticationRequired) }
         let base = "\(FeedRules.mediaFolder(for: userID))/\(prefix)\(UUID().uuidString.lowercased())"
+            + (attachment.music.map { "\(CardMusic.pathMarker)\($0.rawValue)" } ?? "")
         let mediaPath = "\(base).\(attachment.fileExtension)"
         try await client.storage.from(bucket).upload(mediaPath, fileURL: attachment.fileURL,
                                                      options: FileOptions(contentType: attachment.contentType))

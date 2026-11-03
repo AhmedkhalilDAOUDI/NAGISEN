@@ -244,7 +244,8 @@ final class FeedTests: XCTestCase {
 
     func testPhotosKeepTheirShapeWithinFeedLimits() {
         XCTAssertEqual(PostMedia.feedAspectRatio(width: 1000, height: 1000), 1)
-        XCTAssertEqual(PostMedia.feedAspectRatio(width: 1000, height: 3000), 0.8, "tall photos stop at 4:5")
+        XCTAssertEqual(PostMedia.feedAspectRatio(width: 900, height: 1600), 9.0 / 16.0, "a story-shaped card shows whole")
+        XCTAssertEqual(PostMedia.feedAspectRatio(width: 1000, height: 3000), 9.0 / 16.0, "taller ones stop at 9:16")
         XCTAssertEqual(PostMedia.feedAspectRatio(width: 4000, height: 1000), 1.91, "wide photos stop at 1.91:1")
         XCTAssertEqual(PostMedia.feedAspectRatio(width: 0, height: 0), 0.8)
     }

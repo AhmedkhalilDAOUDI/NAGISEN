@@ -588,7 +588,9 @@ struct ShareCardSheet<Card: PhotoCard>: View {
             if music != nil {
                 guard let video = await video(of: image) else { return }
                 defer { try? FileManager.default.removeItem(at: video) }
-                attachment = try? await PostMedia.video(at: video)
+                var made = try? await PostMedia.video(at: video)
+                made?.music = music
+                attachment = made
             } else {
                 attachment = image.jpegData(compressionQuality: 0.9).flatMap { try? PostMedia.photo(from: $0) }
             }
@@ -623,4 +625,13 @@ enum CardMusic: String, CaseIterable, Identifiable {
     }
 
     var url: URL? { Bundle.main.url(forResource: "card_\(rawValue)", withExtension: "m4a") }
+
+    // shortcut: the track rides in the posted file's name ("…-music-dusk.mp4") because posts have no music
+    // column; add one to the posts table if posts ever need more than the track's name.
+    static let pathMarker = "-music-"
+
+    static func named(inPath path: String?) -> CardMusic? {
+        guard let name = path?.split(separator: "/").last, let marker = name.range(of: pathMarker) else { return nil }
+        return CardMusic(rawValue: String(name[marker.upperBound...].prefix { $0.isLetter }))
+    }
 }
