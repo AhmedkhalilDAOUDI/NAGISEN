@@ -33,6 +33,8 @@ final class Dojo {
     private let treat: SCNNode
     private let butterfly = SCNNode()
     private var koi: [SCNNode] = []
+    private var waterSurface: SCNMaterial?
+    private var waterTime = 0.0
     private let cushion = SCNVector3(-0.62, Dojo.deck + 0.07, -0.45)
     private static let pondCentre = SCNVector3(-1.9, 0, -2.4), pondRadius = (x: Float(1.6), z: Float(1.0))
     private static let sunStone = SCNVector3(2.05, 0.06, 0.55)
@@ -128,6 +130,9 @@ final class Dojo {
     func update(_ dt: Double) {
         guard running else { return }
         follow(dt)
+        waterTime += dt
+        let drift = Float(waterTime * 0.012)
+        waterSurface?.normal.contentsTransform = SCNMatrix4Mult(SCNMatrix4MakeScale(4, 2.5, 1), SCNMatrix4MakeTranslation(.init(drift), .init(drift * 0.6), 0))
         if rubTime == 0, purr > 0 {
             purr = max(0, purr - dt * 0.6)
             kuro.lean(Float(purr))
@@ -723,26 +728,32 @@ final class Dojo {
     // MARK: Garden life: koi, a butterfly, flowers, a warm stone, the feather and the treat
 
     private func buildLife() {
-        // Koi circling slowly under the pond's surface.
-        for (index, colours) in [(0xE8663A, 0xF5F0E6), (0xF5F0E6, 0xD64A3A), (0xE9A23B, 0x2A2524)].enumerated() {
-            let fish = SCNNode()
-            let body = Ink.part(SCNSphere(radius: 0.07), Ink.colour(UInt32(colours.0)))
-            body.scale = SCNVector3(0.55, 0.35, 1.5)
-            let patch = Ink.part(SCNSphere(radius: 0.045), Ink.colour(UInt32(colours.1)))
-            patch.scale = SCNVector3(0.6, 0.4, 1.2)
-            patch.position = SCNVector3(0, 0.012, 0.02)
-            let fin = Ink.part(SCNCone(topRadius: 0, bottomRadius: 0.04, height: 0.06), Ink.colour(UInt32(colours.0)))
-            fin.eulerAngles.x = .init(-Float.pi / 2)
-            fin.position = SCNVector3(0, 0, -0.12)
-            [body, patch, fin].forEach(fish.addChildNode)
+        // Koi circling slowly under the water: a real fish model in three koi coats, each beating its tail.
+        let template = Dojo.upright("koi", height: 0.17)
+        for (index, coat) in ["koi_kohaku", "koi_showa", "koi_ogon"].enumerated() {
+            let fish = template?.clone() ?? SCNNode()
+            fish.enumerateHierarchy { node, _ in
+                guard let geometry = node.geometry?.copy() as? SCNGeometry else { return }
+                let skin = (geometry.firstMaterial?.copy() as? SCNMaterial) ?? Ink.material(.white)
+                if let picture = Ink.assets?.appendingPathComponent("\(coat).jpg") { skin.diffuse.contents = picture }
+                skin.roughness.contents = 0.35
+                // The swim: a wave down the body, growing toward the tail (the model's head is at -y).
+                skin.shaderModifiers = [.geometry: """
+                float tail = clamp((_geometry.position.y + 0.32) / 0.64, 0.0, 1.0);
+                _geometry.position.x += sin(_geometry.position.y * 9.0 - scn_frame.time * 6.0) * 0.04 * tail * tail;
+                """]
+                geometry.materials = [skin]
+                node.geometry = geometry
+            }
             let orbit = SCNNode()
-            orbit.position = SCNVector3(Float(Dojo.pondCentre.x), 0.014, Float(Dojo.pondCentre.z))
-            fish.position = SCNVector3(0.5 + Float(index) * 0.18, 0, 0)
+            orbit.position = SCNVector3(Float(Dojo.pondCentre.x), -0.15 + Float(index) * 0.025, Float(Dojo.pondCentre.z))
+            fish.position = SCNVector3(0.45 + Float(index) * 0.17, 0, 0)
+            let lap: CGFloat = index % 2 == 0 ? 2 * .pi : -2 * .pi
+            // Facing along its circle: head first.
+            fish.eulerAngles.y = .init(lap > 0 ? Float.pi : 0)
             orbit.addChildNode(fish)
             orbit.scale = SCNVector3(1.5, 1, 0.9)
-            let lap: CGFloat = index % 2 == 0 ? 2 * .pi : -2 * .pi
-            orbit.runAction(.repeatForever(.rotateBy(x: 0, y: lap, z: 0, duration: 14 + Double(index) * 4)))
-            fish.runAction(.repeatForever(.sequence([.rotateBy(x: 0, y: 0.25, z: 0, duration: 0.4), .rotateBy(x: 0, y: -0.25, z: 0, duration: 0.4)])))
+            orbit.runAction(.repeatForever(.rotateBy(x: 0, y: lap, z: 0, duration: 16 + Double(index) * 4)))
             stage.addChildNode(orbit)
             koi.append(fish)
         }
@@ -814,7 +825,7 @@ final class Dojo {
     /// A ring spreading on the water where a paw dipped.
     private func ripple() {
         let ring = Ink.part(SCNTorus(ringRadius: 0.05, pipeRadius: 0.004), Ink.colour(0xEAF3F8), glow: 0.5)
-        ring.position = SCNVector3(-1.15, 0.02, -2.0)
+        ring.position = SCNVector3(-1.15, -0.043, -2.0)
         stage.addChildNode(ring)
         ring.runAction(.sequence([.group([.scale(to: 5, duration: 1.4), .fadeOut(duration: 1.4)]), .removeFromParentNode()]))
     }
@@ -918,6 +929,26 @@ final class Dojo {
         return node
     }
 
+    /// A flat disc of `outer` radius lying on the ground, with an elliptical hole cut out of it.
+    static func flatShape(outer: CGFloat, holeAt hole: SIMD2<Float>, holeRadii: SIMD2<Float>) -> SCNShape {
+        // The shape is drawn in x and y, then laid flat, so the garden's z is the path's -y.
+        let ring = CGRect(x: -outer, y: -outer, width: 2 * outer, height: 2 * outer)
+        let pit = CGRect(x: CGFloat(hole.x - holeRadii.x), y: CGFloat(-hole.y - holeRadii.y),
+                         width: CGFloat(2 * holeRadii.x), height: CGFloat(2 * holeRadii.y))
+        #if canImport(UIKit)
+        let path = UIBezierPath(ovalIn: ring)
+        path.append(UIBezierPath(ovalIn: pit))
+        path.usesEvenOddFillRule = true
+        path.flatness = 0.05
+        #else
+        let path = NSBezierPath(ovalIn: ring)
+        path.append(NSBezierPath(ovalIn: pit))
+        path.windingRule = .evenOdd
+        path.flatness = 0.05
+        #endif
+        return SCNShape(path: path, extrusionDepth: 0.02)
+    }
+
     /// A whole model stood upright (Poly Haven's are Z-up), scaled to `height` metres, its base at the origin.
     static func upright(_ name: String, height: Float) -> SCNNode? {
         guard let model = model(name) else { return nil }
@@ -966,27 +997,50 @@ final class Dojo {
         backdrop.eulerAngles.y = .init(atan2(Float(Dojo.focus.x - Dojo.eye.x), Float(Dojo.focus.z - Dojo.eye.z)))
         stage.addChildNode(backdrop)
 
-        let ground = Ink.part(SCNCylinder(radius: 14, height: 0.02), Ink.colour(0x7E9A5C),
+        // The lawn, with the pond cut out of it.
+        let centre = Dojo.pondCentre, radii = Dojo.pondRadius
+        let lawnShape = Dojo.flatShape(outer: 14, holeAt: SIMD2(Float(centre.x), Float(centre.z)), holeRadii: SIMD2(radii.x, radii.z))
+        let ground = Ink.part(lawnShape, Ink.colour(0x7E9A5C),
                               surface: Ink.surface("lawn", tile: (36, 36), fallback: Ink.colour(0x7E9A5C)))
         // The texture is leaf litter over grass; tinted toward a spring-green lawn.
         ground.geometry?.firstMaterial?.multiply.contents = InkColor(red: 0.7, green: 1.0, blue: 0.6, alpha: 1)
-        add(ground, 0, -0.01, 0)
-        // The pond: a dark bed, the koi above it, and a clear rippling surface over both.
-        let bed = Ink.part(SCNCylinder(radius: 1.0, height: 0.004), Ink.colour(0x2C4656))
-        bed.scale = SCNVector3(1.6, 1, 1)
-        add(bed, -1.9, 0.004, -2.4)
-        // Clear, still water: glossy, so it mirrors the sky, and see-through to the koi.
-        let pond = Ink.part(SCNCylinder(radius: 1.0, height: 0.01), Ink.colour(0x3E6E8E), roughness: 0.04)
-        pond.scale = SCNVector3(1.6, 1, 1)
-        pond.geometry?.firstMaterial?.transparency = 0.55
-        pond.geometry?.firstMaterial?.writesToDepthBuffer = false
-        // Slow crossing ripples: the normal is bent by two moving waves, so the flat bands of light drift.
-        pond.geometry?.firstMaterial?.shaderModifiers?[.surface] = """
-        float2 p = _surface.diffuseTexcoord * 14.0;
-        float t = scn_frame.time;
-        _surface.normal = normalize(_surface.normal + float3(sin(p.x * 1.7 + t * 1.2) * 0.35, 0.0, cos(p.y * 1.3 + t * 0.9) * 0.35));
-        """
-        add(pond, -1.9, 0.03, -2.4)
+        ground.eulerAngles.x = .init(-Float.pi / 2)
+        ground.position.y = -0.01
+        stage.addChildNode(ground)
+        // A real basin under it: stone walls, a dark gravel bed, stones around the rim.
+        let wall = Ink.part(SCNTube(innerRadius: 0.99, outerRadius: 1.03, height: 0.36), Ink.colour(0x5E5A52),
+                            surface: Ink.surface("rock", tile: (6, 1), fallback: Ink.colour(0x5E5A52)))
+        wall.scale = SCNVector3(radii.x, 1, radii.z)
+        add(wall, Float(centre.x), -0.18, Float(centre.z))
+        let floor = Ink.part(SCNCylinder(radius: 1.0, height: 0.02), Ink.colour(0x3A3A34),
+                             surface: Ink.surface("rock", tile: (4, 3), fallback: Ink.colour(0x3A3A34)))
+        floor.geometry?.firstMaterial?.multiply.contents = InkColor(white: 0.45, alpha: 1)
+        floor.scale = SCNVector3(radii.x, 1, radii.z)
+        add(floor, Float(centre.x), -0.35, Float(centre.z))
+        var stones = SeededRandom(seed: 17)
+        for index in 0..<18 {
+            let angle = Float(index) / 18 * 2 * .pi + Float(stones.double(-0.1...0.1))
+            let r = CGFloat(stones.double(0.08...0.15))
+            let stone = Ink.part(SCNSphere(radius: r), Ink.colour(0x8C8A86), surface: Ink.surface("rock", fallback: Ink.colour(0x8C8A86)))
+            stone.scale = SCNVector3(1.3, 0.55, 1)
+            add(stone, Float(centre.x) + cos(angle) * (radii.x + 0.04), Float(r) * 0.2, Float(centre.z) + sin(angle) * (radii.z + 0.04),
+                yaw: Float(stones.double(0...6.3)))
+        }
+        // The water itself: dark, glossy so it mirrors the sky, clear enough to see the koi, with real ripples drifting.
+        let water = Ink.part(SCNCylinder(radius: 1.0, height: 0.01), Ink.colour(0x1D3A42), roughness: 0.02)
+        water.scale = SCNVector3(radii.x, 1, radii.z)
+        if let surface = water.geometry?.firstMaterial {
+            surface.transparency = 0.45
+            surface.writesToDepthBuffer = false
+            if let ripples = Ink.assets?.appendingPathComponent("water_nor.jpg") {
+                surface.normal.contents = ripples
+                surface.normal.intensity = 0.7
+                surface.normal.wrapS = .repeat
+                surface.normal.wrapT = .repeat
+            }
+            waterSurface = surface
+        }
+        add(water, Float(centre.x), -0.05, Float(centre.z))
         for (x, z, r) in Dojo.rocks {
             let rock = Ink.part(SCNSphere(radius: CGFloat(r)), Ink.colour(0x8C8A86), surface: Ink.surface("rock", fallback: Ink.colour(0x8C8A86)))
             rock.scale = SCNVector3(1.3, 0.6, 1)
@@ -1093,9 +1147,13 @@ final class Dojo {
     /// A small red taiko bridge over the pond's end.
     private func bridge() -> SCNNode {
         let node = SCNNode(), red = Ink.colour(0xB0283A)
+        // Real wood grain under a red lacquer.
+        let lacquer = Ink.surface("darkwood", tile: (1, 2), fallback: red)
+        lacquer.multiply.contents = InkColor(red: 1, green: 0.25, blue: 0.22, alpha: 1)
+        lacquer.roughness.contents = 0.35
         for index in 0..<7 {
             let t = Float(index - 3) / 3
-            let plank = Ink.part(SCNBox(width: 0.2, height: 0.04, length: 0.5, chamferRadius: 0.005), red)
+            let plank = Ink.part(SCNBox(width: 0.2, height: 0.04, length: 0.5, chamferRadius: 0.005), red, surface: lacquer)
             plank.position = SCNVector3(t * 0.6, 0.22 * (1 - t * t) + 0.05, 0)
             plank.eulerAngles.z = .init(-t * 0.5)
             node.addChildNode(plank)
