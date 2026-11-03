@@ -197,12 +197,16 @@ final class KuroModel {
         set(.sit, animated: false)
     }
 
+    /// How far ahead of its paws Kuro's mouth is with its head down to eat, at its current size.
+    private(set) var reach: Float = 0.42
+
     func grow(to stage: FamiliarCat.Stage) {
         let size: Float = [0.62, 0.8, 1, 1.08][stage.rawValue]
         root.scale = SCNVector3(size, size, size)
         // Kittens are mostly head.
         let headSize: Float = [1.28, 1.1, 1, 1][stage.rawValue]
         head.scale = SCNVector3(headSize, headSize, headSize)
+        reach = (0.32 + 0.11 * headSize) * size
         collar.isHidden = stage == .kitten
         bell.isHidden = stage < .grown
         headband.isHidden = stage != .elder
@@ -257,8 +261,9 @@ final class KuroModel {
             setEyes(open: true)
         case .stand, .eat:
             place(body, 0, 0.2, 0, scale: SCNVector3(0.92, 0.85, 1.32))
-            place(head, 0, pose == .eat ? 0.16 : 0.35, pose == .eat ? 0.33 : 0.27, pitch: pose == .eat ? 0.55 : -0.1)
-            place(collar, 0, pose == .eat ? 0.2 : 0.27, pose == .eat ? 0.25 : 0.19, pitch: pose == .eat ? 1.1 : 0.7)
+            // Eating, the head goes right down so the mouth meets the ground in front of the paws.
+            place(head, 0, pose == .eat ? 0.11 : 0.35, pose == .eat ? 0.32 : 0.27, pitch: pose == .eat ? 0.8 : -0.1)
+            place(collar, 0, pose == .eat ? 0.18 : 0.27, pose == .eat ? 0.24 : 0.19, pitch: pose == .eat ? 1.2 : 0.7)
             for (index, (x, z)) in [(-0.065, 0.14), (0.065, 0.14), (-0.065, -0.14), (0.065, -0.14)].enumerated() {
                 place(legs[index], Float(x), 0.095, Float(z))
             }

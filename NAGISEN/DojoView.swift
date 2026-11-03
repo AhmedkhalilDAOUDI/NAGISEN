@@ -129,7 +129,7 @@ struct DojoView: View {
 
     static func hint(_ hand: Dojo.Hand, name: String) -> String {
         switch hand {
-        case .look: String(localized: "Rub \(name) to pet · double-tap anywhere to call · don't poke too much")
+        case .look: String(localized: "Drag to turn and tilt · pinch to zoom · rub \(name) to pet · double-tap to call")
         case .feather: String(localized: "Drag the feather around. Hold it still and \(name) will pounce.")
         case .treat: String(localized: "Tap anywhere in the garden to drop a treat.")
         }
@@ -208,7 +208,8 @@ private struct DojoSceneView: UIViewRepresentable {
         let dojo: Dojo
         weak var view: SCNView?
         private var startYaw: Float = 0
-        private var startView: CGFloat = 60
+        private var startLift: Float = 0
+        private var startZoom: Float = 1
         private var clock: CADisplayLink?
         private var lastTick: CFTimeInterval = 0
         private var dragging = Drag.turning
@@ -275,14 +276,16 @@ private struct DojoSceneView: UIViewRepresentable {
             dojo.call(to: target)
         }
 
-        /// One finger: rubbing Kuro, steering the feather, or otherwise turning the garden a little either way.
+        /// One finger: rubbing Kuro, steering the feather, or otherwise moving the camera: sideways turns the
+        /// garden all the way round, up and down raises or lowers the view.
         @objc func pan(_ gesture: UIPanGestureRecognizer) {
             guard let view else { return }
             let point = gesture.location(in: view)
             switch gesture.state {
             case .began:
                 if touchesKuro(point) { dragging = .rubbing } else if dojo.hand == .feather { dragging = .feather } else { dragging = .turning }
-                startYaw = Float(dojo.stage.eulerAngles.y)
+                startYaw = dojo.turn
+                startLift = dojo.cameraLift
                 lastPoint = point
                 lastMove = CACurrentMediaTime()
                 purrFeel.prepare()
@@ -297,18 +300,18 @@ private struct DojoSceneView: UIViewRepresentable {
                 case .feather:
                     if let target = spot(point) { dojo.moveFeather(to: target) }
                 case .turning:
-                    let turn = startYaw + Float(gesture.translation(in: view).x / 300)
-                    dojo.stage.eulerAngles.y = .init(min(max(turn, -0.5), 0.5))
+                    let moved = gesture.translation(in: view)
+                    dojo.orbit(turn: startYaw + Float(moved.x / 220), lift: startLift + Float(moved.y / 260))
                 }
             default:
                 if dragging == .rubbing { dojo.endRub() }
             }
         }
 
+        /// Pinch to come closer or move back.
         @objc func pinch(_ gesture: UIPinchGestureRecognizer) {
-            guard let camera = dojo.camera.camera else { return }
-            if gesture.state == .began { startView = camera.fieldOfView }
-            camera.fieldOfView = min(max(startView / gesture.scale, 34), 72)
+            if gesture.state == .began { startZoom = dojo.cameraZoom }
+            dojo.setZoom(startZoom / Float(gesture.scale))
         }
     }
 }

@@ -1,5 +1,6 @@
 import CoreText
 import SceneKit
+import simd
 
 /// Kuro's hideout: an open engawa in a spring garden under Mount Fuji, with cherry trees, a koi pond,
 /// flowers and a stone lantern. Kuro roams all of it on its own, jumping down off the veranda to watch
@@ -35,6 +36,10 @@ final class Dojo {
     private let cushion = SCNVector3(-0.62, Dojo.deck + 0.07, -0.45)
     private static let pondCentre = SCNVector3(-1.9, 0, -2.4), pondRadius = (x: Float(1.6), z: Float(1.0))
     private static let sunStone = SCNVector3(2.05, 0.06, 0.55)
+    /// Rocks (x, z, radius) and trees (x, z, scale): drawn by the garden and walked around by Kuro.
+    static let rocks: [(Float, Float, Float)] = [(-3.0, -2.0, 0.22), (-0.6, -2.8, 0.18), (-2.4, -3.2, 0.26), (-1.0, -1.7, 0.14), (2.6, -1.4, 0.3)]
+    static let trees: [(Float, Float, Float)] = [(-2.6, -1.0, 1.15), (2.4, -2.4, 1.0), (-0.4, -3.6, 0.85), (4.0, -0.8, 0.9)]
+    static let lanternSpot = SCNVector3(1.9, 0, -0.9)
     private static let flowerBeds = [SCNVector3(1.75, 0, -0.35), SCNVector3(-1.75, 0, 0.85), SCNVector3(2.4, 0, -1.7)]
     /// Where the camera stands and what it looks at; the painted sky is turned to match.
     private static let eye = SCNVector3(0.3, 1.05, 2.1), focus = SCNVector3(-0.15, 0.5, -0.45)
@@ -51,6 +56,10 @@ final class Dojo {
     private var rubTime = 0.0
     private var purr = 0.0
     private var heartClock = 0.0
+    /// Your camera: how far round the garden is turned, how high the camera rides, how close it comes.
+    private(set) var turn: Float = 0
+    private var lift: Float = 0
+    private var zoom: Float = 1
 
     init(stage growth: FamiliarCat.Stage, mood: FamiliarCat.Mood) {
         kuro = KuroModel(stage: growth)
@@ -123,6 +132,20 @@ final class Dojo {
 
     // MARK: What you can do
 
+    /// Turns the garden all the way round, and raises or lowers the camera.
+    func orbit(turn newTurn: Float, lift newLift: Float) {
+        turn = newTurn
+        stage.eulerAngles.y = .init(newTurn)
+        lift = max(-0.55, min(1.6, newLift))
+    }
+
+    var cameraLift: Float { lift }
+
+    /// Closer (below 1) or farther (above 1) from what the camera watches.
+    func setZoom(_ value: Float) { zoom = max(0.45, min(1.8, value)) }
+
+    var cameraZoom: Float { zoom }
+
     func choose(_ newHand: Hand) {
         hand = newHand
         feather.isHidden = true
@@ -153,7 +176,8 @@ final class Dojo {
         treat.runAction(.fadeIn(duration: 0.2))
         activity = .eating
         report(.eating)
-        let spot = approach(treat.position, from: 0.16)
+        // Stop where the mouth, not the chest, reaches the treat.
+        let spot = approach(treat.position, from: kuro.reach)
         travel(to: spot, run: true) {
             self.face(toward: self.treat.position)
             self.kuro.set(.eat)
@@ -473,11 +497,20 @@ final class Dojo {
         }
     }
 
+    /// A step toward the feather that never goes through anything: on the boards it stops at the posts,
+    /// on the lawn a blocked step becomes a proper walk around the obstacle.
     private func step(_ dx: Float, _ dz: Float, _ distance: Float, speed: Float, _ dt: Double) {
         guard distance > 0.001, speed > 0 else { return }
         let move = min(distance, speed * Float(dt))
         let here = kuro.root.position
-        kuro.root.position = SCNVector3(Float(here.x) + dx / distance * move, Float(here.y), Float(here.z) + dz / distance * move)
+        let next = SCNVector3(Float(here.x) + dx / distance * move, Float(here.y), Float(here.z) + dz / distance * move)
+        if onDeck(here) {
+            kuro.root.position = Self.onBoards(next)
+        } else if GardenMap.hideout.isBlocked(SIMD2(Float(next.x), Float(next.z))) {
+            travel(to: approach(SCNVector3(Float(feather.position.x), 0, Float(feather.position.z)), from: 0.3), run: true) {}
+        } else {
+            kuro.root.position = next
+        }
     }
 
     private static func turn(_ from: Float, toward to: Float, by amount: Float) -> Float {
@@ -537,18 +570,17 @@ final class Dojo {
         return (SCNVector3(along, Dojo.deck, 0.85), SCNVector3(along, 0, 1.3))
     }
 
-    /// Straight there, unless that crosses the pond: then around its nearer end.
+    /// Around whatever is in the way on the lawn: the veranda, the pond, trees, rocks, the lantern.
     private func groundRoute(from: SCNVector3, to: SCNVector3) -> [SCNVector3] {
-        let centre = Dojo.pondCentre, rx = Dojo.pondRadius.x + 0.35, rz = Dojo.pondRadius.z + 0.35
-        let crosses = (1..<10).contains { index in
-            let t = Float(index) / 10
-            let x = (Float(from.x) + (Float(to.x) - Float(from.x)) * t - Float(centre.x)) / rx
-            let z = (Float(from.z) + (Float(to.z) - Float(from.z)) * t - Float(centre.z)) / rz
-            return x * x + z * z < 1
+        GardenMap.hideout.path(from: SIMD2(Float(from.x), Float(from.z)), to: SIMD2(Float(to.x), Float(to.z))).map {
+            // The last point keeps the target's own height (the sun stone's top, say).
+            SCNVector3($0.x, $0 == SIMD2(Float(to.x), Float(to.z)) ? Float(to.y) : 0, $0.y)
         }
-        guard crosses else { return [to] }
-        let around = Float(from.x) + Float(to.x) < 2 * Float(centre.x) ? Float(centre.x) - rx - 0.2 : Float(centre.x) + rx + 0.2
-        return [SCNVector3(around, 0, Float(centre.z) + rz * 0.2), to]
+    }
+
+    /// On the boards, Kuro keeps inside the posts.
+    private static func onBoards(_ point: SCNVector3) -> SCNVector3 {
+        SCNVector3(max(-1.1, min(1.1, Float(point.x))), Dojo.deck, max(-0.82, min(0.82, Float(point.z))))
     }
 
     private func walk(along points: [SCNVector3], run: Bool, then done: @escaping () -> Void) {
@@ -556,7 +588,7 @@ final class Dojo {
         let ticket = plan
         let from = kuro.root.position
         let distance = hypot(Float(point.x - from.x), Float(point.z - from.z))
-        let destination = SCNVector3(Float(point.x), Float(point.y), Float(point.z))
+        let destination = Float(point.y) > 0.25 ? Self.onBoards(point) : SCNVector3(Float(point.x), Float(point.y), Float(point.z))
         guard distance > 0.05 else {
             kuro.root.runAction(.move(to: destination, duration: 0.25)) {
                 DispatchQueue.main.async { if self.plan == ticket { self.walk(along: Array(points.dropFirst()), run: run, then: done) } }
@@ -631,12 +663,14 @@ final class Dojo {
         focusNode.position = SCNVector3(Float(now.x) + (Float(wanted.x) - Float(now.x)) * blend,
                                         Float(now.y) + (Float(wanted.y) - Float(now.y)) * blend,
                                         Float(now.z) + (Float(wanted.z) - Float(now.z)) * blend)
-        let shift = stage.convertPosition(focusNode.position, to: nil)
-        let eye = SCNVector3(Float(Dojo.eye.x) + (Float(shift.x) - Float(Dojo.focus.x)) * 0.6, Float(Dojo.eye.y),
-                             Float(Dojo.eye.z) + (Float(shift.z) - Float(Dojo.focus.z)) * 0.35)
+        // The camera keeps its offset from the point it watches, scaled by your zoom and raised by your lift.
+        let watched = stage.convertPosition(focusNode.position, to: nil)
+        let offset = SIMD3<Float>(Float(Dojo.eye.x - Dojo.focus.x), Float(Dojo.eye.y - Dojo.focus.y), Float(Dojo.eye.z - Dojo.focus.z))
+        let eye = SIMD3<Float>(Float(watched.x), Float(watched.y), Float(watched.z)) + offset * zoom + SIMD3(0, lift, 0)
         let current = camera.position
-        camera.position = SCNVector3(Float(current.x) + (Float(eye.x) - Float(current.x)) * blend, Float(eye.y),
-                                     Float(current.z) + (Float(eye.z) - Float(current.z)) * blend)
+        camera.position = SCNVector3(Float(current.x) + (eye.x - Float(current.x)) * blend,
+                                     max(0.25, Float(current.y) + (eye.y - Float(current.y)) * blend),
+                                     Float(current.z) + (eye.z - Float(current.z)) * blend)
         if let lens = camera.camera { lens.focusDistance = CGFloat(distanceToKuro()) }
     }
 
@@ -884,21 +918,18 @@ final class Dojo {
         _surface.normal = normalize(_surface.normal + float3(sin(p.x * 1.7 + t * 1.2) * 0.35, 0.0, cos(p.y * 1.3 + t * 0.9) * 0.35));
         """
         add(pond, -1.9, 0.03, -2.4)
-        for (x, z, r) in [(-3.0, -2.0, 0.22), (-0.6, -2.8, 0.18), (-2.4, -3.2, 0.26), (-1.0, -1.7, 0.14), (2.6, -1.4, 0.3)] {
+        for (x, z, r) in Dojo.rocks {
             let rock = Ink.part(SCNSphere(radius: CGFloat(r)), Ink.colour(0x8C8A86))
             rock.scale = SCNVector3(1.3, 0.6, 1)
-            add(rock, Float(x), Float(r) * 0.3, Float(z))
+            add(rock, x, r * 0.3, z)
         }
         // Stepping stones leading off the veranda toward the pond.
         for (x, z) in [(-1.45, 0.55), (-1.85, 0.1), (-2.15, -0.4)] {
             let stone = Ink.part(SCNCylinder(radius: 0.16, height: 0.04), Ink.colour(0x9A978F))
             add(stone, Float(x), 0.02, Float(z))
         }
-        add(sakura(scale: 1.15), -2.6, 0, -1.0)
-        add(sakura(scale: 1.0), 2.4, 0, -2.4)
-        add(sakura(scale: 0.85), -0.4, 0, -3.6)
-        add(sakura(scale: 0.9), 4.0, 0, -0.8)
-        add(lantern(), 1.9, 0, -0.9)
+        for (x, z, size) in Dojo.trees { add(sakura(scale: size), x, 0, z) }
+        add(lantern(), Float(Dojo.lanternSpot.x), 0, Float(Dojo.lanternSpot.z))
         add(bridge(), -2.2, 0, -3.3, yaw: 0.3)
         stage.addChildNode(petals())
         stage.addChildNode(grass())
@@ -1214,5 +1245,136 @@ enum DojoArt {
             // The garden's own green at the foot, so the ground meets the sky without a seam.
             c.setFillColor(rgb(0x7E9A5C)); c.fill(CGRect(x: 0, y: 0, width: width, height: 300))
         }
+    }
+}
+
+/// Where Kuro can walk on the lawn. Everything solid is blocked, and paths are found around it on a
+/// 10 cm grid, then straightened wherever a clear line allows.
+struct GardenMap {
+    struct Disc { let x: Float, z: Float, r: Float }
+    static let cell: Float = 0.1, extent: Float = 4.6
+    /// Kuro's own half-width, kept clear of everything.
+    static let margin: Float = 0.14
+
+    /// Hard things Kuro never stands inside: the veranda (from below) and tree trunks and the lantern.
+    let hard: [Disc]
+    let veranda: SIMD2<Float>
+    /// Soft things Kuro may end up on the edge of when it is the destination: the pond's bank, rocks, the sun stone.
+    let soft: [Disc]
+    let pond: (centre: SIMD2<Float>, radii: SIMD2<Float>)
+    private let size: Int
+    private var blocked: [Bool] = []
+
+    static let hideout = GardenMap(
+        veranda: SIMD2(1.3, 1.0),
+        hard: Dojo.trees.map { Disc(x: $0.0, z: $0.1, r: 0.12 * $0.2) } + [Disc(x: Float(Dojo.lanternSpot.x), z: Float(Dojo.lanternSpot.z), r: 0.2)],
+        soft: Dojo.rocks.map { Disc(x: $0.0, z: $0.1, r: $0.2 * 1.3) } + [Disc(x: 2.05, z: 0.55, r: 0.42)],
+        pond: (SIMD2(-1.9, -2.4), SIMD2(1.6, 1.0)))
+
+    init(veranda: SIMD2<Float>, hard: [Disc], soft: [Disc], pond: (centre: SIMD2<Float>, radii: SIMD2<Float>)) {
+        self.veranda = veranda
+        self.hard = hard
+        self.soft = soft
+        self.pond = pond
+        size = Int(2 * Self.extent / Self.cell) + 1
+        blocked = (0..<size * size).map { index in isBlocked(point(index % size, index / size)) }
+    }
+
+    func underVeranda(_ p: SIMD2<Float>) -> Bool {
+        abs(p.x) < veranda.x + Self.margin && abs(p.y) < veranda.y + Self.margin
+    }
+
+    private func hardBlocked(_ p: SIMD2<Float>) -> Bool {
+        simd_length(p) > Self.extent || underVeranda(p) || hard.contains { simd_distance(p, SIMD2($0.x, $0.z)) < $0.r + Self.margin }
+    }
+
+    func isBlocked(_ p: SIMD2<Float>) -> Bool {
+        if hardBlocked(p) { return true }
+        let q = (p - pond.centre) / (pond.radii + Self.margin)
+        if simd_length_squared(q) < 1 { return true }
+        return soft.contains { simd_distance(p, SIMD2($0.x, $0.z)) < $0.r + Self.margin }
+    }
+
+    private func point(_ column: Int, _ row: Int) -> SIMD2<Float> {
+        SIMD2(Float(column) * Self.cell - Self.extent, Float(row) * Self.cell - Self.extent)
+    }
+
+    private func cell(_ p: SIMD2<Float>) -> (Int, Int) {
+        let column = Int(((p.x + Self.extent) / Self.cell).rounded()), row = Int(((p.y + Self.extent) / Self.cell).rounded())
+        return (max(0, min(size - 1, column)), max(0, min(size - 1, row)))
+    }
+
+    private func clear(_ a: SIMD2<Float>, _ b: SIMD2<Float>) -> Bool {
+        let steps = max(1, Int(simd_distance(a, b) / 0.02))
+        return (1...steps).allSatisfy { !isBlocked(a + (b - a) * Float($0) / Float(steps)) }
+    }
+
+    /// The points to walk through to get from `start` to `goal`, not counting `start`. A goal inside
+    /// something hard (under the veranda, in a trunk) moves to the nearest open spot; a goal on the edge
+    /// of something soft (the bank, a rock, the warm stone) is reached exactly at the end.
+    func path(from start: SIMD2<Float>, to goal: SIMD2<Float>) -> [SIMD2<Float>] {
+        var target = goal
+        var finish: SIMD2<Float>? = nil
+        if isBlocked(goal) {
+            if !hardBlocked(goal) { finish = goal }
+            let (gc, gr) = cell(goal)
+            var best: (Int, Float)? = nil
+            for index in blocked.indices where !blocked[index] {
+                let distance = simd_distance(point(index % size, index / size), point(gc, gr))
+                if best == nil || distance < best!.1 { best = (index, distance) }
+            }
+            guard let best else { return [goal] }
+            target = point(best.0 % size, best.0 / size)
+        }
+        if clear(start, target) { return [target] + (finish.map { [$0] } ?? []) }
+
+        // A* over the grid, eight neighbours.
+        let (sc, sr) = cell(start), (tc, tr) = cell(target)
+        let startIndex = sr * size + sc, goalIndex = tr * size + tc
+        var cost = [Float](repeating: .infinity, count: size * size)
+        var from = [Int](repeating: -1, count: size * size)
+        var open: [(Int, Float)] = [(startIndex, 0)]
+        cost[startIndex] = 0
+        while let current = open.min(by: { $0.1 < $1.1 }) {
+            open.removeAll { $0.0 == current.0 }
+            if current.0 == goalIndex { break }
+            let (c, r) = (current.0 % size, current.0 / size)
+            for dr in -1...1 {
+                for dc in -1...1 where dr != 0 || dc != 0 {
+                    let nc = c + dc, nr = r + dr
+                    guard nc >= 0, nr >= 0, nc < size, nr < size else { continue }
+                    let next = nr * size + nc
+                    guard !blocked[next] || next == goalIndex else { continue }
+                    let step = cost[current.0] + (dr != 0 && dc != 0 ? 1.414 : 1)
+                    if step < cost[next] {
+                        cost[next] = step
+                        from[next] = current.0
+                        let h = simd_distance(point(nc, nr), point(tc, tr)) / Self.cell
+                        open.removeAll { $0.0 == next }
+                        open.append((next, step + h))
+                    }
+                }
+            }
+        }
+        guard from[goalIndex] != -1 || goalIndex == startIndex else { return [target] + (finish.map { [$0] } ?? []) }
+        var cells: [SIMD2<Float>] = []
+        var walker = goalIndex
+        while walker != startIndex, walker != -1 {
+            cells.append(point(walker % size, walker / size))
+            walker = from[walker]
+        }
+        cells.reverse()
+        cells[cells.count - 1] = target
+        // Straighten: from each point, jump to the farthest one still in clear sight.
+        var smooth: [SIMD2<Float>] = []
+        var anchor = start, index = 0
+        while index < cells.count {
+            var reach = index
+            while reach + 1 < cells.count, clear(anchor, cells[reach + 1]) { reach += 1 }
+            smooth.append(cells[reach])
+            anchor = cells[reach]
+            index = reach + 1
+        }
+        return smooth + (finish.map { [$0] } ?? [])
     }
 }
