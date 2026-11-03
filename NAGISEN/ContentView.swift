@@ -447,6 +447,8 @@ private struct HomeView: View {
                     }
                     .cardStyle()
                     .padding(.horizontal, 18)
+                    FamiliarCard()
+                        .padding(.horizontal, 18)
                     if tracksCreatine {
                         SupplementsCard(date: date)
                             .padding(.horizontal, 18)
