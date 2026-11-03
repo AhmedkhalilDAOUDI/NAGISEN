@@ -101,7 +101,6 @@ struct ShareCardSheet<Card: PhotoCard>: View {
     @State private var picked: PhotosPickerItem?
     @State private var choosingPhoto = false
     @State private var showingCamera = false
-    @State private var editAfterCamera = false
     @State private var typing: CardText?
     @FocusState private var typingFocused: Bool
     @State private var showingData = false
@@ -114,6 +113,8 @@ struct ShareCardSheet<Card: PhotoCard>: View {
     @State private var saved = false
     @State private var saveFailed = false
     @State private var music: CardMusic?
+    @State private var suggested: CardMusic?
+    @State private var musicChosen = false
     @State private var player: AVAudioPlayer?
     @State private var making = false
     @State private var videoFailed = false
@@ -156,17 +157,13 @@ struct ShareCardSheet<Card: PhotoCard>: View {
                 Task {
                     if let data = try? await item?.loadTransferable(type: Data.self), let image = UIImage(data: data) {
                         use(image)
-                        adjusting = true
                     }
                 }
             }
             .photosPicker(isPresented: $choosingPhoto, selection: $picked, matching: .images)
-            .fullScreenCover(isPresented: $showingCamera, onDismiss: {
-                // The photo editor can only open once the camera has gone.
-                if editAfterCamera { editAfterCamera = false; adjusting = true }
-            }) {
+            .fullScreenCover(isPresented: $showingCamera) {
                 Camera { shot in
-                    if let image = shot?.image { use(image); editAfterCamera = true }
+                    if let image = shot?.image { use(image) }
                     showingCamera = false
                 }
                 .ignoresSafeArea()
@@ -479,6 +476,7 @@ struct ShareCardSheet<Card: PhotoCard>: View {
         }
         .background(NagisenBackdrop())
         .onAppear { preview(music) }
+        .task { await suggestMusic() }
         .onDisappear { preview(nil) }
         .nagisenSheetBar(String(localized: "Share"), closeSymbol: "chevron.left", onClose: { finishing = false },
                          actionTitle: String(localized: "Post"), actionEnabled: feed.state == .ready && !posting && !making,
@@ -498,11 +496,13 @@ struct ShareCardSheet<Card: PhotoCard>: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     musicChip(nil)
-                    ForEach(CardMusic.allCases) { musicChip($0) }
+                    // The suggestion comes first, so it is always in view.
+                    ForEach([suggested].compactMap { $0 } + CardMusic.allCases.filter { $0 != suggested }) { musicChip($0) }
                 }
             }
             Text(music == nil ? String(localized: "Saves and posts as a photo.")
-                              : String(localized: "Saves and posts as a \(Int(PostMedia.cardVideoSeconds))-second video with this music."))
+                 : music == suggested ? String(localized: "Suggested for this card. Saves and posts as a \(Int(PostMedia.cardVideoSeconds))-second video with this music.")
+                 : String(localized: "Saves and posts as a \(Int(PostMedia.cardVideoSeconds))-second video with this music."))
                 .font(.caption).foregroundStyle(Theme.muted)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -511,11 +511,13 @@ struct ShareCardSheet<Card: PhotoCard>: View {
     private func musicChip(_ choice: CardMusic?) -> some View {
         Button {
             music = choice
+            musicChosen = true
             saved = false
             videoFailed = false
             preview(choice)
         } label: {
-            Label(choice?.title ?? String(localized: "No music"), systemImage: choice == nil ? "speaker.slash" : "music.note")
+            Label(choice?.title ?? String(localized: "No music"),
+                  systemImage: choice == nil ? "speaker.slash" : choice == suggested ? "sparkles" : "music.note")
                 .font(.subheadline)
                 .padding(.horizontal, 14).frame(height: 36)
                 .foregroundStyle(music == choice ? Theme.ink : Theme.muted)
@@ -525,6 +527,17 @@ struct ShareCardSheet<Card: PhotoCard>: View {
         .buttonStyle(.plain)
         .disabled(making || posting)
         .accessibilityAddTraits(music == choice ? .isSelected : [])
+    }
+
+    /// Reads the photo and picks a track for it. Until you choose one yourself, the pick is put on and played.
+    private func suggestMusic() async {
+        let look = if let photo { await SongSuggestion.look(at: photo) } else { SongSuggestion.Look() }
+        let pick = SongSuggestion.suggest(look, theme: card.quoteTheme)
+        suggested = pick
+        guard !musicChosen, finishing else { return }
+        music = pick
+        saved = false
+        preview(pick)
     }
 
     /// Plays the chosen track on a loop while you decide; nil stops it and hands the sound back.

@@ -1,4 +1,5 @@
 import AVFoundation
+import Vision
 import XCTest
 import SwiftUI
 @testable import NAGISEN
@@ -206,5 +207,29 @@ final class PhotoEditorTests: XCTestCase {
         XCTAssertNil(CardMusic.named(inPath: "abc/1f2e.mp4"))
         XCTAssertNil(CardMusic.named(inPath: nil))
         XCTAssertNil(CardMusic.named(inPath: "abc/1f2e-music-unknown.mp4"))
+    }
+
+    func testASuggestionFollowsWhatThePhotoShows() {
+        typealias Look = SongSuggestion.Look
+        XCTAssertEqual(SongSuggestion.suggest(Look(labels: ["garden": 0.8, "tree": 0.9, "plant": 0.7]), theme: .day), .rain)
+        XCTAssertEqual(SongSuggestion.suggest(Look(labels: ["boxing": 0.7, "people": 0.6], brightness: 0.2), theme: .strength), .run)
+        XCTAssertEqual(SongSuggestion.suggest(Look(labels: ["food": 0.9]), theme: .day), .ember)
+        // Vision's labels for a waterfall photo: water first, not the sky above it.
+        XCTAssertEqual(SongSuggestion.suggest(Look(labels: ["outdoor": 0.86, "water": 0.81, "water_body": 0.81]), theme: .day), .tide)
+        XCTAssertEqual(SongSuggestion.suggest(Look(labels: ["blue_sky": 0.58, "grass": 0.51], brightness: 0.62), theme: .day), .sunrise)
+        XCTAssertEqual(SongSuggestion.suggest(Look(labels: ["night_sky": 0.8], brightness: 0.1), theme: .day), .night)
+        XCTAssertEqual(SongSuggestion.suggest(Look(labels: ["desert": 0.7, "sand": 0.6], warmth: 0.3), theme: .day), .atlas)
+    }
+
+    func testWithoutAPhotoTheKindOfCardDecides() {
+        XCTAssertEqual(SongSuggestion.suggest(.init(), theme: .strength), .run)
+        XCTAssertEqual(SongSuggestion.suggest(.init(), theme: .day), .still)
+        XCTAssertEqual(SongSuggestion.suggest(.init(), theme: .trophy), .sunrise)
+        XCTAssertEqual(SongSuggestion.suggest(.init(labels: ["sky": 0.05]), theme: .day), .still, "faint labels don't count")
+    }
+
+    func testEverySceneWordIsALabelVisionKnows() throws {
+        let known = Set(try VNClassifyImageRequest().supportedIdentifiers())
+        for scene in SongSuggestion.scenes { for label in scene.labels { XCTAssertTrue(known.contains(label), label) } }
     }
 }
