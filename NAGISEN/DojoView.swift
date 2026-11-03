@@ -339,7 +339,7 @@ enum KuroPortrait {
         kuro.set(mood == .resting ? .sleep : .sit, animated: false)
         kuro.root.eulerAngles.y = mood == .resting ? 0.5 : 0.3
         scene.rootNode.addChildNode(kuro.root)
-        let cushion = Ink.part(SCNCylinder(radius: 0.23, height: 0.02), Ink.colour(0x8B2B49), outlined: false)
+        let cushion = Ink.part(SCNCylinder(radius: 0.23, height: 0.02), Ink.colour(0x8B2B49))
         cushion.position.y = -0.01
         scene.rootNode.addChildNode(cushion)
         let camera = SCNNode()

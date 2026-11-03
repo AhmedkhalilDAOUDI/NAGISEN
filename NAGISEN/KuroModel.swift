@@ -7,66 +7,58 @@ import AppKit
 typealias InkColor = NSColor
 #endif
 
-/// The ink-and-wash look shared by Kuro and the dojo: flat bands of light like a woodblock print,
-/// and a sumi outline drawn by a slightly swollen back-facing copy of each shape.
+/// The materials shared by Kuro and the hideout: physically based, so they take their light from the real
+/// sky around the garden, with photographed wood, straw, stone and bark where the scene has them.
 enum Ink {
     static let sumi = InkColor(red: 0.09, green: 0.07, blue: 0.08, alpha: 1)
+
+    /// The folder of real textures and models (Poly Haven, CC0). Tools outside the app can point at it with NAGISEN_HIDEOUT.
+    static let assets: URL? = Bundle.main.url(forResource: "Hideout", withExtension: nil)
+        ?? ProcessInfo.processInfo.environment["NAGISEN_HIDEOUT"].map { URL(fileURLWithPath: $0) }
 
     static func colour(_ hex: UInt32) -> InkColor {
         InkColor(red: CGFloat((hex >> 16) & 0xFF) / 255, green: CGFloat((hex >> 8) & 0xFF) / 255,
                  blue: CGFloat(hex & 0xFF) / 255, alpha: 1)
     }
 
-    /// Three bands of light per lamp, the way a print shades with a few flat tones.
-    private static let toon = """
-    float ndl = max(0.0, dot(_surface.normal, _light.direction));
-    float band = ndl > 0.55 ? 1.0 : (ndl > 0.18 ? 0.62 : 0.3);
-    _lightingContribution.diffuse += band * _light.intensity.rgb;
-    """
-
-    /// A thin warm light around every edge facing away from you, so shapes stand off what is behind them.
-    private static let rim = """
-    float rim = 1.0 - saturate(dot(_surface.normal, _surface.view));
-    _output.color.rgb += pow(rim, 3.0) * 0.18 * float3(1.0, 0.94, 0.84);
-    """
-
-    static func material(_ colour: InkColor, glow: CGFloat = 0) -> SCNMaterial {
+    static func material(_ colour: InkColor, glow: CGFloat = 0, roughness: CGFloat = 0.8) -> SCNMaterial {
         let material = SCNMaterial()
-        material.lightingModel = .lambert
+        material.lightingModel = .physicallyBased
         material.diffuse.contents = colour
-        material.shaderModifiers = [.lightingModel: toon, .fragment: rim]
+        material.roughness.contents = roughness
+        material.metalness.contents = 0.0
         if glow > 0 { material.emission.contents = colour; material.emission.intensity = glow }
         return material
     }
 
-    static func material(image: CGImage) -> SCNMaterial {
-        let material = material(.white)
+    static func material(image: CGImage, roughness: CGFloat = 0.8) -> SCNMaterial {
+        let material = material(.white, roughness: roughness)
         material.diffuse.contents = image
         return material
     }
 
-    private static let outlineMaterial: SCNMaterial = {
-        let material = SCNMaterial()
-        material.lightingModel = .constant
-        material.diffuse.contents = sumi
-        material.cullMode = .front
-        material.shaderModifiers = [.geometry: "_geometry.position.xyz += _geometry.normal * 0.006;"]
-        return material
-    }()
-
-    /// A node for the shape in this colour (or painted with `image`), with its ink outline.
-    static func part(_ geometry: SCNGeometry, _ colour: InkColor, image: CGImage? = nil, outlined: Bool = true,
-                     glow: CGFloat = 0) -> SCNNode {
-        geometry.materials = [image.map { material(image: $0) } ?? material(colour, glow: glow)]
-        let node = SCNNode(geometry: geometry)
-        if outlined {
-            let hull = geometry.copy() as! SCNGeometry
-            hull.materials = [outlineMaterial]
-            let outline = SCNNode(geometry: hull)
-            outline.name = "outline"
-            node.addChildNode(outline)
+    /// A photographed surface: colour, bumps and roughness, repeated `tile` times across the shape.
+    static func surface(_ name: String, tile: (CGFloat, CGFloat) = (1, 1), fallback: InkColor) -> SCNMaterial {
+        let material = material(fallback)
+        guard let folder = assets else { return material }
+        let scale = SCNMatrix4MakeScale(.init(tile.0), .init(tile.1), 1)
+        for (property, suffix) in [(material.diffuse, "diff"), (material.normal, "nor"), (material.roughness, "rough")] {
+            let url = folder.appendingPathComponent("\(name)_\(suffix).jpg")
+            guard FileManager.default.fileExists(atPath: url.path) else { continue }
+            property.contents = url
+            property.wrapS = .repeat
+            property.wrapT = .repeat
+            property.contentsTransform = scale
+            property.mipFilter = .linear
         }
-        return node
+        return material
+    }
+
+    /// A node for the shape in this colour, or painted with `image`, or dressed in `surface`.
+    static func part(_ geometry: SCNGeometry, _ colour: InkColor, image: CGImage? = nil, surface: SCNMaterial? = nil,
+                     glow: CGFloat = 0, roughness: CGFloat = 0.8) -> SCNNode {
+        geometry.materials = [surface ?? image.map { material(image: $0, roughness: roughness) } ?? material(colour, glow: glow, roughness: roughness)]
+        return SCNNode(geometry: geometry)
     }
 }
 
@@ -111,22 +103,22 @@ final class KuroModel {
             let ear = Ink.part(SCNCone(topRadius: 0.004, bottomRadius: 0.052, height: 0.1), side < 0 ? Self.ginger : Self.black)
             ear.position = SCNVector3(0.07 * side, 0.1, -0.01)
             ear.eulerAngles = SCNVector3(-0.12, 0, -0.38 * side)
-            let inner = Ink.part(SCNCone(topRadius: 0.002, bottomRadius: 0.03, height: 0.065), Self.pink, outlined: false)
+            let inner = Ink.part(SCNCone(topRadius: 0.002, bottomRadius: 0.03, height: 0.065), Self.pink)
             inner.position = SCNVector3(0, -0.008, 0.02)
             ear.addChildNode(inner)
             head.addChildNode(ear)
             ears.append(ear)
         }
-        let snout = Ink.part(SCNSphere(radius: 0.05), Self.muzzle, outlined: false)
+        let snout = Ink.part(SCNSphere(radius: 0.05), Self.muzzle)
         snout.position = SCNVector3(0, -0.035, 0.095)
         snout.scale = SCNVector3(1.25, 0.8, 0.7)
         head.addChildNode(snout)
-        let nose = Ink.part(SCNSphere(radius: 0.012), Self.pink, outlined: false)
+        let nose = Ink.part(SCNSphere(radius: 0.012), Self.pink)
         nose.position = SCNVector3(0, -0.02, 0.13)
         head.addChildNode(nose)
         for side in [-1.0, 1.0] {
             for (index, tilt) in [0.12, -0.05].enumerated() {
-                let whisker = Ink.part(SCNCylinder(radius: 0.0018, height: 0.13), Self.cloth, outlined: false)
+                let whisker = Ink.part(SCNCylinder(radius: 0.0018, height: 0.13), Self.cloth)
                 whisker.position = SCNVector3(0.085 * side, -0.035 - 0.012 * Double(index), 0.1)
                 whisker.eulerAngles = SCNVector3(0, 0.25 * side, .pi / 2 + tilt * side)
                 head.addChildNode(whisker)
@@ -139,14 +131,14 @@ final class KuroModel {
             eye.position = SCNVector3(0.052 * side, 0.016, 0.1)
             eye.scale = SCNVector3(1.2, 0.74, 0.55)
             eye.eulerAngles = SCNVector3(0, 0, 0.24 * side)
-            let pupil = Ink.part(SCNSphere(radius: 0.02), Ink.sumi, outlined: false)
+            let pupil = Ink.part(SCNSphere(radius: 0.02), Ink.sumi)
             pupil.scale = SCNVector3(0.3, 1, 0.6)
             pupil.position = SCNVector3(0, 0, 0.012)
             eye.addChildNode(pupil)
-            let shine = Ink.part(SCNSphere(radius: 0.006), .white, outlined: false, glow: 1)
+            let shine = Ink.part(SCNSphere(radius: 0.006), .white, glow: 1)
             shine.position = SCNVector3(0.008 * side, 0.009, 0.02)
             eye.addChildNode(shine)
-            let lid = Ink.part(SCNCapsule(capRadius: 0.006, height: 0.05), Ink.sumi, outlined: false)
+            let lid = Ink.part(SCNCapsule(capRadius: 0.006, height: 0.05), Ink.sumi)
             lid.eulerAngles = SCNVector3(0, 0, .pi / 2 + 0.25 * side)
             lid.position = SCNVector3(0.05 * side, 0.005, 0.112)
             lid.isHidden = true
@@ -161,7 +153,7 @@ final class KuroModel {
         band.eulerAngles = SCNVector3(-0.12, 0, 0)
         band.position = SCNVector3(0, 0.05, -0.002)
         band.scale = SCNVector3(1.14, 1, 0.99)
-        let sun = Ink.part(SCNCylinder(radius: 0.016, height: 0.004), Self.red, outlined: false)
+        let sun = Ink.part(SCNCylinder(radius: 0.016, height: 0.004), Self.red)
         sun.eulerAngles = SCNVector3(.pi / 2 - 0.12, 0, 0)
         sun.position = SCNVector3(0, 0.066, 0.12)
         headband.addChildNode(band); headband.addChildNode(sun)
@@ -193,8 +185,30 @@ final class KuroModel {
             parent = segment
         }
         self.tail = tail
+        dressFur()
         grow(to: stage)
         set(.sit, animated: false)
+    }
+
+    /// Fur everywhere (fine strands in the surface, soft and matte), then the glossy bits: wet eyes and
+    /// nose, a gold bell, cloth that is a little smoother than fur.
+    private func dressFur() {
+        root.enumerateHierarchy { node, _ in
+            guard let material = node.geometry?.firstMaterial else { return }
+            material.normal.contents = Calico.furNormal
+            material.normal.intensity = 0.55
+            material.roughness.contents = 0.85
+        }
+        for eye in eyes {
+            eye.enumerateHierarchy { node, _ in
+                node.geometry?.firstMaterial?.normal.contents = nil
+                node.geometry?.firstMaterial?.roughness.contents = 0.05
+            }
+        }
+        bell.geometry?.firstMaterial?.metalness.contents = 1.0
+        bell.geometry?.firstMaterial?.roughness.contents = 0.25
+        bell.geometry?.firstMaterial?.normal.contents = nil
+        collar.enumerateHierarchy { node, _ in node.geometry?.firstMaterial?.normal.contents = nil }
     }
 
     /// How far ahead of its paws Kuro's mouth is with its head down to eat, at its current size.
@@ -502,6 +516,27 @@ enum Calico {
                   CGRect(x: 330, y: 160, width: 110, height: 90)], ginger: false)
         patch(c, [CGRect(x: 70, y: 130, width: 120, height: 110), CGRect(x: 20, y: 200, width: 90, height: 70)], ginger: true)
     }
+
+    /// Fur strands as a bump map: short strokes tilted every which way on a flat surface.
+    static let furNormal: CGImage = {
+        let size = 512
+        let context = CGContext(data: nil, width: size, height: size, bitsPerComponent: 8, bytesPerRow: 0,
+                                space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        context.setFillColor(CGColor(red: 0.5, green: 0.5, blue: 1, alpha: 1))
+        context.fill(CGRect(x: 0, y: 0, width: size, height: size))
+        var generator = SeededRandom(seed: 33)
+        context.setLineCap(.round)
+        context.setLineWidth(1.4)
+        for _ in 0..<9000 {
+            let x = generator.double(0...Double(size)), y = generator.double(0...Double(size))
+            let tilt = generator.double(-0.3...0.3)
+            context.setStrokeColor(CGColor(red: 0.5 + tilt, green: 0.5 + generator.double(-0.25...0.25), blue: 0.9, alpha: 0.8))
+            context.move(to: CGPoint(x: x, y: y))
+            context.addLine(to: CGPoint(x: x + tilt * 6, y: y - generator.double(4...8)))
+            context.strokePath()
+        }
+        return context.makeImage()!
+    }()
 
     static func patch(ginger: Bool) -> CGImage {
         paint { c in patch(c, [CGRect(x: -40, y: 40, width: 600, height: 260)], ginger: ginger) }

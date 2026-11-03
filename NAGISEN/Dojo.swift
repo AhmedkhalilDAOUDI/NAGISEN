@@ -66,8 +66,14 @@ final class Dojo {
         self.mood = mood
         ball = Ink.part(SCNSphere(radius: 0.065), .white, image: DojoArt.temari())
         treat = Ink.part(SCNSphere(radius: 0.035), Ink.colour(0xD9824A))
-        // Above the painted sky: the same deep blue its top fades into.
-        scene.background.contents = Ink.colour(0x2F4E7A)
+        // A real sky photograph, both as the sky you see and as the light everything is lit by.
+        if let sky = Ink.assets?.appendingPathComponent("sky.jpg") {
+            scene.background.contents = sky
+            scene.lightingEnvironment.contents = sky
+            scene.lightingEnvironment.intensity = 1.3
+        } else {
+            scene.background.contents = Ink.colour(0x2F4E7A)
+        }
         scene.rootNode.addChildNode(stage)
         buildGarden()
         buildVeranda()
@@ -722,10 +728,10 @@ final class Dojo {
             let fish = SCNNode()
             let body = Ink.part(SCNSphere(radius: 0.07), Ink.colour(UInt32(colours.0)))
             body.scale = SCNVector3(0.55, 0.35, 1.5)
-            let patch = Ink.part(SCNSphere(radius: 0.045), Ink.colour(UInt32(colours.1)), outlined: false)
+            let patch = Ink.part(SCNSphere(radius: 0.045), Ink.colour(UInt32(colours.1)))
             patch.scale = SCNVector3(0.6, 0.4, 1.2)
             patch.position = SCNVector3(0, 0.012, 0.02)
-            let fin = Ink.part(SCNCone(topRadius: 0, bottomRadius: 0.04, height: 0.06), Ink.colour(UInt32(colours.0)), outlined: false)
+            let fin = Ink.part(SCNCone(topRadius: 0, bottomRadius: 0.04, height: 0.06), Ink.colour(UInt32(colours.0)))
             fin.eulerAngles.x = .init(-Float.pi / 2)
             fin.position = SCNVector3(0, 0, -0.12)
             [body, patch, fin].forEach(fish.addChildNode)
@@ -741,7 +747,7 @@ final class Dojo {
             koi.append(fish)
         }
         // A flat stone that catches the afternoon sun.
-        let stone = Ink.part(SCNCylinder(radius: 0.32, height: 0.12), Ink.colour(0x9C988E))
+        let stone = Ink.part(SCNCylinder(radius: 0.32, height: 0.12), Ink.colour(0x9C988E), surface: Ink.surface("rock", fallback: Ink.colour(0x9C988E)))
         stone.scale = SCNVector3(1.3, 1, 1)
         add(stone, Float(Dojo.sunStone.x), 0.0, Float(Dojo.sunStone.z))
         // Little beds of flowers: white, yellow and violet heads on green stems.
@@ -751,7 +757,7 @@ final class Dojo {
                 let colour: UInt32 = [0xF4F0E6, 0xF2C94C, 0x9B7BC8, 0xE88FA6][generator.int(0...3)]
                 let x = Float(bed.x) + Float(generator.double(-0.3...0.3)), z = Float(bed.z) + Float(generator.double(-0.25...0.25))
                 let height = Float(generator.double(0.08...0.18))
-                let stem = Ink.part(SCNCylinder(radius: 0.006, height: CGFloat(height)), Ink.colour(0x4F6E3A), outlined: false)
+                let stem = Ink.part(SCNCylinder(radius: 0.006, height: CGFloat(height)), Ink.colour(0x4F6E3A))
                 add(stem, x, height / 2, z)
                 let bloom = Ink.part(SCNSphere(radius: 0.025), Ink.colour(colour))
                 bloom.scale = SCNVector3(1, 0.6, 1)
@@ -760,7 +766,7 @@ final class Dojo {
         }
         // The butterfly: two wings flapping, drifting from flower to flower.
         for side in [-1.0, 1.0] {
-            let wing = Ink.part(SCNPlane(width: 0.06, height: 0.05), Ink.colour(0xF2E8D5), outlined: false)
+            let wing = Ink.part(SCNPlane(width: 0.06, height: 0.05), Ink.colour(0xF2E8D5))
             wing.geometry?.firstMaterial?.isDoubleSided = true
             wing.geometry?.firstMaterial?.diffuse.contents = DojoArt.wing()
             wing.pivot = SCNMatrix4MakeTranslation(.init(-0.03 * side), 0, 0)
@@ -780,7 +786,7 @@ final class Dojo {
             plume.eulerAngles = SCNVector3(0.5, 0, Float(index - 1) * 0.5)
             tuft.addChildNode(plume)
         }
-        let string = Ink.part(SCNCylinder(radius: 0.0015, height: 1.2), Ink.colour(0x2A2524), outlined: false)
+        let string = Ink.part(SCNCylinder(radius: 0.0015, height: 1.2), Ink.colour(0x2A2524))
         string.position.y = 0.6
         feather.addChildNode(tuft)
         feather.addChildNode(string)
@@ -807,7 +813,7 @@ final class Dojo {
 
     /// A ring spreading on the water where a paw dipped.
     private func ripple() {
-        let ring = Ink.part(SCNTorus(ringRadius: 0.05, pipeRadius: 0.004), Ink.colour(0xEAF3F8), outlined: false, glow: 0.5)
+        let ring = Ink.part(SCNTorus(ringRadius: 0.05, pipeRadius: 0.004), Ink.colour(0xEAF3F8), glow: 0.5)
         ring.position = SCNVector3(-1.15, 0.02, -2.0)
         stage.addChildNode(ring)
         ring.runAction(.sequence([.group([.scale(to: 5, duration: 1.4), .fadeOut(duration: 1.4)]), .removeFromParentNode()]))
@@ -846,29 +852,30 @@ final class Dojo {
         stage.addChildNode(node)
     }
 
-    private func box(_ w: CGFloat, _ h: CGFloat, _ l: CGFloat, _ colour: InkColor, outlined: Bool = false, chamfer: CGFloat = 0) -> SCNNode {
-        Ink.part(SCNBox(width: w, height: h, length: l, chamferRadius: chamfer), colour, outlined: outlined)
+    private func box(_ w: CGFloat, _ h: CGFloat, _ l: CGFloat, _ colour: InkColor, surface: SCNMaterial? = nil, chamfer: CGFloat = 0) -> SCNNode {
+        Ink.part(SCNBox(width: w, height: h, length: l, chamferRadius: chamfer), colour, surface: surface)
     }
 
     private func buildVeranda() {
-        let wood = Ink.colour(0x6B4A33), darkWood = Ink.colour(0x3E2B20), tiles = Ink.colour(0x4A3426)
+        let wood = Ink.colour(0x6B4A33), darkWood = Ink.colour(0x3E2B20)
+        let timber = Ink.surface("darkwood", tile: (1, 3), fallback: darkWood)
         let deck = Dojo.deck
-        // The engawa: planks on short posts, two tatami at the back.
+        // The engawa: real planks on short posts, two real tatami at the back.
         let floor = SCNNode(geometry: SCNBox(width: 2.6, height: 0.06, length: 2.0, chamferRadius: 0.01))
-        floor.geometry?.materials = [Ink.material(image: DojoArt.planks())]
+        floor.geometry?.materials = [Ink.surface("planks", tile: (2, 1.6), fallback: Ink.colour(0x9C7552))]
         add(floor, 0, deck - 0.03, 0)
-        for x in [-1.2, 0, 1.2] { for z in [-0.9, 0.9] { add(box(0.1, CGFloat(deck), 0.1, darkWood), Float(x), deck / 2, Float(z)) } }
-        let mat = Ink.material(image: DojoArt.tatami())
+        for x in [-1.2, 0, 1.2] { for z in [-0.9, 0.9] { add(box(0.1, CGFloat(deck), 0.1, darkWood, surface: timber), Float(x), deck / 2, Float(z)) } }
+        let mat = Ink.surface("tatami", tile: (1, 1), fallback: Ink.colour(0xC2B67E))
         for x in [-0.55, 0.55] {
             let tatami = SCNNode(geometry: SCNBox(width: 1.05, height: 0.025, length: 0.62, chamferRadius: 0.004))
             tatami.geometry?.materials = [mat]
             add(tatami, Float(x), deck + 0.012, -0.55)
         }
         // Four pillars and an open frame of rafters, so the sky stays in view.
-        for x in [-1.22, 1.22] { for z in [-0.92, 0.92] { add(box(0.09, 1.55, 0.09, wood, outlined: true), Float(x), deck + 0.775, Float(z)) } }
-        for z in [-0.92, 0.92] { add(box(2.9, 0.1, 0.12, darkWood, outlined: true), 0, deck + 1.55, Float(z)) }
-        for x in [-1.22, 1.22] { add(box(0.12, 0.1, 2.3, darkWood, outlined: true), Float(x), deck + 1.55, 0) }
-        for x in [-0.8, 0, 0.8] { add(box(0.06, 0.06, 2.3, tiles, outlined: true), Float(x), deck + 1.63, 0) }
+        for x in [-1.22, 1.22] { for z in [-0.92, 0.92] { add(box(0.09, 1.55, 0.09, wood, surface: timber), Float(x), deck + 0.775, Float(z)) } }
+        for z in [-0.92, 0.92] { add(box(2.9, 0.1, 0.12, darkWood, surface: timber), 0, deck + 1.55, Float(z)) }
+        for x in [-1.22, 1.22] { add(box(0.12, 0.1, 2.3, darkWood, surface: timber), Float(x), deck + 1.55, 0) }
+        for x in [-0.8, 0, 0.8] { add(box(0.06, 0.06, 2.3, darkWood, surface: timber), Float(x), deck + 1.63, 0) }
         // A low shoji screen at the back, half slid open.
         let shoji = SCNNode(geometry: SCNPlane(width: 1.1, height: 0.9))
         let paper = Ink.material(image: DojoArt.shoji())
@@ -876,14 +883,57 @@ final class Dojo {
         shoji.geometry?.materials = [paper]
         add(shoji, -0.62, deck + 0.45, -0.94)
 
-        let zabuton = Ink.part(SCNBox(width: 0.5, height: 0.07, length: 0.5, chamferRadius: 0.03), Ink.colour(0xA3283F))
+        let zabuton = Ink.part(SCNBox(width: 0.5, height: 0.07, length: 0.5, chamferRadius: 0.03), Ink.colour(0xA3283F), roughness: 0.95)
         add(zabuton, Float(cushion.x), deck + 0.035, Float(cushion.z), yaw: 0.2)
-        let rug = Ink.part(SCNBox(width: 0.9, height: 0.008, length: 0.6, chamferRadius: 0), Ink.colour(0xC4533A), outlined: false)
+        let rug = Ink.part(SCNBox(width: 0.9, height: 0.008, length: 0.6, chamferRadius: 0), Ink.colour(0xC4533A), roughness: 0.95)
         add(rug, 0.4, deck + 0.004, 0.45)
         let bowl = SCNVector3(0.68, deck, -0.5)
         add(foodBowl(), Float(bowl.x), deck, Float(bowl.z))
-        let cup = Ink.part(SCNTube(innerRadius: 0.04, outerRadius: 0.05, height: 0.05), .white, image: DojoArt.porcelain())
+        let cup = Ink.part(SCNTube(innerRadius: 0.04, outerRadius: 0.05, height: 0.05), .white, image: DojoArt.porcelain(), roughness: 0.25)
         add(cup, Float(bowl.x) + 0.2, deck + 0.025, Float(bowl.z) - 0.1)
+        // A katana-kake on the tatami: a small dark stand holding a real antique katana.
+        if let katana = Dojo.model("antique_katana_01") {
+            let stand = SCNNode()
+            for x in [-0.28, 0.28] {
+                let upright = box(0.04, 0.16, 0.12, darkWood, surface: timber)
+                upright.position = SCNVector3(Float(x), 0.08, 0)
+                stand.addChildNode(upright)
+            }
+            let base = box(0.7, 0.025, 0.16, darkWood, surface: timber)
+            base.position.y = 0.012
+            stand.addChildNode(base)
+            katana.eulerAngles.y = .init(Float.pi / 2)
+            katana.position = SCNVector3(0, 0.17, 0)
+            stand.addChildNode(katana)
+            add(stand, 0.62, deck + 0.025, -0.78)
+        }
+    }
+
+    /// A model from the hideout's folder, cleaned of its own lights and cameras.
+    static func model(_ name: String) -> SCNNode? {
+        guard let url = Ink.assets?.appendingPathComponent("\(name).usdz"), let scene = try? SCNScene(url: url) else { return nil }
+        let node = SCNNode()
+        for child in scene.rootNode.childNodes { node.addChildNode(child) }
+        node.enumerateHierarchy { child, _ in child.light = nil; child.camera = nil }
+        return node
+    }
+
+    /// The separate plants inside a model file (each pack holds several), each centred on its own base.
+    static func variants(_ name: String) -> [SCNNode] {
+        guard let pack = model(name) else { return [] }
+        var found: [SCNNode] = []
+        pack.enumerateHierarchy { child, _ in
+            guard let geometry = child.geometry else { return }
+            let piece = SCNNode(geometry: geometry)
+            // Poly Haven's plants are modelled Z-up; SceneKit's up is Y, so stand each one upright.
+            piece.transform = SCNMatrix4Mult(child.worldTransform, SCNMatrix4MakeRotation(-.pi / 2, 1, 0, 0))
+            let plant = SCNNode()
+            plant.addChildNode(piece)
+            let (low, high) = plant.boundingBox
+            plant.pivot = SCNMatrix4MakeTranslation((low.x + high.x) / 2, low.y, (low.z + high.z) / 2)
+            found.append(plant)
+        }
+        return found
     }
 
     private func buildGarden() {
@@ -891,6 +941,8 @@ final class Dojo {
         let sky = SCNMaterial()
         sky.lightingModel = .constant
         sky.diffuse.contents = DojoArt.sky()
+        sky.blendMode = .alpha
+        sky.writesToDepthBuffer = false
         sky.cullMode = .front
         // Only the wall of the cylinder is painted; its lids stay invisible.
         let none = SCNMaterial()
@@ -901,13 +953,17 @@ final class Dojo {
         backdrop.eulerAngles.y = .init(atan2(Float(Dojo.focus.x - Dojo.eye.x), Float(Dojo.focus.z - Dojo.eye.z)))
         stage.addChildNode(backdrop)
 
-        let ground = Ink.part(SCNCylinder(radius: 14, height: 0.02), Ink.colour(0x7E9A5C), outlined: false)
+        let ground = Ink.part(SCNCylinder(radius: 14, height: 0.02), Ink.colour(0x7E9A5C),
+                              surface: Ink.surface("lawn", tile: (36, 36), fallback: Ink.colour(0x7E9A5C)))
+        // The texture is leaf litter over grass; tinted toward a spring-green lawn.
+        ground.geometry?.firstMaterial?.multiply.contents = InkColor(red: 0.7, green: 1.0, blue: 0.6, alpha: 1)
         add(ground, 0, -0.01, 0)
         // The pond: a dark bed, the koi above it, and a clear rippling surface over both.
-        let bed = Ink.part(SCNCylinder(radius: 1.0, height: 0.004), Ink.colour(0x2C4656), outlined: false)
+        let bed = Ink.part(SCNCylinder(radius: 1.0, height: 0.004), Ink.colour(0x2C4656))
         bed.scale = SCNVector3(1.6, 1, 1)
         add(bed, -1.9, 0.004, -2.4)
-        let pond = Ink.part(SCNCylinder(radius: 1.0, height: 0.01), Ink.colour(0x6E9EBE), outlined: false, glow: 0.12)
+        // Clear, still water: glossy, so it mirrors the sky, and see-through to the koi.
+        let pond = Ink.part(SCNCylinder(radius: 1.0, height: 0.01), Ink.colour(0x3E6E8E), roughness: 0.04)
         pond.scale = SCNVector3(1.6, 1, 1)
         pond.geometry?.firstMaterial?.transparency = 0.55
         pond.geometry?.firstMaterial?.writesToDepthBuffer = false
@@ -919,13 +975,13 @@ final class Dojo {
         """
         add(pond, -1.9, 0.03, -2.4)
         for (x, z, r) in Dojo.rocks {
-            let rock = Ink.part(SCNSphere(radius: CGFloat(r)), Ink.colour(0x8C8A86))
+            let rock = Ink.part(SCNSphere(radius: CGFloat(r)), Ink.colour(0x8C8A86), surface: Ink.surface("rock", fallback: Ink.colour(0x8C8A86)))
             rock.scale = SCNVector3(1.3, 0.6, 1)
             add(rock, x, r * 0.3, z)
         }
         // Stepping stones leading off the veranda toward the pond.
         for (x, z) in [(-1.45, 0.55), (-1.85, 0.1), (-2.15, -0.4)] {
-            let stone = Ink.part(SCNCylinder(radius: 0.16, height: 0.04), Ink.colour(0x9A978F))
+            let stone = Ink.part(SCNCylinder(radius: 0.16, height: 0.04), Ink.colour(0x9A978F), surface: Ink.surface("rock", fallback: Ink.colour(0x9A978F)))
             add(stone, Float(x), 0.02, Float(z))
         }
         for (x, z, size) in Dojo.trees { add(sakura(scale: size), x, 0, z) }
@@ -935,51 +991,48 @@ final class Dojo {
         stage.addChildNode(grass())
     }
 
-    /// Tufts of grass all over the lawn as four meshes of thin blades, one per shade of green, so
-    /// thousands of blades cost four draws.
+    /// Real grass clumps, ferns and dandelions over the lawn, kept off anything solid, merged per kind so
+    /// hundreds of plants cost a handful of draws.
     private func grass() -> SCNNode {
-        var generator = SeededRandom(seed: 13)
-        let greens: [UInt32] = [0x5E7D3E, 0x6C8B47, 0x7FA052, 0x4F6E35]
-        var points: [[SCNVector3]] = Array(repeating: [], count: greens.count)
-        var placed = 0
-        while placed < 1100 {
-            let x = Float(generator.double(-4.6...4.6)), z = Float(generator.double(-4.2...3.0))
-            let px = (x - Float(Dojo.pondCentre.x)) / 1.85, pz = (z - Float(Dojo.pondCentre.z)) / 1.2
-            guard hypot(x, z) < 4.8, !(abs(x) < 1.45 && abs(z) < 1.15), px * px + pz * pz > 1 else { continue }
-            for _ in 0..<4 {
-                let angle = Float(generator.double(0...(2 * Double.pi)))
-                let lean = Float(generator.double(0.01...0.04)), height = Float(generator.double(0.06...0.14)), width: Float = 0.012
-                let bx = x + Float(generator.double(-0.04...0.04)), bz = z + Float(generator.double(-0.04...0.04))
-                let sx = -sin(angle) * width, sz = cos(angle) * width
-                points[generator.int(0...3)] += [SCNVector3(bx - sx, 0, bz - sz), SCNVector3(bx + sx, 0, bz + sz),
-                                                 SCNVector3(bx + cos(angle) * lean, height, bz + sin(angle) * lean)]
-            }
-            placed += 1
-        }
         let field = SCNNode()
-        for (shade, blades) in points.enumerated() where !blades.isEmpty {
-            let normals = Array(repeating: SCNVector3(0, 1, 0), count: blades.count)
-            let geometry = SCNGeometry(sources: [SCNGeometrySource(vertices: blades), SCNGeometrySource(normals: normals)],
-                                       elements: [SCNGeometryElement(indices: (0..<Int32(blades.count)).map { $0 }, primitiveType: .triangles)])
-            let material = Ink.material(Ink.colour(greens[shade]))
-            material.isDoubleSided = true
-            // No rim light here: a blade is all edge, so it would glow white.
-            material.shaderModifiers?[.fragment] = nil
-            geometry.materials = [material]
-            field.addChildNode(SCNNode(geometry: geometry))
+        var generator = SeededRandom(seed: 13)
+        let map = GardenMap.hideout
+        func scatter(_ kinds: [SCNNode], count: Int, scale: ClosedRange<Double>) {
+            guard !kinds.isEmpty else { return }
+            let groups = kinds.map { _ in SCNNode() }
+            var placed = 0, tries = 0
+            while placed < count, tries < count * 30 {
+                tries += 1
+                let x = Float(generator.double(-4.4...4.4)), z = Float(generator.double(-4.2...1.9))
+                guard !map.isBlocked(SIMD2(x, z)) else { continue }
+                let kind = generator.int(0...(kinds.count - 1))
+                let plant = kinds[kind].clone()
+                plant.position = SCNVector3(x, 0, z)
+                plant.eulerAngles.y = .init(Float(generator.double(0...6.28)))
+                let size = Float(generator.double(scale))
+                plant.scale = SCNVector3(size, size, size)
+                groups[kind].addChildNode(plant)
+                placed += 1
+            }
+            groups.forEach { field.addChildNode($0.flattenedClone()) }
         }
+        // The pack's three densest clumps are left out; the rest are light enough to use by the hundred.
+        scatter(Array(Dojo.variants("grass_medium_01").dropFirst(3).prefix(8)), count: 320, scale: 0.9...1.6)
+        scatter(Dojo.variants("fern_02"), count: 14, scale: 0.35...0.6)
+        scatter(Array(Dojo.variants("dandelion_01").suffix(3)), count: 22, scale: 0.8...1.1)
         return field
     }
 
     private func sakura(scale: Float) -> SCNNode {
         let tree = SCNNode()
         let bark = Ink.colour(0x4A342A)
-        let trunk = Ink.part(SCNCylinder(radius: 0.08, height: 1.5), bark)
+        let wood = Ink.surface("bark", tile: (1, 3), fallback: bark)
+        let trunk = Ink.part(SCNCylinder(radius: 0.08, height: 1.5), bark, surface: wood)
         trunk.position.y = 0.75
         trunk.eulerAngles.z = 0.12
         tree.addChildNode(trunk)
         for (angle, length) in [(0.9, 0.8), (-0.8, 0.7), (0.3, 0.6)] {
-            let branch = Ink.part(SCNCylinder(radius: 0.04, height: CGFloat(length)), bark)
+            let branch = Ink.part(SCNCylinder(radius: 0.04, height: CGFloat(length)), bark, surface: wood)
             branch.position = SCNVector3(Float(sin(angle) * length * 0.4), 1.35, 0)
             branch.eulerAngles.z = .init(-angle)
             tree.addChildNode(branch)
@@ -1005,7 +1058,7 @@ final class Dojo {
                                              (SCNCone(topRadius: 0.02, bottomRadius: 0.24, height: 0.14), 0.83),
                                              (SCNSphere(radius: 0.035), 0.92)]
         for (geometry, y) in parts {
-            let piece = Ink.part(geometry, stone)
+            let piece = Ink.part(geometry, stone, surface: Ink.surface("rock", fallback: stone))
             piece.position.y = .init(y)
             lamp.addChildNode(piece)
         }
@@ -1052,7 +1105,7 @@ final class Dojo {
         let node = SCNNode()
         let dish = Ink.part(SCNTube(innerRadius: 0.07, outerRadius: 0.085, height: 0.05), .white, image: DojoArt.porcelain())
         dish.position.y = 0.025
-        let base = Ink.part(SCNCylinder(radius: 0.08, height: 0.01), Ink.colour(0xF1ECE2), outlined: false)
+        let base = Ink.part(SCNCylinder(radius: 0.08, height: 0.01), Ink.colour(0xF1ECE2))
         base.position.y = 0.006
         let stand = Ink.part(SCNBox(width: 0.26, height: 0.02, length: 0.26, chamferRadius: 0.004), Ink.colour(0x241F20))
         stand.position.y = -0.002
@@ -1061,26 +1114,28 @@ final class Dojo {
     }
 
     private func buildLight() {
-        let ambient = SCNNode()
-        ambient.light = SCNLight()
-        ambient.light?.type = .ambient
-        ambient.light?.color = Ink.colour(0xB9C2D4)
-        ambient.light?.intensity = 520
-        scene.rootNode.addChildNode(ambient)
-        // A clear spring afternoon, the sun low enough to throw soft shadows across the boards.
+        // The sky photograph does the soft fill from every side; the sun adds warmth and the shadows.
         let sun = SCNNode()
         sun.light = SCNLight()
         sun.light?.type = .directional
-        sun.light?.color = Ink.colour(0xFFF0D6)
-        sun.light?.intensity = 900
+        sun.light?.color = Ink.colour(0xFFF1DC)
+        sun.light?.intensity = 1600
         sun.light?.castsShadow = true
         sun.light?.shadowMode = .deferred
-        sun.light?.shadowColor = InkColor(white: 0, alpha: 0.3)
-        sun.light?.shadowRadius = 5
-        sun.light?.shadowSampleCount = 8
+        sun.light?.shadowColor = InkColor(white: 0, alpha: 0.55)
+        sun.light?.shadowRadius = 3
+        sun.light?.shadowSampleCount = 16
+        sun.light?.shadowMapSize = CGSize(width: 4096, height: 4096)
         sun.light?.orthographicScale = 6
         sun.eulerAngles = SCNVector3(-0.85, 0.7, 0)
         scene.rootNode.addChildNode(sun)
+        if Ink.assets == nil {
+            let ambient = SCNNode()
+            ambient.light = SCNLight()
+            ambient.light?.type = .ambient
+            ambient.light?.intensity = 500
+            scene.rootNode.addChildNode(ambient)
+        }
     }
 }
 
@@ -1191,26 +1246,27 @@ enum DojoArt {
         }
     }
 
-    /// The sky all around the garden: banded clouds, layered blue hills, a pagoda, and Fuji with snow.
+    /// The far scenery all around the garden, on a clear background so the real sky shows above it: Fuji
+    /// with its snow, layered hills fading into haze, and a pagoda on the nearest ridge.
     static func sky() -> CGImage {
         let width = 4096, height = 1024
         return draw(width, height) { c in
-            let colours = [rgb(0x2F4E7A), rgb(0x8FA9C4), rgb(0xF3E4C8)] as CFArray
-            let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colours, locations: [0, 0.55, 1])!
-            c.drawLinearGradient(gradient, start: CGPoint(x: 0, y: height), end: CGPoint(x: 0, y: 380), options: [.drawsAfterEndLocation])
-            // Woodblock clouds: thin cream bands drifting high over the mountain.
-            for (x, y, w) in [(1400, 780, 380), (2240, 820, 420), (900, 900, 500), (2650, 930, 520), (300, 880, 700), (3300, 840, 600)] {
-                let band = CGPath(roundedRect: CGRect(x: x, y: y, width: w, height: 18), cornerWidth: 9, cornerHeight: 9, transform: nil)
-                c.setFillColor(rgb(0xF6EEDD, 0.75)); c.addPath(band); c.fillPath()
+            let space = CGColorSpaceCreateDeviceRGB()
+            func fill(_ path: CGPath, _ top: UInt32, _ bottom: UInt32, from: CGFloat, to: CGFloat, alpha: CGFloat = 1) {
+                c.saveGState()
+                c.addPath(path); c.clip()
+                let gradient = CGGradient(colorsSpace: space, colors: [rgb(top, alpha), rgb(bottom, alpha)] as CFArray, locations: [0, 1])!
+                c.drawLinearGradient(gradient, start: CGPoint(x: 0, y: from), end: CGPoint(x: 0, y: to), options: [])
+                c.restoreGState()
             }
-            // Fuji in the middle of the picture.
             let fuji = CGMutablePath()
-            fuji.move(to: CGPoint(x: 1730, y: 400))
+            fuji.move(to: CGPoint(x: 1730, y: 380))
             fuji.addCurve(to: CGPoint(x: 2022, y: 900), control1: CGPoint(x: 1880, y: 470), control2: CGPoint(x: 1985, y: 800))
             fuji.addLine(to: CGPoint(x: 2074, y: 900))
-            fuji.addCurve(to: CGPoint(x: 2366, y: 400), control1: CGPoint(x: 2111, y: 800), control2: CGPoint(x: 2216, y: 470))
+            fuji.addCurve(to: CGPoint(x: 2366, y: 380), control1: CGPoint(x: 2111, y: 800), control2: CGPoint(x: 2216, y: 470))
             fuji.closeSubpath()
-            c.setFillColor(rgb(0x4C6A8E)); c.addPath(fuji); c.fillPath()
+            // Far away, so blue and soft, paler toward its foot where the air is thicker.
+            fill(fuji, 0x6D7F99, 0xAFBBCB, from: 900, to: 380, alpha: 0.95)
             let snow = CGMutablePath()
             snow.move(to: CGPoint(x: 1958, y: 720))
             snow.addCurve(to: CGPoint(x: 2022, y: 900), control1: CGPoint(x: 1985, y: 800), control2: CGPoint(x: 2005, y: 860))
@@ -1220,20 +1276,19 @@ enum DojoArt {
                 snow.addLine(to: CGPoint(x: x, y: index % 2 == 0 ? 680 : 720))
             }
             snow.closeSubpath()
-            c.setFillColor(rgb(0xF7F3EC)); c.addPath(snow); c.fillPath()
-            c.setStrokeColor(rgb(0x1A1416, 0.6)); c.setLineWidth(3); c.addPath(fuji); c.strokePath()
-            // Layered hills, farther ones paler.
-            for (index, colour) in [UInt32(0x7D95B0), 0x5E7896, 0x4F6A5C].enumerated() {
+            fill(snow, 0xF7F8FA, 0xC9D3DF, from: 900, to: 680)
+            // Layered hills, each nearer one a little darker and greener, all softened by haze.
+            for (index, colours) in [(UInt32(0x9AAABB), UInt32(0xB9C3CE)), (0x7C8F8C, 0xA3B0B0), (0x5F7656, 0x8A9C80)].enumerated() {
                 let base = CGFloat(430 - index * 50), rise = CGFloat(40 + index * 15)
-                c.setFillColor(rgb(colour))
-                c.move(to: CGPoint(x: 0, y: 0))
+                let hill = CGMutablePath()
+                hill.move(to: CGPoint(x: 0, y: 0))
                 for x in stride(from: 0, through: width, by: 64) {
-                    c.addLine(to: CGPoint(x: CGFloat(x), y: base + rise * sin(CGFloat(x) / CGFloat(300 + index * 90) + CGFloat(index))))
+                    hill.addLine(to: CGPoint(x: CGFloat(x), y: base + rise * sin(CGFloat(x) / CGFloat(300 + index * 90) + CGFloat(index))))
                 }
-                c.addLine(to: CGPoint(x: width, y: 0)); c.closePath(); c.fillPath()
+                hill.addLine(to: CGPoint(x: width, y: 0)); hill.closeSubpath()
+                fill(hill, colours.0, colours.1, from: base + rise, to: base - 80)
             }
-            // A five-storey pagoda on the near hill.
-            c.setFillColor(rgb(0x2E2A30))
+            c.setFillColor(rgb(0x4A5160, 0.85))
             for tier in 0..<5 {
                 let y = CGFloat(380 + tier * 22), half = CGFloat(30 - tier * 4), x: CGFloat = 1760
                 c.move(to: CGPoint(x: x - half, y: y)); c.addLine(to: CGPoint(x: x + half, y: y))
@@ -1242,8 +1297,8 @@ enum DojoArt {
                 c.fill(CGRect(x: x - half * 0.4, y: y + 10, width: half * 0.8, height: 12))
             }
             c.fill(CGRect(x: 1758, y: 490, width: 4, height: 30))
-            // The garden's own green at the foot, so the ground meets the sky without a seam.
-            c.setFillColor(rgb(0x7E9A5C)); c.fill(CGRect(x: 0, y: 0, width: width, height: 300))
+            // The lawn's own green at the foot, so the ground meets the hills without a seam.
+            c.setFillColor(rgb(0x6E8A4E)); c.fill(CGRect(x: 0, y: 0, width: width, height: 300))
         }
     }
 }
