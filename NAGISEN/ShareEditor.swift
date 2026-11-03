@@ -600,7 +600,7 @@ struct ShareCardSheet<Card: PhotoCard>: View {
 
 /// The app's own short tracks, made by tools/make_card_music.py, so a card can carry music it is free to use.
 enum CardMusic: String, CaseIterable, Identifiable {
-    case still, dusk, pulse
+    case still, dusk, pulse, tide, lantern, steps, ember, atlas, sunrise, rain, run, breath, night
 
     var id: String { rawValue }
 
@@ -609,6 +609,16 @@ enum CardMusic: String, CaseIterable, Identifiable {
         case .still: String(localized: "Still")
         case .dusk: String(localized: "Dusk")
         case .pulse: String(localized: "Pulse")
+        case .tide: String(localized: "Tide")
+        case .lantern: String(localized: "Lantern")
+        case .steps: String(localized: "Steps")
+        case .ember: String(localized: "Ember")
+        case .atlas: String(localized: "Atlas")
+        case .sunrise: String(localized: "Sunrise")
+        case .rain: String(localized: "Rain")
+        case .run: String(localized: "Run")
+        case .breath: String(localized: "Breath")
+        case .night: String(localized: "Night")
         }
     }
 
