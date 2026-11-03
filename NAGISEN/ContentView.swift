@@ -152,10 +152,8 @@ struct ContentView: View {
         .toolbarBackground(.hidden, for: .navigationBar)
         .tint(Theme.accentText)
         .preferredColorScheme(store.appearance.colorScheme)
-        .sheet(isPresented: $showingCoach) {
-            DeepSeekChatView(bottomMenuVisible: false, onClose: { showingCoach = false })
-                .presentationDragIndicator(.visible)
-        }
+        // NAGISEN's AI lives in Kuro's hideout now: the button opens the hideout straight into the conversation.
+        .fullScreenCover(isPresented: $showingCoach) { DojoView(opensChat: true) }
         .sheet(item: $addContext) { context in
             NavigationStack {
                 FoodSearchView(date: context.date, initialMeal: context.meal)

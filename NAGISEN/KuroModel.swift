@@ -48,9 +48,10 @@ enum Ink {
         return material
     }()
 
-    /// A node for the shape in this colour, with its ink outline.
-    static func part(_ geometry: SCNGeometry, _ colour: InkColor, outlined: Bool = true, glow: CGFloat = 0) -> SCNNode {
-        geometry.materials = [material(colour, glow: glow)]
+    /// A node for the shape in this colour (or painted with `image`), with its ink outline.
+    static func part(_ geometry: SCNGeometry, _ colour: InkColor, image: CGImage? = nil, outlined: Bool = true,
+                     glow: CGFloat = 0) -> SCNNode {
+        geometry.materials = [image.map { material(image: $0) } ?? material(colour, glow: glow)]
         let node = SCNNode(geometry: geometry)
         if outlined {
             let hull = geometry.copy() as! SCNGeometry
@@ -63,14 +64,16 @@ enum Ink {
     }
 }
 
-/// Kuro in 3D: a black cat built from soft shapes, with amber eyes, a red collar and, as Kuro grows,
-/// a gold bell and finally a dojo master's headband.
+/// Kuro in 3D: a calico (mike-neko) built from soft shapes, white with orange and black tabby patches,
+/// with golden eyes, a red collar and, as Kuro grows, a gold bell and finally a dojo master's headband.
 final class KuroModel {
     enum Pose { case sit, stand, sleep, eat, swipe }
 
-    static let fur = Ink.colour(0x2A2630)
-    static let muzzle = Ink.colour(0x3A3540)
-    static let amber = Ink.colour(0xE3B14F)
+    static let fur = Ink.colour(0xF3EDE2)
+    static let ginger = Ink.colour(0xD07A3A)
+    static let black = Ink.colour(0x2A2524)
+    static let muzzle = Ink.colour(0xFBF7EF)
+    static let amber = Ink.colour(0xCDB54C)
     static let pink = Ink.colour(0xD98DA0)
     static let red = Ink.colour(0xA3283F)
     static let gold = Ink.colour(0xD8B04A)
@@ -87,24 +90,26 @@ final class KuroModel {
     private let collar = SCNNode()
     private let bell: SCNNode
     private let headband = SCNNode()
+    private var ears: [SCNNode] = []
     private(set) var pose = Pose.sit
 
     init(stage: FamiliarCat.Stage) {
         root.name = "Kuro"
-        body = Ink.part(SCNSphere(radius: 0.15), Self.fur)
+        body = Ink.part(SCNSphere(radius: 0.15), Self.fur, image: Calico.body)
         root.addChildNode(body)
 
         // Head: a wide soft ball, ears, a slightly lighter muzzle, nose and whiskers.
-        head.addChildNode(Ink.part(SCNSphere(radius: 0.125), Self.fur))
+        head.addChildNode(Ink.part(SCNSphere(radius: 0.125), Self.fur, image: Calico.head))
         head.childNodes.first?.scale = SCNVector3(1.12, 0.94, 0.96)
         for side in [-1.0, 1.0] {
-            let ear = Ink.part(SCNCone(topRadius: 0.004, bottomRadius: 0.052, height: 0.1), Self.fur)
+            let ear = Ink.part(SCNCone(topRadius: 0.004, bottomRadius: 0.052, height: 0.1), side < 0 ? Self.ginger : Self.black)
             ear.position = SCNVector3(0.07 * side, 0.1, -0.01)
             ear.eulerAngles = SCNVector3(-0.12, 0, -0.38 * side)
             let inner = Ink.part(SCNCone(topRadius: 0.002, bottomRadius: 0.03, height: 0.065), Self.pink, outlined: false)
             inner.position = SCNVector3(0, -0.008, 0.02)
             ear.addChildNode(inner)
             head.addChildNode(ear)
+            ears.append(ear)
         }
         let snout = Ink.part(SCNSphere(radius: 0.05), Self.muzzle, outlined: false)
         snout.position = SCNVector3(0, -0.035, 0.095)
@@ -162,14 +167,17 @@ final class KuroModel {
         root.addChildNode(collar)
 
         legs = (0..<4).map { _ in Ink.part(SCNCapsule(capRadius: 0.032, height: 0.19), Self.fur) }
-        haunches = (0..<2).map { _ in Ink.part(SCNSphere(radius: 0.075), Self.fur) }
+        haunches = [Ink.part(SCNSphere(radius: 0.075), Self.ginger, image: Calico.patch(ginger: true)),
+                    Ink.part(SCNSphere(radius: 0.075), Self.black, image: Calico.patch(ginger: false))]
         (legs + haunches).forEach(root.addChildNode)
 
         // The tail is a chain, each piece hanging from the last, so it can curl and sway.
         var tail: [SCNNode] = []
         var parent = root
         for index in 0..<6 {
-            let segment = Ink.part(SCNCapsule(capRadius: 0.024 - 0.002 * CGFloat(index), height: 0.075), Self.fur)
+            // Banded like a tabby's tail, ending dark.
+            let segment = Ink.part(SCNCapsule(capRadius: 0.024 - 0.002 * CGFloat(index), height: 0.075),
+                                   index % 2 == 0 ? Self.ginger : Self.black)
             segment.pivot = SCNMatrix4MakeTranslation(0, -0.03, 0)
             parent.addChildNode(segment)
             tail.append(segment)
@@ -321,7 +329,81 @@ final class KuroModel {
                                   .rotateBy(x: 0, y: 0.5, z: 0, duration: 0.6)]), forKey: "look")
     }
 
+    /// Ears pressed back and the tail lashing: the cat has had enough.
+    func bristle(_ cross: Bool) {
+        SCNTransaction.begin()
+        SCNTransaction.animationDuration = 0.2
+        for (index, ear) in ears.enumerated() {
+            let side: Float = index == 0 ? -1 : 1
+            ear.eulerAngles = cross ? SCNVector3(-0.9, 0, -1.1 * side) : SCNVector3(-0.12, 0, -0.38 * side)
+        }
+        SCNTransaction.commit()
+        tail[3].removeAction(forKey: "sway")
+        if cross {
+            let lash = SCNAction.rotateBy(x: 0, y: 0, z: 0.6, duration: 0.12)
+            tail[3].runAction(.repeat(.sequence([lash, lash.reversed(), lash.reversed(), lash]), count: 6), forKey: "sway")
+        }
+    }
+
     func hop() {
         root.runAction(.sequence([.moveBy(x: 0, y: 0.08, z: 0, duration: 0.16), .moveBy(x: 0, y: -0.08, z: 0, duration: 0.2)]))
+    }
+}
+
+/// The calico coat, painted onto Kuro's spheres. On a SceneKit sphere the middle of the picture faces
+/// forward, its edges meet at the back and its top is the crown.
+enum Calico {
+    private static let width = 512, height = 256
+
+    private static func paint(_ work: (CGContext) -> Void) -> CGImage {
+        let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+                                space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        context.setFillColor(KuroModel.fur.cgColor)
+        context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        work(context)
+        return context.makeImage()!
+    }
+
+    /// A soft-edged patch of ginger or black fur, with thin wavy tabby stripes across it.
+    private static func patch(_ c: CGContext, _ blobs: [CGRect], ginger: Bool) {
+        let shape = CGMutablePath()
+        blobs.forEach { shape.addEllipse(in: $0) }
+        c.addPath(shape)
+        c.setFillColor((ginger ? KuroModel.ginger : KuroModel.black).cgColor)
+        c.fillPath()
+        c.saveGState()
+        c.addPath(shape)
+        c.clip()
+        c.setStrokeColor(ginger ? CGColor(red: 0.55, green: 0.28, blue: 0.12, alpha: 0.6) : CGColor(red: 0.08, green: 0.07, blue: 0.07, alpha: 0.7))
+        c.setLineCap(.round)
+        c.setLineWidth(3.5)
+        // Stripes run along the coat in short broken waves, not pole to pole.
+        for (row, y) in stride(from: CGFloat(20), through: CGFloat(height), by: 24).enumerated() {
+            var x = CGFloat(row % 2) * 30 - 40
+            while x < CGFloat(width) {
+                c.move(to: CGPoint(x: x, y: y))
+                c.addQuadCurve(to: CGPoint(x: x + 52, y: y + 4), control: CGPoint(x: x + 26, y: y + 12))
+                c.strokePath()
+                x += 70
+            }
+        }
+        c.restoreGState()
+    }
+
+    /// White face and chin; ginger over the crown and one ear, black over the other, like a mike-neko.
+    static let head: CGImage = paint { c in
+        patch(c, [CGRect(x: 110, y: 150, width: 160, height: 140), CGRect(x: -30, y: 120, width: 150, height: 170)], ginger: true)
+        patch(c, [CGRect(x: 262, y: 155, width: 150, height: 130), CGRect(x: 400, y: 110, width: 160, height: 180)], ginger: false)
+    }
+
+    /// Mostly white: a black saddle over the back with a ginger flank on one side, white chest and belly.
+    static let body: CGImage = paint { c in
+        patch(c, [CGRect(x: 420, y: 110, width: 150, height: 170), CGRect(x: -60, y: 110, width: 140, height: 170),
+                  CGRect(x: 330, y: 160, width: 110, height: 90)], ginger: false)
+        patch(c, [CGRect(x: 70, y: 130, width: 120, height: 110), CGRect(x: 20, y: 200, width: 90, height: 70)], ginger: true)
+    }
+
+    static func patch(ginger: Bool) -> CGImage {
+        paint { c in patch(c, [CGRect(x: -40, y: 40, width: 600, height: 260)], ginger: ginger) }
     }
 }

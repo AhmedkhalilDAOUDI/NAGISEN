@@ -1,52 +1,79 @@
+import AVFoundation
 import SceneKit
 import SwiftUI
 
-/// Kuro's dojo, full screen: drag to turn the room, pinch to come closer, tap Kuro to say hello.
+/// Kuro's hideout, full screen. Feed, play, stroke or poke Kuro, or talk: Kuro is NAGISEN's AI now.
+/// Drag to turn the garden, pinch to come closer; a quiet koto plays while you are here.
 struct DojoView: View {
+    /// Opens straight into the conversation, for the AI button.
+    var opensChat = false
     @EnvironmentObject private var store: NutritionStore
     @Environment(\.dismiss) private var dismiss
     @AppStorage(Familiar.nameKey) private var name = Familiar.defaultName
+    @AppStorage("nagisen.dojo.music") private var musicOn = true
     @State private var dojo: Dojo?
     @State private var activity = Dojo.Activity.sitting
+    @State private var talking = false
+    @State private var player: AVAudioPlayer?
 
     var body: some View {
         ZStack {
-            Color(red: 0.106, green: 0.102, blue: 0.118).ignoresSafeArea()
-            if let dojo { DojoSceneView(dojo: dojo).ignoresSafeArea() }
+            Color(red: 0.18, green: 0.3, blue: 0.48).ignoresSafeArea()
+            if let dojo {
+                // While you talk the garden slides up, so Kuro stays in view above the conversation.
+                GeometryReader { geometry in
+                    DojoSceneView(dojo: dojo)
+                        .offset(y: talking ? -geometry.size.height * 0.27 : 0)
+                        .animation(.smooth(duration: 0.45), value: talking)
+                }
+                .ignoresSafeArea()
+            }
             VStack {
                 HStack {
-                    Button { dismiss() } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 16, weight: .medium))
-                            .frame(width: 40, height: 40)
-                            .nagisenGlass(in: Circle(), tint: Theme.surface.opacity(0.16))
-                            .frame(width: 44, height: 44)
-                    }
-                    .accessibilityLabel("Close")
+                    roundButton("xmark", String(localized: "Close")) { dismiss() }
                     Spacer()
                     VStack(spacing: 2) {
-                        Text("\(name)’s dojo").font(.system(size: 20, design: .serif))
+                        Text("\(name)’s hideout").font(.system(size: 20, design: .serif))
                         Text(Familiar.stageName(store.familiar.stage).uppercased())
                             .font(.caption2.weight(.semibold)).nagisenTracking(2).foregroundStyle(Theme.accentText)
                     }
+                    .padding(.horizontal, 14).padding(.vertical, 6)
+                    .nagisenGlass(in: Capsule(), tint: Theme.surface.opacity(0.25))
                     Spacer()
-                    Color.clear.frame(width: 44, height: 44)
+                    roundButton(musicOn ? "speaker.wave.2" : "speaker.slash",
+                                musicOn ? String(localized: "Turn the music off") : String(localized: "Turn the music on")) {
+                        musicOn.toggle()
+                        music(musicOn)
+                    }
                 }
                 .padding(.horizontal, 14)
                 Spacer()
                 Text(Self.line(activity, name: name))
                     .font(.subheadline)
                     .padding(.horizontal, 18).padding(.vertical, 12)
-                    .nagisenGlass(in: Capsule(), tint: Theme.surface.opacity(0.2))
+                    .nagisenGlass(in: Capsule(), tint: Theme.surface.opacity(0.3))
                     .animation(.easeInOut(duration: 0.3), value: activity)
-                Text("Drag to turn the room · pinch to come closer · tap \(name)")
-                    .font(.caption2).foregroundStyle(Theme.muted)
-                    .padding(.top, 6)
+                HStack(spacing: 10) {
+                    action("fish", String(localized: "Feed")) { dojo?.feed() }
+                    action("circle.hexagongrid", String(localized: "Play")) { dojo?.play() }
+                    action("hand.raised", String(localized: "Stroke")) { dojo?.pet() }
+                    action("hand.point.up.left", String(localized: "Poke")) { dojo?.annoy() }
+                    action("bubble.left.and.text.bubble.right", String(localized: "Talk")) { talking = true }
+                }
+                .padding(.horizontal, 12)
+                .padding(.top, 8)
             }
             .padding(.vertical, 8)
             .foregroundStyle(Theme.ink)
         }
         .environment(\.colorScheme, .dark)
+        .sheet(isPresented: $talking, onDismiss: { dojo?.stopListening() }) {
+            DeepSeekChatView(bottomMenuVisible: false, onClose: { talking = false }, familiarName: name,
+                             onReply: { dojo?.speak() })
+                .presentationDetents([.medium, .large])
+                .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+                .onAppear { dojo?.listen() }
+        }
         .onAppear {
             guard dojo == nil else { return }
             let state = store.familiar
@@ -54,16 +81,65 @@ struct DojoView: View {
             made.onActivity = { activity = $0 }
             dojo = made
             made.start()
+            if musicOn { music(true) }
+            if opensChat { talking = true }
         }
-        .onDisappear { dojo?.stop() }
+        .onDisappear {
+            dojo?.stop()
+            music(false)
+        }
+    }
+
+    private func roundButton(_ symbol: String, _ label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 16, weight: .medium))
+                .frame(width: 40, height: 40)
+                .nagisenGlass(in: Circle(), tint: Theme.surface.opacity(0.25))
+                .frame(width: 44, height: 44)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+    }
+
+    private func action(_ symbol: String, _ title: String, perform: @escaping () -> Void) -> some View {
+        Button(action: perform) {
+            VStack(spacing: 5) {
+                Image(systemName: symbol).font(.system(size: 18, weight: .regular))
+                Text(title).font(.caption2.weight(.semibold))
+            }
+            .frame(maxWidth: .infinity, minHeight: 58)
+            .nagisenGlass(in: RoundedRectangle(cornerRadius: 16), tint: Theme.surface.opacity(0.3))
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// The hideout's music, looping; leaving hands the sound back to whatever was playing before.
+    private func music(_ on: Bool) {
+        let session = AVAudioSession.sharedInstance()
+        guard on, let url = Bundle.main.url(forResource: "dojo_music", withExtension: "m4a") else {
+            player?.stop()
+            player = nil
+            try? session.setActive(false, options: .notifyOthersOnDeactivation)
+            return
+        }
+        try? session.setCategory(.playback)
+        try? session.setActive(true)
+        player = try? AVAudioPlayer(contentsOf: url)
+        player?.numberOfLoops = -1
+        player?.volume = 0.6
+        player?.play()
     }
 
     static func line(_ activity: Dojo.Activity, name: String) -> String {
         switch activity {
         case .sleeping: String(localized: "\(name) is napping on the zabuton.")
-        case .eating: String(localized: "\(name) is having some fish.")
+        case .eating: String(localized: "\(name) is eating the fish you gave.")
         case .playing: String(localized: "\(name) is chasing the temari ball.")
-        case .sitting: String(localized: "\(name) is sitting quietly, watching the room.")
+        case .sitting: String(localized: "\(name) is sitting quietly, watching the garden.")
+        case .purring: String(localized: "\(name) purrs and leans into your hand.")
+        case .annoyed: String(localized: "\(name) has had enough and stalks off.")
+        case .listening: String(localized: "\(name) is listening.")
         }
     }
 }
@@ -109,7 +185,7 @@ private struct DojoSceneView: UIViewRepresentable {
         @objc func pan(_ gesture: UIPanGestureRecognizer) {
             if gesture.state == .began { startYaw = dojo.stage.eulerAngles.y }
             let turn = startYaw + Float(gesture.translation(in: view).x / 300)
-            dojo.stage.eulerAngles.y = min(max(turn, -0.6), 0.6)
+            dojo.stage.eulerAngles.y = min(max(turn, -0.5), 0.5)
         }
 
         @objc func pinch(_ gesture: UIPinchGestureRecognizer) {

@@ -1,4 +1,4 @@
-"""Synthesizes the short tracks a share card can carry (NAGISEN/card_*.m4a).
+"""Synthesizes the short tracks a share card can carry (NAGISEN/card_*.m4a), and with `dojo`, the hideout's music.
 
 Every sound is made here from sine waves, plucked strings and noise, so the app owns the music
 outright. Run from the repo root: python3 tools/make_card_music.py (needs macOS afconvert).
@@ -124,7 +124,13 @@ def reverb(dry, seed):
     return wet
 
 
-def finish(name, dry, wet_mix):
+def finish(name, dry, wet_mix, prefix="card_"):
+    # Remove any slow drift (noise sources wander), which would thump where a track loops.
+    previous = carried = 0.0
+    for i, sample in enumerate(dry):
+        carried = sample - previous + 0.999 * carried
+        previous = sample
+        dry[i] = carried
     left_wet, right_wet = reverb(dry, 0), reverb(dry, 23)
     frames = []
     for i in range(N):
@@ -140,7 +146,7 @@ def finish(name, dry, wet_mix):
             w.setsampwidth(2)
             w.setframerate(RATE)
             w.writeframes(pcm.tobytes())
-        target = os.path.join(OUT, f"card_{name}.m4a")
+        target = os.path.join(OUT, f"{prefix}{name}.m4a")
         subprocess.run(["afconvert", "-f", "m4af", "-d", "aac", "-b", "160000", wav_path, target], check=True)
     print("wrote", os.path.normpath(target))
 
@@ -312,7 +318,66 @@ def night():
     return buf
 
 
+def shakuhachi(buf, note, start, length, level):
+    """A breathy bamboo flute: a soft tone that swells, wavers more as it is held, and carries air."""
+    a = int(start * RATE)
+    n = int(length * RATE)
+    f = hz(note)
+    phase = 0.0
+    air = 0.0
+    for i in range(n):
+        if a + i >= N:
+            break
+        t = i / RATE
+        vibrato = 1 + 0.006 * min(1.0, t / 1.5) * math.sin(2 * math.pi * 5.2 * t)
+        phase += 2 * math.pi * f * vibrato / RATE
+        air = air * 0.9 + random.uniform(-1, 1) * 0.1  # softened noise, the breath in the bamboo
+        tone = math.sin(phase) + 0.18 * math.sin(2 * phase) + 0.06 * math.sin(3 * phase)
+        buf[a + i] += (tone + air * 1.6) * level * envelope(i, n, 0.7, 1.2)
+
+
+def wind(buf, level):
+    """Air moving through the garden, rising and falling slowly."""
+    low = 0.0
+    for i in range(N):
+        low = low * 0.995 + random.uniform(-1, 1) * 0.005
+        swell = 0.6 + 0.4 * math.sin(2 * math.pi * i / RATE / 23)
+        buf[i] += low * 6 * level * swell
+
+
+def dojo():
+    """For Kuro's hideout: koto phrases in the in scale over a drone, a shakuhachi answering, and wind."""
+    buf = [0.0] * N
+    pad(buf, [38, 45, 50], 0, SECONDS, 0.07)
+    wind(buf, 0.5)
+    # D in scale: D, Eb, G, A, Bb, across two octaves.
+    scale = [62, 63, 67, 69, 70, 74, 75, 79, 81, 82]
+    t = 1.5
+    phrase = 0
+    while t < SECONDS - 8:
+        position = random.randrange(2, 7)
+        for _ in range(random.randrange(4, 8)):
+            position = max(0, min(len(scale) - 1, position + random.choice([-2, -1, -1, 1, 1, 2])))
+            pluck(buf, scale[position], t, random.uniform(0.17, 0.26), decay=0.9975)
+            t += random.choice([0.45, 0.6, 0.6, 0.9, 1.2])
+        if phrase % 2 == 1 and t < SECONDS - 14:
+            for note, held in [(random.choice([62, 67, 69]), 3.2), (random.choice([69, 70, 74]), 4.2)]:
+                shakuhachi(buf, note, t + 0.4, held, 0.08)
+                t += held + 0.5
+        t += random.uniform(2.0, 3.5)
+        phrase += 1
+    return buf
+
+
 if __name__ == "__main__":
+    import sys
+    if sys.argv[1:] == ["dojo"]:
+        # The hideout's music only: longer, so its loop comes round rarely.
+        random.seed(11)
+        SECONDS = 96
+        N = RATE * SECONDS
+        finish("dojo_music", dojo(), 0.45, prefix="")
+        sys.exit()
     random.seed(7)
     finish("still", still(), 0.35)
     finish("dusk", dusk(), 0.30)
