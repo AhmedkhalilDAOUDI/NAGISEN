@@ -328,6 +328,7 @@ private struct HomeView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showingCalendar = false
     @State private var showingProfile = false
+    @State private var showingDojo = false
     @Binding var date: Date
     let onAdd: (Meal) -> Void
 
@@ -379,6 +380,16 @@ private struct HomeView: View {
                         Spacer(minLength: 3)
                         VStack(spacing: 4) {
                             HStack(spacing: -5) {
+                                Button { showingDojo = true } label: {
+                                    DojoIcon()
+                                        .stroke(style: StrokeStyle(lineWidth: 1.6, lineCap: .round, lineJoin: .round))
+                                        .frame(width: 18, height: 16)
+                                        .frame(width: 34, height: 34)
+                                        .nagisenGlass(in: Circle(), tint: Theme.surface.opacity(0.16))
+                                        .frame(width: 44, height: 44)
+                                        .contentShape(Circle())
+                                }
+                                .accessibilityLabel("Kuro’s dojo")
                                 Button {
                                     store.appearance = colorScheme == .dark ? .light : .dark
                                 } label: {
@@ -433,7 +444,7 @@ private struct HomeView: View {
                             }
                             .accessibilityLabel("Today’s steps: \(health.steps.map { $0.formatted() } ?? "connect Apple Health")")
                         }
-                        .frame(width: 122)
+                        .frame(width: 161)
                     }
                     .padding(.horizontal, 18)
                     // The header keeps its shape at the largest text sizes; the cards below scale freely.
@@ -480,6 +491,7 @@ private struct HomeView: View {
             .sheet(isPresented: $showingCalendar) {
                 CalendarLogView(date: $date)
             }
+            .fullScreenCover(isPresented: $showingDojo) { DojoView() }
             .sheet(isPresented: $showingProfile) {
                 ProfileView()
             }

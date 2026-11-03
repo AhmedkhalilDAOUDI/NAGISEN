@@ -58,20 +58,16 @@ extension NutritionStore {
     }
 }
 
-/// The cat moving: breathing, blinking and swaying, or still when Reduce Motion is on.
-struct LivingFamiliar: View {
+/// Kuro as the 3D model draws it, on its small night background.
+struct KuroStill: View {
     let state: Familiar.State
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion)) { timeline in
-            FamiliarCat(stage: state.stage, mood: state.mood,
-                        time: reduceMotion ? 1 : timeline.date.timeIntervalSinceReferenceDate)
-        }
-        // The cat lives in its own small night, the same in light and dark mode.
-        .padding(6)
-        .background(Color(red: 0.11, green: 0.105, blue: 0.12), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .opacity(state.mood == .resting ? 0.85 : 1)
+        Image(uiImage: KuroPortrait.image(state.stage, state.mood))
+            .resizable()
+            .scaledToFit()
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .accessibilityLabel(FamiliarCat.describe(state.stage, state.mood))
     }
 }
 
@@ -84,7 +80,7 @@ struct FamiliarCard: View {
         let state = store.familiar
         Button { showingDetails = true } label: {
             HStack(spacing: 16) {
-                LivingFamiliar(state: state).frame(width: 96, height: 96)
+                KuroStill(state: state).frame(width: 96, height: 96)
                 VStack(alignment: .leading, spacing: 5) {
                     Text("FAMILIAR").font(.caption2.weight(.semibold)).nagisenTracking(2).foregroundStyle(Theme.accentText)
                     Text(name).font(.system(size: 24, design: .serif))
@@ -109,15 +105,24 @@ struct FamiliarView: View {
     @EnvironmentObject private var store: NutritionStore
     @Environment(\.dismiss) private var dismiss
     @AppStorage(Familiar.nameKey) private var name = Familiar.defaultName
+    @State private var showingDojo = false
 
     var body: some View {
         let state = store.familiar
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    LivingFamiliar(state: state)
+                    KuroStill(state: state)
                         .frame(maxWidth: 300)
                         .frame(maxWidth: .infinity)
+                    Button { showingDojo = true } label: {
+                        Label("Visit \(name)’s dojo", systemImage: "arrow.right")
+                            .font(.subheadline.weight(.semibold))
+                            .frame(maxWidth: .infinity, minHeight: 48)
+                            .background(Theme.accent, in: Capsule())
+                            .foregroundStyle(.white)
+                    }
+                    .buttonStyle(.plain)
                     VStack(alignment: .leading, spacing: 8) {
                         TextField("Name", text: $name)
                             .font(.system(size: 30, design: .serif))
@@ -160,5 +165,6 @@ struct FamiliarView: View {
             .background(NagisenBackdrop())
             .nagisenSheetBar(String(localized: "Familiar"), onClose: { dismiss() })
         }
+        .fullScreenCover(isPresented: $showingDojo) { DojoView() }
     }
 }
