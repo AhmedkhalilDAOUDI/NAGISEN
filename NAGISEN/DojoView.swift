@@ -15,6 +15,7 @@ struct DojoView: View {
     @State private var activity = Dojo.Activity.sitting
     @State private var talking = false
     @State private var player: AVAudioPlayer?
+    @State private var hand = Dojo.Hand.look
 
     var body: some View {
         ZStack {
@@ -53,15 +54,18 @@ struct DojoView: View {
                     .padding(.horizontal, 18).padding(.vertical, 12)
                     .nagisenGlass(in: Capsule(), tint: Theme.surface.opacity(0.3))
                     .animation(.easeInOut(duration: 0.3), value: activity)
+                Text(Self.hint(hand, name: name))
+                    .font(.caption2).foregroundStyle(.white.opacity(0.85))
+                    .shadow(color: .black.opacity(0.4), radius: 3)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 20).padding(.top, 4)
                 HStack(spacing: 10) {
-                    action("fish", String(localized: "Feed")) { dojo?.feed() }
-                    action("circle.hexagongrid", String(localized: "Play")) { dojo?.play() }
-                    action("hand.raised", String(localized: "Stroke")) { dojo?.pet() }
-                    action("hand.point.up.left", String(localized: "Poke")) { dojo?.annoy() }
-                    action("bubble.left.and.text.bubble.right", String(localized: "Talk")) { talking = true }
+                    mode(.feather, "wand.and.rays", String(localized: "Feather"))
+                    mode(.treat, "fish", String(localized: "Treat"))
+                    action("bubble.left.and.text.bubble.right", String(localized: "Talk"), selected: false) { talking = true }
                 }
                 .padding(.horizontal, 12)
-                .padding(.top, 8)
+                .padding(.top, 6)
             }
             .padding(.vertical, 8)
             .foregroundStyle(Theme.ink)
@@ -102,16 +106,33 @@ struct DojoView: View {
         .accessibilityLabel(label)
     }
 
-    private func action(_ symbol: String, _ title: String, perform: @escaping () -> Void) -> some View {
+    private func action(_ symbol: String, _ title: String, selected: Bool, perform: @escaping () -> Void) -> some View {
         Button(action: perform) {
             VStack(spacing: 5) {
                 Image(systemName: symbol).font(.system(size: 18, weight: .regular))
                 Text(title).font(.caption2.weight(.semibold))
             }
             .frame(maxWidth: .infinity, minHeight: 58)
-            .nagisenGlass(in: RoundedRectangle(cornerRadius: 16), tint: Theme.surface.opacity(0.3))
+            .nagisenGlass(in: RoundedRectangle(cornerRadius: 16), tint: selected ? Theme.accent.opacity(0.7) : Theme.surface.opacity(0.3))
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    /// A tool for your finger; tapping it again puts it down.
+    private func mode(_ chosen: Dojo.Hand, _ symbol: String, _ title: String) -> some View {
+        action(symbol, title, selected: hand == chosen) {
+            hand = hand == chosen ? .look : chosen
+            dojo?.choose(hand)
+        }
+    }
+
+    static func hint(_ hand: Dojo.Hand, name: String) -> String {
+        switch hand {
+        case .look: String(localized: "Rub \(name) to pet · double-tap anywhere to call · don't poke too much")
+        case .feather: String(localized: "Drag the feather around. Hold it still and \(name) will pounce.")
+        case .treat: String(localized: "Tap anywhere in the garden to drop a treat.")
+        }
     }
 
     /// The hideout's music, looping; leaving hands the sound back to whatever was playing before.
@@ -134,9 +155,16 @@ struct DojoView: View {
     static func line(_ activity: Dojo.Activity, name: String) -> String {
         switch activity {
         case .sleeping: String(localized: "\(name) is napping on the zabuton.")
-        case .eating: String(localized: "\(name) is eating the fish you gave.")
-        case .playing: String(localized: "\(name) is chasing the temari ball.")
+        case .sunbathing: String(localized: "\(name) is dozing on the warm stone.")
         case .sitting: String(localized: "\(name) is sitting quietly, watching the garden.")
+        case .grooming: String(localized: "\(name) is washing a paw.")
+        case .playing: String(localized: "\(name) is batting the temari ball around.")
+        case .watchingKoi: String(localized: "\(name) is watching the koi very closely.")
+        case .chasingButterfly: String(localized: "\(name) is stalking a butterfly.")
+        case .sniffing: String(localized: "\(name) is sniffing the flowers.")
+        case .eating: String(localized: "\(name) is eating the treat you dropped.")
+        case .hunting: String(localized: "\(name) has spotted the feather…")
+        case .coming: String(localized: "\(name) is coming over.")
         case .purring: String(localized: "\(name) purrs and leans into your hand.")
         case .annoyed: String(localized: "\(name) has had enough and stalks off.")
         case .listening: String(localized: "\(name) is listening.")
@@ -156,14 +184,23 @@ private struct DojoSceneView: UIViewRepresentable {
         view.rendersContinuously = true
         view.isPlaying = true
         view.preferredFramesPerSecond = 60
-        view.addGestureRecognizer(UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.tap)))
-        view.addGestureRecognizer(UIPanGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.pan)))
-        view.addGestureRecognizer(UIPinchGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.pinch)))
-        context.coordinator.view = view
+        let coordinator = context.coordinator
+        let double = UITapGestureRecognizer(target: coordinator, action: #selector(Coordinator.doubleTap))
+        double.numberOfTapsRequired = 2
+        let single = UITapGestureRecognizer(target: coordinator, action: #selector(Coordinator.tap))
+        single.require(toFail: double)
+        let pan = UIPanGestureRecognizer(target: coordinator, action: #selector(Coordinator.pan))
+        pan.maximumNumberOfTouches = 1
+        [double, single, pan, UIPinchGestureRecognizer(target: coordinator, action: #selector(Coordinator.pinch))]
+            .forEach(view.addGestureRecognizer)
+        coordinator.view = view
+        coordinator.startClock()
         return view
     }
 
     func updateUIView(_ view: SCNView, context: Context) {}
+
+    static func dismantleUIView(_ view: SCNView, coordinator: Coordinator) { coordinator.stopClock() }
 
     func makeCoordinator() -> Coordinator { Coordinator(dojo: dojo) }
 
@@ -171,21 +208,101 @@ private struct DojoSceneView: UIViewRepresentable {
         let dojo: Dojo
         weak var view: SCNView?
         private var startYaw: Float = 0
-        private var startView: CGFloat = 54
+        private var startView: CGFloat = 60
+        private var clock: CADisplayLink?
+        private var lastTick: CFTimeInterval = 0
+        private var dragging = Drag.turning
+        private var lastPoint = CGPoint.zero
+        private var lastMove: CFTimeInterval = 0
+        private let purrFeel = UIImpactFeedbackGenerator(style: .soft)
+        private var nextPurr: CFTimeInterval = 0
+
+        private enum Drag { case turning, rubbing, feather }
 
         init(dojo: Dojo) { self.dojo = dojo }
 
-        @objc func tap(_ gesture: UITapGestureRecognizer) {
-            guard let view else { return }
-            let hits = view.hitTest(gesture.location(in: view), options: [.searchMode: SCNHitTestSearchMode.all.rawValue])
-            if hits.contains(where: { $0.node.isInside(dojo.kuro.root) }) { dojo.pet() }
+        func startClock() {
+            let link = CADisplayLink(target: self, selector: #selector(tick))
+            link.add(to: .main, forMode: .common)
+            clock = link
         }
 
-        /// Turns the room a little either way, never far enough to look behind the walls.
+        func stopClock() { clock?.invalidate(); clock = nil }
+
+        /// Every frame: moves Kuro's hunt and the camera on, and lets you feel the purr.
+        @objc private func tick(_ link: CADisplayLink) {
+            let dt = lastTick == 0 ? 1 / 60 : min(link.timestamp - lastTick, 0.1)
+            lastTick = link.timestamp
+            dojo.update(dt)
+            if dojo.purring > 0.2, link.timestamp > nextPurr {
+                purrFeel.impactOccurred(intensity: CGFloat(0.25 + dojo.purring * 0.55))
+                nextPurr = link.timestamp + 0.11
+            }
+        }
+
+        private func touchesKuro(_ point: CGPoint) -> Bool {
+            guard let view else { return false }
+            return view.hitTest(point, options: [.searchMode: SCNHitTestSearchMode.all.rawValue])
+                .contains { $0.node.isInside(dojo.kuro.root) }
+        }
+
+        /// Where on the boards or the lawn a point on screen falls, in the garden's own coordinates.
+        private func spot(_ point: CGPoint) -> SCNVector3? {
+            guard let view else { return nil }
+            let hits = view.hitTest(point, options: [.searchMode: SCNHitTestSearchMode.all.rawValue])
+            guard let hit = hits.first(where: { !$0.node.isInside(dojo.kuro.root) }) else { return nil }
+            let local = dojo.stage.convertPosition(hit.worldCoordinates, from: nil)
+            let x = Float(local.x), z = Float(local.z)
+            guard hypot(x, z) < 4.2 else { return nil }
+            let onDeck = abs(x) < 1.28 && abs(z) < 0.98 && Float(local.y) > 0.15
+            return SCNVector3(x, onDeck ? Dojo.deck : 0, z)
+        }
+
+        @objc func tap(_ gesture: UITapGestureRecognizer) {
+            guard let view else { return }
+            let point = gesture.location(in: view)
+            if touchesKuro(point) { dojo.tapKuro(); return }
+            guard let target = spot(point) else { return }
+            switch dojo.hand {
+            case .treat: dojo.dropTreat(at: target)
+            case .feather: dojo.moveFeather(to: target)
+            case .look: break
+            }
+        }
+
+        @objc func doubleTap(_ gesture: UITapGestureRecognizer) {
+            guard let view, let target = spot(gesture.location(in: view)) else { return }
+            dojo.call(to: target)
+        }
+
+        /// One finger: rubbing Kuro, steering the feather, or otherwise turning the garden a little either way.
         @objc func pan(_ gesture: UIPanGestureRecognizer) {
-            if gesture.state == .began { startYaw = dojo.stage.eulerAngles.y }
-            let turn = startYaw + Float(gesture.translation(in: view).x / 300)
-            dojo.stage.eulerAngles.y = min(max(turn, -0.5), 0.5)
+            guard let view else { return }
+            let point = gesture.location(in: view)
+            switch gesture.state {
+            case .began:
+                if touchesKuro(point) { dragging = .rubbing } else if dojo.hand == .feather { dragging = .feather } else { dragging = .turning }
+                startYaw = Float(dojo.stage.eulerAngles.y)
+                lastPoint = point
+                lastMove = CACurrentMediaTime()
+                purrFeel.prepare()
+            case .changed:
+                switch dragging {
+                case .rubbing:
+                    let now = CACurrentMediaTime()
+                    let stroke = hypot(point.x - lastPoint.x, point.y - lastPoint.y)
+                    dojo.rub(Double(stroke) / 900, dt: now - lastMove)
+                    lastPoint = point
+                    lastMove = now
+                case .feather:
+                    if let target = spot(point) { dojo.moveFeather(to: target) }
+                case .turning:
+                    let turn = startYaw + Float(gesture.translation(in: view).x / 300)
+                    dojo.stage.eulerAngles.y = .init(min(max(turn, -0.5), 0.5))
+                }
+            default:
+                if dragging == .rubbing { dojo.endRub() }
+            }
         }
 
         @objc func pinch(_ gesture: UIPinchGestureRecognizer) {

@@ -345,27 +345,52 @@ def wind(buf, level):
         buf[i] += low * 6 * level * swell
 
 
+def chirp(buf, start, level):
+    """A small bird: two quick rising whistles."""
+    for k in range(2):
+        a = int((start + k * 0.12) * RATE)
+        phase = 0.0
+        for i in range(int(RATE * 0.07)):
+            if a + i >= N:
+                break
+            t = i / (RATE * 0.07)
+            phase += 2 * math.pi * (2600 + 1400 * t) / RATE
+            buf[a + i] += math.sin(phase) * level * math.sin(math.pi * t)
+
+
+def soften(buf, amount):
+    """A gentle low-pass, rounding off the bright edge of plucked strings."""
+    last = 0.0
+    for i in range(len(buf)):
+        last += (buf[i] - last) * amount
+        buf[i] = last
+
+
 def dojo():
-    """For Kuro's hideout: koto phrases in the in scale over a drone, a shakuhachi answering, and wind."""
+    """For Kuro's hideout: an unhurried, sunny garden. Koto phrases in the bright yo scale over warm major
+    chords, a few soft bells, birds now and then. Nothing breathy, nothing minor."""
     buf = [0.0] * N
-    pad(buf, [38, 45, 50], 0, SECONDS, 0.07)
-    wind(buf, 0.5)
-    # D in scale: D, Eb, G, A, Bb, across two octaves.
-    scale = [62, 63, 67, 69, 70, 74, 75, 79, 81, 82]
-    t = 1.5
-    phrase = 0
-    while t < SECONDS - 8:
-        position = random.randrange(2, 7)
-        for _ in range(random.randrange(4, 8)):
-            position = max(0, min(len(scale) - 1, position + random.choice([-2, -1, -1, 1, 1, 2])))
-            pluck(buf, scale[position], t, random.uniform(0.17, 0.26), decay=0.9975)
-            t += random.choice([0.45, 0.6, 0.6, 0.9, 1.2])
-        if phrase % 2 == 1 and t < SECONDS - 14:
-            for note, held in [(random.choice([62, 67, 69]), 3.2), (random.choice([69, 70, 74]), 4.2)]:
-                shakuhachi(buf, note, t + 0.4, held, 0.08)
-                t += held + 0.5
-        t += random.uniform(2.0, 3.5)
-        phrase += 1
+    # Dmaj9, Gmaj7, Bm7, A6sus: warm, open, always resolving home.
+    for k, chord in enumerate([[50, 57, 61, 64, 66], [43, 55, 59, 62, 66], [47, 54, 57, 62, 66], [45, 52, 57, 62, 66]] * 6):
+        pad(buf, chord, k * 4.0, 5.0, 0.055)
+    strings = [0.0] * N
+    # D yo scale: D, E, G, A, B, across two octaves.
+    scale = [62, 64, 67, 69, 71, 74, 76, 79, 81, 83]
+    t = 1.0
+    while t < SECONDS - 6:
+        position = random.randrange(3, 7)
+        for _ in range(random.randrange(4, 7)):
+            position = max(0, min(len(scale) - 1, position + random.choice([-1, -1, 1, 1, 2, -2])))
+            pluck(strings, scale[position], t, random.uniform(0.14, 0.2), decay=0.996)
+            t += random.choice([0.5, 0.75, 0.75, 1.0])
+        if random.random() < 0.5:
+            bell(buf, random.choice([86, 88, 91]), t + 0.3, 0.035, ring=3.0)
+        if random.random() < 0.35:
+            chirp(buf, t + random.uniform(0.5, 1.5), 0.04)
+        t += random.uniform(1.8, 3.0)
+    soften(strings, 0.35)
+    for i in range(N):
+        buf[i] += strings[i]
     return buf
 
 
@@ -373,7 +398,7 @@ if __name__ == "__main__":
     import sys
     if sys.argv[1:] == ["dojo"]:
         # The hideout's music only: longer, so its loop comes round rarely.
-        random.seed(11)
+        random.seed(19)
         SECONDS = 96
         N = RATE * SECONDS
         finish("dojo_music", dojo(), 0.45, prefix="")

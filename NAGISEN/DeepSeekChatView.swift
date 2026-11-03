@@ -377,12 +377,7 @@ struct DeepSeekChatView: View {
             .padding(.bottom, bottomMenuVisible ? 90 : 0)
             .background(NagisenBackdrop())
             .toolbar(.hidden, for: .navigationBar)
-            .toolbar {
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button("Done") { composerFocused = false }
-                }
-            }
+            // No keyboard "Done" bar: it floats over the send button. Swiping the messages down closes the keyboard.
             .sheet(isPresented: $showingSettings, onDismiss: { hasKey = chat.hasKey }) { settings }
             .onAppear { chat.familiarName = familiarName; hasKey = chat.hasKey; modelInput = UserDefaults.standard.string(forKey: CoachChat.modelKey(chat.provider)) ?? "" }
         }
