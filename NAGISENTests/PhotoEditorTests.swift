@@ -31,6 +31,9 @@ final class PhotoEditorTests: XCTestCase {
     func testTheCardTakesThePhotosShape() {
         XCTAssertEqual(CardSize.of(image(width: 900, height: 1600)).height, 640, accuracy: 0.5)
         XCTAssertEqual(CardSize.of(nil), CGSize(width: 360, height: 450))
+        XCTAssertEqual(CardSize.of(image(width: 1200, height: 900)), CGSize(width: 600, height: 450), "wide photos keep the full height")
+        XCTAssertEqual(CardSize.of(image(width: 1000, height: 1000)), CGSize(width: 450, height: 450))
+        XCTAssertEqual(CardSize.of(image(width: 800, height: 1000)), CGSize(width: 360, height: 450))
     }
 
     func testSettingAToolBackToZeroForgetsIt() {

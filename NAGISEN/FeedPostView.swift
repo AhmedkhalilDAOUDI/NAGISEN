@@ -258,7 +258,7 @@ struct FeedPostView: View {
             } else if let url = feed.mediaURL(for: post) {
                 ZStack {
                     Rectangle().fill(Theme.surface.opacity(0.35))
-                    if let photo { Image(uiImage: photo).resizable().scaledToFill() }
+                    if let photo { Image(uiImage: photo).resizable().scaledToFit() }
                 }
                 .aspectRatio(photo.map { PostMedia.feedAspectRatio(width: $0.size.width, height: $0.size.height) } ?? 4.0 / 5.0,
                              contentMode: .fit)

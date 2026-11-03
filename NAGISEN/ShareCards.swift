@@ -101,9 +101,13 @@ struct CardLayout {
 
 /// A card is as wide as always and as tall as its photo needs, so the whole photo shows.
 enum CardSize {
+    /// The photo's own shape. Tall photos keep the card's 360 width; anything wider than 4:5 keeps its
+    /// 450 height and grows sideways instead, so the words always have the room the card was laid out for.
     static func of(_ photo: UIImage?) -> CGSize {
-        guard let photo, photo.size.width > 0 else { return CGSize(width: 360, height: 450) }
-        return CGSize(width: 360, height: (360 * photo.size.height / photo.size.width).rounded())
+        guard let photo, photo.size.width > 0, photo.size.height > 0 else { return CGSize(width: 360, height: 450) }
+        let ratio = photo.size.width / photo.size.height
+        if ratio <= 0.8 { return CGSize(width: 360, height: (360 / ratio).rounded()) }
+        return CGSize(width: (450 * ratio).rounded(), height: 450)
     }
 }
 
