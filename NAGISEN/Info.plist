@@ -16,6 +16,7 @@
     <key>CADisableMinimumFrameDurationOnPhone</key><true/>
     <key>SupabaseURL</key><string>$(SUPABASE_URL)</string>
     <key>SupabaseAnonKey</key><string>$(SUPABASE_ANON_KEY)</string>
+    <key>DeepSeekDevKey</key><string>$(DEEPSEEK_DEV_KEY)</string>
     <key>MinimumOSVersion</key><string>$(IPHONEOS_DEPLOYMENT_TARGET)</string>
     <key>NSPhotoLibraryAddUsageDescription</key><string>Save the share cards you make, with your photo and your numbers, to your photo library.</string>
     <key>NSCameraUsageDescription</key><string>Scan barcodes, photograph food packages, and take photos and videos for your cards and posts.</string>

@@ -3,5 +3,7 @@
 // Without it the app still builds and Feed explains that it isn't set up.
 SUPABASE_URL =
 SUPABASE_ANON_KEY =
+// Set only for Debug in Secrets.xcconfig; empty everywhere else.
+DEEPSEEK_DEV_KEY =
 
 #include? "Secrets.xcconfig"

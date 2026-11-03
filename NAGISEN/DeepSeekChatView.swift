@@ -227,8 +227,21 @@ final class CoachChat: ObservableObject {
                                           kSecAttrAccount: provider.keychainAccount,
                                           kSecReturnData: true,
                                           kSecMatchLimit: kSecMatchLimitOne] as CFDictionary, &result)
-        guard status == errSecSuccess, let data = result as? Data else { return nil }
+        guard status == errSecSuccess, let data = result as? Data else { return developmentKey(for: provider) }
         return String(data: data, encoding: .utf8)
+    }
+
+    /// The DeepSeek key built into Debug builds from Secrets.xcconfig, for the owner's own phone.
+    /// A key saved in the Keychain always wins; Release builds never carry one.
+    private static func developmentKey(for provider: CoachProvider) -> String? {
+        #if DEBUG
+        guard provider == .deepSeek,
+              let key = Bundle.main.object(forInfoDictionaryKey: "DeepSeekDevKey") as? String,
+              !key.isEmpty, !key.hasPrefix("$(") else { return nil }
+        return key
+        #else
+        return nil
+        #endif
     }
 
     private func saveHistory() {
