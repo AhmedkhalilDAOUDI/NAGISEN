@@ -124,8 +124,6 @@ final class CoachChat: ObservableObject {
     @Published var messages: [CoachMessage] = [] { didSet { saveHistory() } }
     @Published var isSending = false
     @Published var errorMessage: String?
-    /// When set, the coach speaks as the familiar of this name, from its dojo.
-    var familiarName: String?
 
     private let historyKey = "nagisen.deepseek.chat.v2"
     static let providerKey = "nagisen.coach.provider"
@@ -190,7 +188,7 @@ final class CoachChat: ObservableObject {
         isSending = true
         defer { isSending = false }
         do {
-            var systemPrompt = (familiarName.map(Self.familiarVoice) ?? "") + """
+            var systemPrompt = """
             You're texting with a friend who trains and cares about food. Talk like a real person in a chat: casual, relaxed, plain words, contractions. Answer what they asked in the first sentence, then stop when it's answered. Most replies are one to four sentences; go longer only when they ask for detail or a plan.
 
             Write in plain sentences. No headings, no bold, no bullet or numbered lists unless they ask for steps or a list. No emojis unless they use them. Match their language and how they write.
@@ -250,14 +248,6 @@ final class CoachChat: ObservableObject {
         }
     }
 
-    static func familiarVoice(_ name: String) -> String {
-        """
-        You are \(name), a calico cat who lives in the user's hideout in the NAGISEN app: their familiar. You talk with them in the first person as \(name): calm, a little proud, warm underneath, sometimes cat-like (a slow blink, a stretch, a quiet "mrrp"), but not in every message and never baby talk. You know food, training and rest as well as any coach and help with whatever they ask. Everything below about how to talk applies to you too.
-
-
-        """
-    }
-
     static func loadKey(for provider: CoachProvider) -> String? {
         if UserDefaults.standard.bool(forKey: preferBuiltInKey), let builtIn = developmentKey(for: provider) { return builtIn }
         var result: CFTypeRef?
@@ -293,10 +283,6 @@ struct DeepSeekChatView: View {
     var bottomMenuVisible = true
     /// Set when the coach opens as a sheet over another screen.
     var onClose: (() -> Void)? = nil
-    /// Set inside the dojo: the coach is the familiar of this name.
-    var familiarName: String? = nil
-    /// Called each time an answer arrives, so the familiar can react.
-    var onReply: (() -> Void)? = nil
     @EnvironmentObject private var store: NutritionStore
     @EnvironmentObject private var health: HealthManager
     @AppStorage("nagisen.chat.useContext") private var useContext = false
@@ -318,13 +304,8 @@ struct DeepSeekChatView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 HStack(alignment: .top, spacing: 8) {
-                    if let familiarName {
-                        NagisenPageHeading(kicker: familiarName.uppercased(), title: String(localized: "Talk to \(familiarName)"),
-                                           subtitle: String(localized: "Your familiar, and your coach."))
-                    } else {
-                        NagisenPageHeading(kicker: String(localized: "NAGISEN AI"), title: String(localized: "Your coach"),
-                                           subtitle: String(localized: "A space to think things through."))
-                    }
+                    NagisenPageHeading(kicker: String(localized: "NAGISEN AI"), title: String(localized: "Your coach"),
+                                       subtitle: String(localized: "A space to think things through."))
                     if !chat.messages.isEmpty {
                         headerButton("square.and.pencil", label: String(localized: "New chat")) {
                             chat.clearHistory(); composerFocused = false
@@ -363,7 +344,6 @@ struct DeepSeekChatView: View {
                     .scrollDismissesKeyboard(.interactively)
                     .scrollIndicators(.hidden)
                     .onChange(of: chat.messages.count) { _, _ in
-                        if chat.messages.last?.role == "assistant" { onReply?() }
                         withAnimation(.smooth(duration: 0.25)) {
                             if let last = chat.messages.last { proxy.scrollTo(last.id, anchor: .bottom) }
                         }
@@ -379,7 +359,7 @@ struct DeepSeekChatView: View {
             .toolbar(.hidden, for: .navigationBar)
             // No keyboard "Done" bar: it floats over the send button. Swiping the messages down closes the keyboard.
             .sheet(isPresented: $showingSettings, onDismiss: { hasKey = chat.hasKey }) { settings }
-            .onAppear { chat.familiarName = familiarName; hasKey = chat.hasKey; modelInput = UserDefaults.standard.string(forKey: CoachChat.modelKey(chat.provider)) ?? "" }
+            .onAppear { hasKey = chat.hasKey; modelInput = UserDefaults.standard.string(forKey: CoachChat.modelKey(chat.provider)) ?? "" }
         }
     }
 
@@ -402,7 +382,7 @@ struct DeepSeekChatView: View {
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 8) {
-                Text(familiarName.map { String(localized: "\($0) is listening.") } ?? String(localized: "What's on your mind?"))
+                Text("What's on your mind?")
                     .font(.system(.title, design: .serif))
                 Text(useContext ? "I can see today's logs, goals and recent training."
                                 : "Ask about food, training, recovery or anything else.")
@@ -478,7 +458,7 @@ struct DeepSeekChatView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
                 Circle().fill(Theme.red).frame(width: 6, height: 6)
-                Text(familiarName?.uppercased() ?? "NAGISEN").font(.caption2.weight(.semibold)).nagisenTracking(2)
+                Text("NAGISEN").font(.caption2.weight(.semibold)).nagisenTracking(2)
             }
             .foregroundStyle(Theme.muted)
             Text(Self.rendered(message.content))

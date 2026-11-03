@@ -10,7 +10,7 @@ import simd
 final class Dojo {
     enum Activity: Equatable {
         case sleeping, sunbathing, sitting, grooming, playing, watchingKoi, chasingButterfly, sniffing,
-             eating, hunting, coming, purring, annoyed, listening
+             eating, hunting, coming, purring, annoyed
     }
 
     /// What your finger does in the garden.
@@ -277,32 +277,6 @@ final class Dojo {
         }
     }
 
-    /// While you talk, Kuro comes to the front of the veranda and sits facing you.
-    func listen() {
-        guard running, activity != .listening else { return }
-        interrupt()
-        activity = .listening
-        report(.listening)
-        if kuro.pose == .sleep { kuro.set(.sit, duration: 1) }
-        after(kuro.pose == .sleep ? 1 : 0) {
-            self.travel(to: SCNVector3(0.05, Dojo.deck, 0.3), run: false) {
-                self.kuro.set(.sit, duration: 0.4)
-                self.faceCamera()
-                self.kuro.swayTail(lively: false)
-            }
-        }
-    }
-
-    func speak() {
-        kuro.bob()
-        float("…", Ink.colour(0xF2EADB))
-    }
-
-    func stopListening() {
-        guard activity == .listening else { return }
-        next()
-    }
-
     // MARK: Kuro on its own
 
     private func interrupt() {
@@ -387,7 +361,7 @@ final class Dojo {
             }
         case .playing:
             play(rounds: 3)
-        case .sitting, .eating, .hunting, .coming, .purring, .annoyed, .listening:
+        case .sitting, .eating, .hunting, .coming, .purring, .annoyed:
             let spot = SCNVector3(Float.random(in: -0.9...0.9), Dojo.deck, Float.random(in: -0.3...0.7))
             travel(to: spot, run: false) {
                 self.face(toward: SCNVector3(-1.5, 0, -6))

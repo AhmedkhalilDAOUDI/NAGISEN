@@ -5,15 +5,12 @@ import SwiftUI
 /// Kuro's hideout, full screen. Feed, play, stroke or poke Kuro, or talk: Kuro is NAGISEN's AI now.
 /// Drag to turn the garden, pinch to come closer; a quiet koto plays while you are here.
 struct DojoView: View {
-    /// Opens straight into the conversation, for the AI button.
-    var opensChat = false
     @EnvironmentObject private var store: NutritionStore
     @Environment(\.dismiss) private var dismiss
     @AppStorage(Familiar.nameKey) private var name = Familiar.defaultName
     @AppStorage("nagisen.dojo.music") private var musicOn = true
     @State private var dojo: Dojo?
     @State private var activity = Dojo.Activity.sitting
-    @State private var talking = false
     @State private var player: AVAudioPlayer?
     @State private var hand = Dojo.Hand.look
     @State private var ready = false
@@ -22,16 +19,10 @@ struct DojoView: View {
         ZStack {
             Color(red: 0.18, green: 0.3, blue: 0.48).ignoresSafeArea()
             if let dojo {
-                // While you talk the garden slides up, so Kuro stays in view above the conversation.
-                GeometryReader { geometry in
-                    DojoSceneView(dojo: dojo) {
-                        // Everything is loaded and its shaders built: show the garden and let Kuro begin.
-                        withAnimation(.easeOut(duration: 0.6)) { ready = true }
-                        dojo.start()
-                        if opensChat { talking = true }
-                    }
-                    .offset(y: talking ? -geometry.size.height * 0.27 : 0)
-                    .animation(.smooth(duration: 0.45), value: talking)
+                DojoSceneView(dojo: dojo) {
+                    // Everything is loaded and its shaders built: show the garden and let Kuro begin.
+                    withAnimation(.easeOut(duration: 0.6)) { ready = true }
+                    dojo.start()
                 }
                 .ignoresSafeArea()
                 .opacity(ready ? 1 : 0)
@@ -75,7 +66,6 @@ struct DojoView: View {
                 HStack(spacing: 10) {
                     mode(.feather, "wand.and.rays", String(localized: "Feather"))
                     mode(.treat, "fish", String(localized: "Treat"))
-                    action("bubble.left.and.text.bubble.right", String(localized: "Talk"), selected: false) { talking = true }
                 }
                 .padding(.horizontal, 12)
                 .padding(.top, 6)
@@ -84,13 +74,6 @@ struct DojoView: View {
             .foregroundStyle(Theme.ink)
         }
         .environment(\.colorScheme, .dark)
-        .sheet(isPresented: $talking, onDismiss: { dojo?.stopListening() }) {
-            DeepSeekChatView(bottomMenuVisible: false, onClose: { talking = false }, familiarName: name,
-                             onReply: { dojo?.speak() })
-                .presentationDetents([.medium, .large])
-                .presentationBackgroundInteraction(.enabled(upThrough: .medium))
-                .onAppear { dojo?.listen() }
-        }
         .onAppear {
             guard dojo == nil else { return }
             let state = store.familiar
@@ -181,7 +164,6 @@ struct DojoView: View {
         case .coming: String(localized: "\(name) is coming over.")
         case .purring: String(localized: "\(name) purrs and leans into your hand.")
         case .annoyed: String(localized: "\(name) has had enough and stalks off.")
-        case .listening: String(localized: "\(name) is listening.")
         }
     }
 }
