@@ -16,6 +16,7 @@ struct DojoView: View {
     @State private var talking = false
     @State private var player: AVAudioPlayer?
     @State private var hand = Dojo.Hand.look
+    @State private var ready = false
 
     var body: some View {
         ZStack {
@@ -23,11 +24,23 @@ struct DojoView: View {
             if let dojo {
                 // While you talk the garden slides up, so Kuro stays in view above the conversation.
                 GeometryReader { geometry in
-                    DojoSceneView(dojo: dojo)
-                        .offset(y: talking ? -geometry.size.height * 0.27 : 0)
-                        .animation(.smooth(duration: 0.45), value: talking)
+                    DojoSceneView(dojo: dojo) {
+                        // Everything is loaded and its shaders built: show the garden and let Kuro begin.
+                        withAnimation(.easeOut(duration: 0.6)) { ready = true }
+                        dojo.start()
+                        if opensChat { talking = true }
+                    }
+                    .offset(y: talking ? -geometry.size.height * 0.27 : 0)
+                    .animation(.smooth(duration: 0.45), value: talking)
                 }
                 .ignoresSafeArea()
+                .opacity(ready ? 1 : 0)
+            }
+            if !ready {
+                VStack(spacing: 14) {
+                    ProgressView().tint(.white)
+                    Text("\(name)’s garden is waking up…").font(.subheadline).foregroundStyle(.white.opacity(0.85))
+                }
             }
             VStack {
                 HStack {
@@ -81,12 +94,13 @@ struct DojoView: View {
         .onAppear {
             guard dojo == nil else { return }
             let state = store.familiar
-            let made = Dojo(stage: state.stage, mood: state.mood)
-            made.onActivity = { activity = $0 }
-            dojo = made
-            made.start()
             if musicOn { music(true) }
-            if opensChat { talking = true }
+            // The real trees and plants take a few seconds to load, so the garden is built off the main thread.
+            Task {
+                let made = await Task.detached(priority: .userInitiated) { Dojo(stage: state.stage, mood: state.mood) }.value
+                made.onActivity = { activity = $0 }
+                dojo = made
+            }
         }
         .onDisappear {
             dojo?.stop()
@@ -174,6 +188,7 @@ struct DojoView: View {
 
 private struct DojoSceneView: UIViewRepresentable {
     let dojo: Dojo
+    let onReady: () -> Void
 
     func makeUIView(context: Context) -> SCNView {
         let view = SCNView(frame: .zero)
@@ -195,6 +210,7 @@ private struct DojoSceneView: UIViewRepresentable {
             .forEach(view.addGestureRecognizer)
         coordinator.view = view
         coordinator.startClock()
+        view.prepare([dojo.scene]) { _ in DispatchQueue.main.async(execute: onReady) }
         return view
     }
 

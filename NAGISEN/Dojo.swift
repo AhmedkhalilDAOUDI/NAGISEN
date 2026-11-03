@@ -38,7 +38,7 @@ final class Dojo {
     private static let sunStone = SCNVector3(2.05, 0.06, 0.55)
     /// Rocks (x, z, radius) and trees (x, z, scale): drawn by the garden and walked around by Kuro.
     static let rocks: [(Float, Float, Float)] = [(-3.0, -2.0, 0.22), (-0.6, -2.8, 0.18), (-2.4, -3.2, 0.26), (-1.0, -1.7, 0.14), (2.6, -1.4, 0.3)]
-    static let trees: [(Float, Float, Float)] = [(-2.6, -1.0, 1.15), (2.4, -2.4, 1.0), (-0.4, -3.6, 0.85), (4.0, -0.8, 0.9)]
+    static let trees: [(Float, Float, Float)] = [(-3.3, -1.5, 1.1), (2.9, -2.9, 1.0), (-0.7, -4.0, 0.9), (4.1, -0.6, 1.0)]
     static let lanternSpot = SCNVector3(1.9, 0, -0.9)
     private static let flowerBeds = [SCNVector3(1.75, 0, -0.35), SCNVector3(-1.75, 0, 0.85), SCNVector3(2.4, 0, -1.7)]
     /// Where the camera stands and what it looks at; the painted sky is turned to match.
@@ -918,6 +918,19 @@ final class Dojo {
         return node
     }
 
+    /// A whole model stood upright (Poly Haven's are Z-up), scaled to `height` metres, its base at the origin.
+    static func upright(_ name: String, height: Float) -> SCNNode? {
+        guard let model = model(name) else { return nil }
+        model.eulerAngles.x = .init(-Float.pi / 2)
+        let holder = SCNNode()
+        holder.addChildNode(model)
+        let (low, high) = holder.boundingBox
+        let size = height / max(Float(high.y - low.y), 0.001)
+        holder.pivot = SCNMatrix4MakeTranslation((low.x + high.x) / 2, low.y, (low.z + high.z) / 2)
+        holder.scale = SCNVector3(size, size, size)
+        return holder
+    }
+
     /// The separate plants inside a model file (each pack holds several), each centred on its own base.
     static func variants(_ name: String) -> [SCNNode] {
         guard let pack = model(name) else { return [] }
@@ -984,7 +997,16 @@ final class Dojo {
             let stone = Ink.part(SCNCylinder(radius: 0.16, height: 0.04), Ink.colour(0x9A978F), surface: Ink.surface("rock", fallback: Ink.colour(0x9A978F)))
             add(stone, Float(x), 0.02, Float(z))
         }
-        for (x, z, size) in Dojo.trees { add(sakura(scale: size), x, 0, z) }
+        // Three cherries in bloom and one old green tree, real models; the painted ones are the fallback.
+        let blossom = Dojo.upright("sakura_tree", height: 3.2), evergreen = Dojo.upright("island_tree_02", height: 2.7)
+        for (index, (x, z, size)) in Dojo.trees.enumerated() {
+            if let tree = (index == 3 ? evergreen : blossom)?.clone() {
+                tree.scale = SCNVector3(Float(tree.scale.x) * size, Float(tree.scale.y) * size, Float(tree.scale.z) * size)
+                add(tree, x, 0, z, yaw: Float(index) * 1.7)
+            } else {
+                add(sakura(scale: size), x, 0, z)
+            }
+        }
         add(lantern(), Float(Dojo.lanternSpot.x), 0, Float(Dojo.lanternSpot.z))
         add(bridge(), -2.2, 0, -3.3, yaw: 0.3)
         stage.addChildNode(petals())

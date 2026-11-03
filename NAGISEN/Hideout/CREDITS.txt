@@ -2,3 +2,4 @@ Hideout assets: all from Poly Haven (polyhaven.com), released under CC0 (public 
 Sky: kloofendal_48d_partly_cloudy_puresky, tonemapped (Greg Zaal, Jarod Guest)
 Textures: tatami_mat, brown_planks_04, dark_wood, leafy_grass, mossy_rock, bark_willow
 Models: grass_medium_01, fern_02, dandelion_01, antique_katana_01
+Trees: jacaranda_tree (recoloured to cherry pink and slimmed) and island_tree_02 (slimmed), both CC0
