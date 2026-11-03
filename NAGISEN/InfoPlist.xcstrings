@@ -8,13 +8,13 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Scannez des codes-barres ou photographiez des emballages pour trouver les informations nutritionnelles."
+            "value": "Scannez des codes-barres, photographiez des emballages et prenez des photos et des vidéos pour vos cartes et vos publications."
           }
         },
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "امسح الباركود أو صوّر عبوات الطعام للعثور على المعلومات الغذائية."
+            "value": "امسح الباركود، وصوّر عبوات الطعام، والتقط صورًا ومقاطع فيديو لبطاقاتك ومنشوراتك."
           }
         }
       }
@@ -26,13 +26,13 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Utilisez votre voix pour rechercher un aliment sur cet iPhone."
+            "value": "Utilisez votre voix pour rechercher un aliment et enregistrez le son des vidéos que vous filmez dans NAGISEN."
           }
         },
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "استخدم صوتك للبحث عن الطعام على هذا الآيفون."
+            "value": "استخدم صوتك للبحث عن الطعام، وسجّل الصوت مع مقاطع الفيديو التي تصوّرها في NAGISEN."
           }
         }
       }

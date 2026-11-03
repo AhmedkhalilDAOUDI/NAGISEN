@@ -1,3 +1,4 @@
+import AVFoundation
 import XCTest
 import SwiftUI
 @testable import NAGISEN
@@ -178,5 +179,24 @@ final class PhotoEditorTests: XCTestCase {
         XCTAssertEqual(moved.maxX, 1, accuracy: 0.0001)
         XCTAssertEqual(moved.minY, 0, accuracy: 0.0001)
         XCTAssertEqual(moved.size, half.size)
+    }
+
+    func testEveryCardTrackShipsWithTheApp() {
+        for track in CardMusic.allCases { XCTAssertNotNil(track.url, track.rawValue) }
+    }
+
+    func testACardWithMusicBecomesAVideoOfTheCardWithSound() async throws {
+        let card = image(width: 1081, height: 1350)
+        let video = try await PostMedia.cardVideo(card, music: try XCTUnwrap(CardMusic.dusk.url))
+        defer { try? FileManager.default.removeItem(at: video) }
+        let asset = AVURLAsset(url: video)
+        let duration = try await asset.load(.duration).seconds
+        XCTAssertEqual(duration, PostMedia.cardVideoSeconds, accuracy: 0.1)
+        let picture = try await asset.loadTracks(withMediaType: .video)
+        XCTAssertEqual(picture.count, 1)
+        let size = try await XCTUnwrap(picture.first).load(.naturalSize)
+        XCTAssertEqual(size, CGSize(width: 1080, height: 1350), "even sides, same shape")
+        let sound = try await asset.loadTracks(withMediaType: .audio)
+        XCTAssertEqual(sound.count, 1)
     }
 }

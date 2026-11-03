@@ -1,3 +1,4 @@
+import AVFoundation
 import Photos
 import PhotosUI
 import SwiftUI
@@ -98,6 +99,9 @@ struct ShareCardSheet<Card: PhotoCard>: View {
     @State private var edits = PhotoEdits()
     @State private var adjusting = false
     @State private var picked: PhotosPickerItem?
+    @State private var choosingPhoto = false
+    @State private var showingCamera = false
+    @State private var editAfterCamera = false
     @State private var typing: CardText?
     @FocusState private var typingFocused: Bool
     @State private var showingData = false
@@ -109,6 +113,10 @@ struct ShareCardSheet<Card: PhotoCard>: View {
     @State private var failed = false
     @State private var saved = false
     @State private var saveFailed = false
+    @State private var music: CardMusic?
+    @State private var player: AVAudioPlayer?
+    @State private var making = false
+    @State private var videoFailed = false
 
     private static var dark: Color { Color(red: 0.035, green: 0.03, blue: 0.035) }
     private var size: CGSize { CardSize.of(photo) }
@@ -147,12 +155,21 @@ struct ShareCardSheet<Card: PhotoCard>: View {
             .onChange(of: picked) { _, item in
                 Task {
                     if let data = try? await item?.loadTransferable(type: Data.self), let image = UIImage(data: data) {
-                        original = image
-                        edits = PhotoEdits()
-                        photo = PhotoEditor.apply(edits, to: image)
+                        use(image)
                         adjusting = true
                     }
                 }
+            }
+            .photosPicker(isPresented: $choosingPhoto, selection: $picked, matching: .images)
+            .fullScreenCover(isPresented: $showingCamera, onDismiss: {
+                // The photo editor can only open once the camera has gone.
+                if editAfterCamera { editAfterCamera = false; adjusting = true }
+            }) {
+                Camera { shot in
+                    if let image = shot?.image { use(image); editAfterCamera = true }
+                    showingCamera = false
+                }
+                .ignoresSafeArea()
             }
             .fullScreenCover(isPresented: $adjusting) {
                 if let original {
@@ -167,13 +184,24 @@ struct ShareCardSheet<Card: PhotoCard>: View {
         .environment(\.colorScheme, .dark)
     }
 
+    /// A new photo always starts whole and untouched.
+    private func use(_ image: UIImage) {
+        original = image
+        edits = PhotoEdits()
+        photo = PhotoEditor.apply(edits, to: image)
+    }
+
     // MARK: Editor
 
     private var tools: some View {
         HStack(spacing: 2) {
             toolButton("xmark", String(localized: "Close")) { dismiss() }
             Spacer()
-            PhotosPicker(selection: $picked, matching: .images) { toolIcon("photo") }
+            Menu {
+                Button { showingCamera = true } label: { Label(String(localized: "Take a photo"), systemImage: "camera") }
+                Button { choosingPhoto = true } label: { Label(String(localized: "Choose from library"), systemImage: "photo.on.rectangle") }
+            } label: { toolIcon("photo") }
+                .buttonStyle(.plain)
                 .accessibilityLabel(photo == nil ? String(localized: "Add a photo") : String(localized: "Change photo"))
             if original != nil {
                 toolButton("slider.horizontal.3", String(localized: "Edit photo")) { adjusting = true }
@@ -413,15 +441,21 @@ struct ShareCardSheet<Card: PhotoCard>: View {
                         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                         .frame(maxHeight: 440)
                 }
+                musicRow
                 Button(action: save) {
-                    Label(saved ? String(localized: "Saved to Photos") : String(localized: "Save to Photos"),
-                          systemImage: saved ? "checkmark" : "arrow.down.to.line")
+                    Label(making ? String(localized: "Making the video…") : saved ? String(localized: "Saved to Photos") : String(localized: "Save to Photos"),
+                          systemImage: saved ? "checkmark" : music == nil ? "arrow.down.to.line" : "film")
                         .font(.subheadline.weight(.semibold))
                         .frame(maxWidth: .infinity, minHeight: 48)
                         .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Theme.ink.opacity(0.16), lineWidth: 0.5))
                         .foregroundStyle(saved ? Theme.accentText : Theme.ink)
                 }
                 .buttonStyle(.plain)
+                .disabled(making || posting)
+                if videoFailed {
+                    Text("The video couldn't be made. Try again, or choose No music.")
+                        .font(.caption).foregroundStyle(Theme.accentText)
+                }
                 if saveFailed {
                     Text("NAGISEN can't save to Photos. Allow it in iPhone Settings → NAGISEN → Photos.")
                         .font(.caption).foregroundStyle(Theme.accentText)
@@ -444,8 +478,10 @@ struct ShareCardSheet<Card: PhotoCard>: View {
             .padding(20)
         }
         .background(NagisenBackdrop())
+        .onAppear { preview(music) }
+        .onDisappear { preview(nil) }
         .nagisenSheetBar(String(localized: "Share"), closeSymbol: "chevron.left", onClose: { finishing = false },
-                         actionTitle: String(localized: "Post"), actionEnabled: feed.state == .ready && !posting,
+                         actionTitle: String(localized: "Post"), actionEnabled: feed.state == .ready && !posting && !making,
                          busy: posting) { post() }
     }
 
@@ -456,30 +492,125 @@ struct ShareCardSheet<Card: PhotoCard>: View {
         return renderer.uiImage
     }
 
+    private var musicRow: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("MUSIC").font(.caption2.weight(.semibold)).nagisenTracking(2).foregroundStyle(Theme.muted)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    musicChip(nil)
+                    ForEach(CardMusic.allCases) { musicChip($0) }
+                }
+            }
+            Text(music == nil ? String(localized: "Saves and posts as a photo.")
+                              : String(localized: "Saves and posts as a \(Int(PostMedia.cardVideoSeconds))-second video with this music."))
+                .font(.caption).foregroundStyle(Theme.muted)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func musicChip(_ choice: CardMusic?) -> some View {
+        Button {
+            music = choice
+            saved = false
+            videoFailed = false
+            preview(choice)
+        } label: {
+            Label(choice?.title ?? String(localized: "No music"), systemImage: choice == nil ? "speaker.slash" : "music.note")
+                .font(.subheadline)
+                .padding(.horizontal, 14).frame(height: 36)
+                .foregroundStyle(music == choice ? Theme.ink : Theme.muted)
+                .background(music == choice ? Theme.accent.opacity(0.35) : .clear, in: Capsule())
+                .overlay(Capsule().strokeBorder(Theme.ink.opacity(0.16), lineWidth: 0.5))
+        }
+        .buttonStyle(.plain)
+        .disabled(making || posting)
+        .accessibilityAddTraits(music == choice ? .isSelected : [])
+    }
+
+    /// Plays the chosen track on a loop while you decide; nil stops it and hands the sound back.
+    private func preview(_ choice: CardMusic?) {
+        player?.stop()
+        player = nil
+        let audio = AVAudioSession.sharedInstance()
+        guard let url = choice?.url else {
+            try? audio.setActive(false, options: .notifyOthersOnDeactivation)
+            return
+        }
+        try? audio.setCategory(.playback)
+        try? audio.setActive(true)
+        player = try? AVAudioPlayer(contentsOf: url)
+        player?.numberOfLoops = -1
+        player?.play()
+    }
+
+    /// The card as a video under the chosen music; nil with no music, or when making it failed (which says so).
+    private func video(of image: UIImage) async -> URL? {
+        guard let url = music?.url else { return nil }
+        making = true
+        defer { making = false }
+        do { return try await PostMedia.cardVideo(image, music: url) } catch { videoFailed = true; return nil }
+    }
+
     /// Keeps the finished card in the photo library, to post anywhere or just keep.
     private func save() {
         guard let image = finishedImage ?? finished else { return }
         saveFailed = false
-        PHPhotoLibrary.requestAuthorization(for: .addOnly) { status in
-            guard status == .authorized || status == .limited else {
-                Task { @MainActor in saveFailed = true }
-                return
-            }
-            PHPhotoLibrary.shared().performChanges({
-                PHAssetChangeRequest.creationRequestForAsset(from: image)
-            }) { success, _ in
-                Task { @MainActor in if success { saved = true } else { saveFailed = true } }
+        videoFailed = false
+        Task {
+            let video = await video(of: image)
+            if music != nil && video == nil { return }
+            defer { if let video { try? FileManager.default.removeItem(at: video) } }
+            let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
+            guard status == .authorized || status == .limited else { saveFailed = true; return }
+            do {
+                try await PHPhotoLibrary.shared().performChanges {
+                    if let video {
+                        PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: video)
+                    } else {
+                        PHAssetChangeRequest.creationRequestForAsset(from: image)
+                    }
+                }
+                saved = true
+            } catch {
+                saveFailed = true
             }
         }
     }
 
     private func post() {
-        guard let data = (finishedImage ?? finished)?.jpegData(compressionQuality: 0.9),
-              let attachment = try? PostMedia.photo(from: data) else { failed = true; return }
+        guard let image = finishedImage ?? finished else { failed = true; return }
+        failed = false
+        videoFailed = false
         posting = true
         Task {
+            defer { posting = false }
+            let attachment: PostAttachment?
+            if music != nil {
+                guard let video = await video(of: image) else { return }
+                defer { try? FileManager.default.removeItem(at: video) }
+                attachment = try? await PostMedia.video(at: video)
+            } else {
+                attachment = image.jpegData(compressionQuality: 0.9).flatMap { try? PostMedia.photo(from: $0) }
+            }
+            guard let attachment else { failed = true; return }
             if await feed.publish(caption, attachment: attachment) { dismiss() } else { failed = true }
-            posting = false
         }
     }
+}
+
+/// The app's own short tracks, made by tools/make_card_music.py, so a card can carry music it is free to use.
+enum CardMusic: String, CaseIterable, Identifiable {
+    case still, dusk, pulse
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .still: String(localized: "Still")
+        case .dusk: String(localized: "Dusk")
+        case .pulse: String(localized: "Pulse")
+        }
+    }
+
+    var url: URL? { Bundle.main.url(forResource: "card_\(rawValue)", withExtension: "m4a") }
 }

@@ -19,6 +19,7 @@ struct SocialFeedView: View {
     @State private var pickedItem: PhotosPickerItem?
     @State private var attachment: PostAttachment?
     @State private var preparingMedia = false
+    @State private var showingCamera = false
     @State private var mediaError: String?
     @State private var viewingMember: FeedMember?
     @State private var showingActivity = false
@@ -297,6 +298,13 @@ struct SocialFeedView: View {
             guard let item else { return }
             Task { await prepare(item) }
         }
+        .fullScreenCover(isPresented: $showingCamera) {
+            Camera(videos: true) { shot in
+                showingCamera = false
+                if let shot { Task { await prepare(shot) } }
+            }
+            .ignoresSafeArea()
+        }
     }
 
     @ViewBuilder
@@ -328,23 +336,36 @@ struct SocialFeedView: View {
                 Text("Preparing…").font(.subheadline).foregroundStyle(Theme.muted)
             }
         } else {
-            PhotosPicker(selection: $pickedItem, matching: .any(of: [.images, .videos])) {
-                HStack(spacing: 14) {
-                    Image(systemName: "photo.on.rectangle.angled")
+            HStack(spacing: 10) {
+                PhotosPicker(selection: $pickedItem, matching: .any(of: [.images, .videos])) {
+                    HStack(spacing: 14) {
+                        Image(systemName: "photo.on.rectangle.angled")
+                            .font(.system(size: 18, weight: .light))
+                            .foregroundStyle(Theme.accentText)
+                            .frame(width: 44, height: 44)
+                            .overlay(Circle().strokeBorder(Theme.accentText.opacity(0.35), lineWidth: 0.5))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Add a photo or video").font(.subheadline.weight(.medium)).foregroundStyle(Theme.ink)
+                            Text("One photo, or a video up to 60 seconds").font(.caption).foregroundStyle(Theme.muted)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .padding(14)
+                    .nagisenPanel(cornerRadius: 18)
+                }
+                .buttonStyle(.plain)
+                Button { showingCamera = true } label: {
+                    Image(systemName: "camera")
                         .font(.system(size: 18, weight: .light))
                         .foregroundStyle(Theme.accentText)
-                        .frame(width: 44, height: 44)
-                        .overlay(Circle().strokeBorder(Theme.accentText.opacity(0.35), lineWidth: 0.5))
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Add a photo or video").font(.subheadline.weight(.medium)).foregroundStyle(Theme.ink)
-                        Text("One photo, or a video up to 60 seconds").font(.caption).foregroundStyle(Theme.muted)
-                    }
-                    Spacer(minLength: 0)
+                        .frame(width: 64)
+                        .frame(maxHeight: .infinity)
+                        .nagisenPanel(cornerRadius: 18)
                 }
-                .padding(14)
-                .nagisenPanel(cornerRadius: 18)
+                .buttonStyle(.plain)
+                .accessibilityLabel("Take a photo or video")
             }
-            .buttonStyle(.plain)
+            .fixedSize(horizontal: false, vertical: true)
         }
         if let mediaError {
             Text(mediaError).font(.caption).foregroundStyle(Theme.accentText)
@@ -384,6 +405,17 @@ struct SocialFeedView: View {
                 }
                 attachment = try PostMedia.photo(from: data)
             }
+        } catch {
+            mediaError = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    private func prepare(_ shot: Camera.Shot) async {
+        preparingMedia = true
+        mediaError = nil
+        defer { preparingMedia = false }
+        do {
+            attachment = try await PostMedia.attachment(from: shot)
         } catch {
             mediaError = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }

@@ -8,6 +8,8 @@ struct StoriesBar: View {
     @State private var opening: StoryStart?
     @State private var picked: PhotosPickerItem?
     @State private var preparing = false
+    @State private var choosing = false
+    @State private var showingCamera = false
 
     struct StoryStart: Identifiable { let index: Int; var id: Int { index } }
 
@@ -46,11 +48,9 @@ struct StoriesBar: View {
                 }
                 .buttonStyle(.plain)
             } else {
-                PhotosPicker(selection: $picked, matching: .any(of: [.images, .videos])) {
-                    circle(me, unseen: false, label: String(localized: "Your story"))
-                }
+                addMenu { circle(me, unseen: false, label: String(localized: "Your story")) }
             }
-            PhotosPicker(selection: $picked, matching: .any(of: [.images, .videos])) {
+            addMenu {
                 Group {
                     if preparing || feed.isBusy {
                         ProgressView().controlSize(.mini)
@@ -65,6 +65,22 @@ struct StoriesBar: View {
             .offset(x: -4, y: -20)
             .accessibilityLabel("Add to your story")
         }
+        .photosPicker(isPresented: $choosing, selection: $picked, matching: .any(of: [.images, .videos]))
+        .fullScreenCover(isPresented: $showingCamera) {
+            Camera(videos: true) { shot in
+                showingCamera = false
+                if let shot { Task { await post(shot) } }
+            }
+            .ignoresSafeArea()
+        }
+    }
+
+    private func addMenu<Label: View>(@ViewBuilder label: () -> Label) -> some View {
+        Menu {
+            Button { showingCamera = true } label: { SwiftUI.Label("Take a photo or video", systemImage: "camera") }
+            Button { choosing = true } label: { SwiftUI.Label("Choose from library", systemImage: "photo.on.rectangle") }
+        } label: { label() }
+            .buttonStyle(.plain)
     }
 
     private func circle(_ member: FeedMember?, unseen: Bool, label: String) -> some View {
@@ -97,12 +113,26 @@ struct StoriesBar: View {
                 guard let data = try await item.loadTransferable(type: Data.self) else { throw PostMediaError.unreadable }
                 attachment = try PostMedia.photo(from: data)
             }
-            _ = await feed.addStory(attachment)
-            try? FileManager.default.removeItem(at: attachment.fileURL)
-            if let poster = attachment.posterURL { try? FileManager.default.removeItem(at: poster) }
+            await addStory(attachment)
         } catch {
             feed.message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
+    }
+
+    private func post(_ shot: Camera.Shot) async {
+        preparing = true
+        defer { preparing = false }
+        do {
+            await addStory(try await PostMedia.attachment(from: shot))
+        } catch {
+            feed.message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    private func addStory(_ attachment: PostAttachment) async {
+        _ = await feed.addStory(attachment)
+        try? FileManager.default.removeItem(at: attachment.fileURL)
+        if let poster = attachment.posterURL { try? FileManager.default.removeItem(at: poster) }
     }
 }
 

@@ -58,9 +58,9 @@ struct ReceiptPriceView: View {
                              actionEnabled: !rows.filter { $0.include && $0.food != nil && $0.price != nil }.isEmpty,
                              onAction: save)
             .sheet(isPresented: $showingCamera) {
-                ReceiptCamera { image in
+                Camera { shot in
                     showingCamera = false
-                    if let image { read(image) }
+                    if let image = shot?.image { read(image) }
                 }
                 .ignoresSafeArea()
             }
@@ -275,37 +275,5 @@ struct ReceiptPriceView: View {
             store.setPrice(price, for: food)
         }
         dismiss()
-    }
-}
-
-/// Minimal camera sheet: a receipt is a physical thing, so the camera has to be one tap away.
-struct ReceiptCamera: UIViewControllerRepresentable {
-    let onImage: (UIImage?) -> Void
-    @Environment(\.dismiss) private var dismiss
-
-    func makeUIViewController(context: Context) -> UIImagePickerController {
-        let picker = UIImagePickerController()
-        picker.sourceType = UIImagePickerController.isSourceTypeAvailable(.camera) ? .camera : .photoLibrary
-        picker.delegate = context.coordinator
-        return picker
-    }
-
-    func updateUIViewController(_ controller: UIImagePickerController, context: Context) {}
-
-    func makeCoordinator() -> Coordinator { Coordinator(self) }
-
-    final class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
-        private let parent: ReceiptCamera
-
-        init(_ parent: ReceiptCamera) { self.parent = parent }
-
-        func imagePickerController(_ picker: UIImagePickerController,
-                                   didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
-            parent.onImage(info[.originalImage] as? UIImage)
-        }
-
-        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
-            parent.onImage(nil)
-        }
     }
 }
